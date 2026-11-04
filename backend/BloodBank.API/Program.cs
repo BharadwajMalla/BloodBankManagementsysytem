@@ -162,27 +162,30 @@ app.UseAuthorization();
 
 app.MapGet("/api/health", async (ApplicationDbContext db) =>
 {
+    string? connectionError = null;
+    bool canConnect = false;
+    int userCount = -1;
+
     try
     {
-        var canConnect = await db.Database.CanConnectAsync();
-        var userCount = canConnect ? await db.Users.CountAsync() : -1;
-        return Results.Ok(new
-        {
-            status = "Healthy",
-            databaseConnected = canConnect,
-            userCount = userCount,
-            serverUtc = DateTime.UtcNow
-        });
+        using var conn = db.Database.GetDbConnection();
+        await conn.OpenAsync();
+        canConnect = true;
+        userCount = await db.Users.CountAsync();
     }
     catch (Exception ex)
     {
-        return Results.Json(new
-        {
-            status = "Unhealthy",
-            error = ex.Message,
-            inner = ex.InnerException?.Message
-        }, statusCode: 500);
+        connectionError = $"{ex.GetType().Name}: {ex.Message}" + (ex.InnerException != null ? $" | Inner: {ex.InnerException.Message}" : "");
     }
+
+    return Results.Ok(new
+    {
+        status = canConnect ? "Healthy" : "Degraded",
+        databaseConnected = canConnect,
+        userCount = userCount,
+        connectionError = connectionError,
+        serverUtc = DateTime.UtcNow
+    });
 }).AllowAnonymous();
 
 app.MapControllers();
