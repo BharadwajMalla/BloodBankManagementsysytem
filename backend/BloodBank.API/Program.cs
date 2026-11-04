@@ -1,5 +1,4 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -7,11 +6,11 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using BloodBank.API.Data;
-using BloodBank.API.Services;
 using BloodBank.API.Repositories;
+using BloodBank.API.Services;
 
 // 1. MUST EXECUTE BEFORE BUILDER INITIALIZATION:
-// Disable legacy claim mapping; role claims are normalized explicitly below.
+// Disables ASP.NET Core legacy WS-Federation/Identity claim mapping so 'role' remains 'role'
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,17 +32,17 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
 });
 
-// 3. Register repositories and domain services
+// 3. Register Domain Services & Repositories
 builder.Services.AddScoped<IBloodBankRepository, EfBloodBankRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBloodBankService, BloodBankService>();
-builder.Services.AddScoped<IHospitalService, HospitalService>();
 builder.Services.AddScoped<IDonorService, DonorService>();
+builder.Services.AddScoped<IHospitalService, HospitalService>();
 builder.Services.AddScoped<IBloodInventoryService, BloodInventoryService>();
 
 // 4. Authentication & Security Configuration
 var jwtKey = builder.Configuration["Jwt:Key"] 
-    ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+    ?? "SuperSecretProductionKey_BloodBankA_2026_LiveKey_FreeDeployment!";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BloodBankSaaS";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BloodBankClient";
 
@@ -56,7 +55,6 @@ builder.Services.AddAuthentication(options =>
 {
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
-    options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
@@ -67,27 +65,12 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtAudience,
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero,
-        RoleClaimType = ClaimTypes.Role,
+        RoleClaimType = "role",
         NameClaimType = "name"
     };
 
     options.Events = new JwtBearerEvents
     {
-        OnTokenValidated = context =>
-        {
-            if (context.Principal?.Identity is ClaimsIdentity identity)
-            {
-                foreach (var role in identity.FindAll("role").ToList())
-                {
-                    if (!identity.HasClaim(ClaimTypes.Role, role.Value))
-                    {
-                        identity.AddClaim(new Claim(ClaimTypes.Role, role.Value));
-                    }
-                }
-            }
-
-            return Task.CompletedTask;
-        },
         OnAuthenticationFailed = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
@@ -99,20 +82,33 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// 5. CORS Configuration (Allows Angular Frontend)
+// 5. CORS Configuration (Allows Localhost, Vercel Production & Previews)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontendApp", policy =>
     {
-        policy.WithOrigins("http://localhost:4200", "https://localhost:4200")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy.SetIsOriginAllowed(origin =>
+        {
+            if (string.IsNullOrEmpty(origin)) return false;
+            var uri = new Uri(origin);
+            return uri.Host == "localhost" 
+                || uri.Host.EndsWith("vercel.app") 
+                || uri.Host.EndsWith("onrender.com");
+        })
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
     });
 });
 
 // 6. Controllers & API Configuration
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.NumberHandling = 
+            System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
+    });
+
 builder.Services.AddEndpointsApiExplorer();
 
 // 7. Swagger/OpenAPI Configuration with OpenApiSecuritySchemeReference("Bearer", document)
@@ -147,15 +143,12 @@ var app = builder.Build();
 await DbInitializer.InitializeAsync(app.Services, app.Logger);
 
 // 9. HTTP Request Pipeline Configuration
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Blood Bank A API v1");
-        c.RoutePrefix = "swagger";
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Blood Bank A API v1");
+    c.RoutePrefix = "swagger";
+});
 
 app.UseHttpsRedirection();
 
