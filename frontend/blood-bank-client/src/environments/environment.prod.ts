@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.bloodbank-saas.com/api'
+  apiUrl: 'https://bloodbankmanagementsysytem.onrender.com/api'
 };
