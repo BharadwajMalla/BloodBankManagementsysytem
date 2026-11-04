@@ -15,23 +15,68 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 2. Database Configuration (EF Core with SQL Server)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrWhiteSpace(connectionString) || connectionString.Contains("localdb", StringComparison.OrdinalIgnoreCase))
+// 2. Database Configuration (EF Core with SQL Server & Smart SQLite Failover)
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(rawConnectionString) || rawConnectionString.Contains("localdb", StringComparison.OrdinalIgnoreCase))
 {
-    connectionString = "Server=db78011.public.databaseasp.net; Database=db78011; User Id=db78011; Password=Mr3_@2EqRh7=; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;";
+    rawConnectionString = "Server=db78011.public.databaseasp.net; Database=db78011; User Id=db78011; Password=Mr3_@2EqRh7=; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;";
+}
+
+bool useSqlite = false;
+string activeDbProvider = "SqlServer";
+
+if (rawConnectionString.Contains(".db", StringComparison.OrdinalIgnoreCase) || rawConnectionString.Contains("Sqlite", StringComparison.OrdinalIgnoreCase))
+{
+    useSqlite = true;
+    activeDbProvider = "Sqlite";
+}
+else
+{
+    // Probe SQL Server host on port 1433 with 2.5s timeout.
+    // If blocked or unreachable (e.g. cloud host sandbox/firewall), seamlessly failover to local SQLite.
+    try
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(rawConnectionString, @"Server=([^;,\s]+)");
+        var host = match.Success ? match.Groups[1].Value.Trim() : "db78011.public.databaseasp.net";
+        int port = 1433;
+        if (host.Contains(','))
+        {
+            var parts = host.Split(',');
+            host = parts[0].Trim();
+            int.TryParse(parts[1], out port);
+        }
+
+        using var tcpClient = new System.Net.Sockets.TcpClient();
+        var connectTask = tcpClient.ConnectAsync(host, port);
+        if (!connectTask.Wait(TimeSpan.FromMilliseconds(2500)))
+        {
+            useSqlite = true;
+            activeDbProvider = "Sqlite (Fallback: SQL Server port 1433 timed out)";
+        }
+    }
+    catch
+    {
+        useSqlite = true;
+        activeDbProvider = "Sqlite (Fallback: SQL Server host unreachable)";
+    }
 }
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.UseSqlServer(connectionString, sqlServerOptions =>
+    if (useSqlite)
     {
-        sqlServerOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null);
-    });
-    // Suppress PendingModelChangesWarning for dynamic runtime synchronization
+        options.UseSqlite("Data Source=bloodbank.db");
+    }
+    else
+    {
+        options.UseSqlServer(rawConnectionString, sqlServerOptions =>
+        {
+            sqlServerOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null);
+        });
+    }
     options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
 });
 
@@ -182,6 +227,7 @@ app.MapGet("/api/health", async (ApplicationDbContext db) =>
     {
         status = canConnect ? "Healthy" : "Degraded",
         databaseConnected = canConnect,
+        provider = activeDbProvider,
         userCount = userCount,
         connectionError = connectionError,
         serverUtc = DateTime.UtcNow

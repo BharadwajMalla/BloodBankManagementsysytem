@@ -21,6 +21,8 @@ public class ApplicationDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        var isSqlite = Database.IsSqlite();
+        var utcNowSql = isSqlite ? "CURRENT_TIMESTAMP" : "GETUTCDATE()";
 
         // User Configuration
         modelBuilder.Entity<User>(entity =>
@@ -31,7 +33,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Email).IsRequired().HasMaxLength(200);
             entity.Property(e => e.PasswordHash).IsRequired();
             entity.Property(e => e.Role).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql(utcNowSql);
         });
 
         // BloodStock Configuration (Blood Bank A)
@@ -41,7 +43,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
             entity.Property(e => e.ComponentType).IsRequired().HasMaxLength(50);
             entity.Property(e => e.BloodBankName).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.LastUpdated).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(e => e.LastUpdated).HasDefaultValueSql(utcNowSql);
             entity.HasIndex(e => new { e.BloodGroup, e.ComponentType, e.BloodBankName }).IsUnique();
         });
 
@@ -52,7 +54,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
             entity.Property(e => e.ComponentType).IsRequired().HasMaxLength(50);
             entity.HasIndex(e => e.BagNumber).IsUnique();
-            entity.Property(e => e.AddedDate).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(e => e.AddedDate).HasDefaultValueSql(utcNowSql);
             entity.HasIndex(e => new { e.BloodGroup, e.ComponentType, e.IsIssued, e.AddedDate });
         });
 
@@ -62,7 +64,7 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
             entity.Property(e => e.BloodBankName).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.LastUpdated).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(e => e.LastUpdated).HasDefaultValueSql(utcNowSql);
         });
 
         // DonationCamp Configuration
@@ -83,7 +85,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
             entity.Property(e => e.ComponentType).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Status).HasMaxLength(30).HasDefaultValue("Pending");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql(utcNowSql);
             entity.Property(e => e.HospitalName).HasMaxLength(150);
             entity.Property(e => e.IssuedBagNumbers).HasMaxLength(2000);
         });
@@ -94,7 +96,7 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.DonorName).IsRequired().HasMaxLength(150);
             entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
-            entity.Property(e => e.DonationDate).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(e => e.DonationDate).HasDefaultValueSql(utcNowSql);
         });
     }
 }

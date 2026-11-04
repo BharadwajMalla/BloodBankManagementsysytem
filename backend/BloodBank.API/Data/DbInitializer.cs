@@ -14,8 +14,8 @@ public static class DbInitializer
         {
             logger.LogInformation("Synchronizing Blood Bank A database schema...");
 
-            // 1. Ensure basic schema is migrated
-            if (context.Database.IsRelational())
+            // 1. Ensure basic schema is migrated (SQL Server uses Migrations & raw DDL, SQLite uses EnsureCreated)
+            if (context.Database.IsSqlServer())
             {
                 try
                 {
