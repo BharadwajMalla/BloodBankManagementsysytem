@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "outputDirectory": "dist/blood-bank-client/browser",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
