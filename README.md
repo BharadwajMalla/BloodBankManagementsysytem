@@ -70,24 +70,3 @@ The application includes 1-click login buttons on the login screen with these pr
 | **Donor** | `john.donor@gmail.com` | `Donor@123` | Request blood/components, track requests, view camps |
 
 ---
-
-## 🚀 How to Run the Updated Application
-
-### 1. Restart Backend (.NET 10 API)
-If the backend is already running in your PowerShell terminal, stop it with **`Ctrl+C`**, then re-run:
-
-```powershell
-cd C:\Users\Deepika\.gemini\antigravity\scratch\BloodBankSaaS\backend\BloodBank.API
-dotnet run
-```
-- Swagger UI available at: `http://localhost:5105/swagger` (displays all 3 controllers: `BloodBank`, `Donor`, `Hospital`).
-
-### 2. Run Frontend (Angular Standalone + Tailwind CSS)
-In a second terminal window:
-
-```powershell
-cd C:\Users\Deepika\.gemini\antigravity\scratch\BloodBankSaaS\frontend\blood-bank-client
-npm.cmd install
-npm.cmd start
-```
-- Open `http://localhost:4200` to access the portal.
