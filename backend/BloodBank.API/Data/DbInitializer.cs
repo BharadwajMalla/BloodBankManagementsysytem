@@ -28,6 +28,23 @@ public static class DbInitializer
 
                 // 2. Execute idempotent DDL to ensure all new Blood Bank A tables and columns exist
                 await context.Database.ExecuteSqlRawAsync(@"
+                    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Users')
+                    BEGIN
+                        CREATE TABLE [Users] (
+                            [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                            [FullName] nvarchar(150) NOT NULL,
+                            [Email] nvarchar(200) NOT NULL,
+                            [PasswordHash] nvarchar(max) NOT NULL,
+                            [Role] nvarchar(50) NOT NULL,
+                            [Phone] nvarchar(20) NULL,
+                            [BloodGroup] nvarchar(10) NULL,
+                            [HospitalName] nvarchar(150) NULL,
+                            [HospitalRegNumber] nvarchar(50) NULL,
+                            [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE()
+                        );
+                        CREATE UNIQUE INDEX [IX_Users_Email] ON [Users] ([Email]);
+                    END
+
                     IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'BloodStocks')
                     BEGIN
                         CREATE TABLE [BloodStocks] (
@@ -39,6 +56,17 @@ public static class DbInitializer
                             [LastUpdated] datetime2 NOT NULL DEFAULT GETUTCDATE()
                         );
                         CREATE UNIQUE INDEX [IX_BloodStocks_BloodGroup_ComponentType_BloodBankName] ON [BloodStocks] ([BloodGroup], [ComponentType], [BloodBankName]);
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'BloodInventories')
+                    BEGIN
+                        CREATE TABLE [BloodInventories] (
+                            [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                            [BloodGroup] nvarchar(10) NOT NULL,
+                            [QuantityUnits] int NOT NULL DEFAULT 0,
+                            [BloodBankName] nvarchar(200) NOT NULL DEFAULT 'Blood Bank A',
+                            [LastUpdated] datetime2 NOT NULL DEFAULT GETUTCDATE()
+                        );
                     END
 
                     IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'BloodBags')
