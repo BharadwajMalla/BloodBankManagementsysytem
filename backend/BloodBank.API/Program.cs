@@ -48,7 +48,7 @@ else
 
         using var tcpClient = new System.Net.Sockets.TcpClient();
         var connectTask = tcpClient.ConnectAsync(host, port);
-        if (!connectTask.Wait(TimeSpan.FromMilliseconds(2500)))
+        if (!connectTask.Wait(TimeSpan.FromSeconds(5)))
         {
             useSqlite = true;
             activeDbProvider = "Sqlite (Fallback: SQL Server port 1433 timed out)";
