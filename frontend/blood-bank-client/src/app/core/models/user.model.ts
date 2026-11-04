@@ -1,0 +1,35 @@
+export type UserRole = 'BloodBank' | 'Donor' | 'Hospital' | 'Admin';
+
+export interface User {
+  id: string;
+  fullName: string;
+  email: string;
+  role: UserRole;
+  phone?: string;
+  bloodGroup?: string;
+  hospitalName?: string;
+  hospitalRegNumber?: string;
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+  expiresAt: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  fullName: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  phone?: string;
+  bloodGroup?: string;
+  hospitalName?: string;
+  hospitalRegNumber?: string;
+}

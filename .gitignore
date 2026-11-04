@@ -1,0 +1,30 @@
+# .NET build output
+**/bin/
+**/obj/
+
+# Angular dependencies and build output
+**/node_modules/
+**/dist/
+.angular/
+
+# Local tooling and editor files
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+*.user
+*.suo
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+**/appsettings.Production.json
+
+# Logs and local databases
+*.log
+*.db
+*.sqlite
+*.sqlite3
