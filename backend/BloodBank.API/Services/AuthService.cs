@@ -53,6 +53,7 @@ public class AuthService : IAuthService
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(ClaimTypes.Name, user.FullName),
             new("name", user.FullName),
+            new(ClaimTypes.Role, user.Role),
             new("role", user.Role)
         };
 

@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -103,6 +104,7 @@ builder.Services.AddAuthentication(options =>
 {
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
+    options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
@@ -119,6 +121,26 @@ builder.Services.AddAuthentication(options =>
 
     options.Events = new JwtBearerEvents
     {
+        OnTokenValidated = context =>
+        {
+            if (context.Principal?.Identity is ClaimsIdentity identity)
+            {
+                var role = identity.FindFirst("role")?.Value 
+                    ?? identity.FindFirst(ClaimTypes.Role)?.Value 
+                    ?? identity.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value;
+
+                if (!string.IsNullOrEmpty(role))
+                {
+                    if (!identity.HasClaim(c => c.Type == "role"))
+                        identity.AddClaim(new Claim("role", role));
+                    if (!identity.HasClaim(c => c.Type == ClaimTypes.Role))
+                        identity.AddClaim(new Claim(ClaimTypes.Role, role));
+                    if (!identity.HasClaim(c => c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"))
+                        identity.AddClaim(new Claim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", role));
+                }
+            }
+            return Task.CompletedTask;
+        },
         OnAuthenticationFailed = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
