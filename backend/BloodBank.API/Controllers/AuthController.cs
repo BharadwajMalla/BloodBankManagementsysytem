@@ -45,7 +45,10 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Registration failed for {Email}", dto.Email);
-            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Registration failed." });
+            return StatusCode(StatusCodes.Status500InternalServerError, new { 
+                message = "Registration failed: " + ex.Message,
+                detail = ex.InnerException?.Message 
+            });
         }
     }
 
@@ -76,7 +79,10 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Login failed for {Email}", dto.Email);
-            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Authentication failed." });
+            return StatusCode(StatusCodes.Status500InternalServerError, new { 
+                message = "Authentication failed: " + ex.Message,
+                detail = ex.InnerException?.Message 
+            });
         }
     }
 }

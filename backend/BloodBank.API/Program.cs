@@ -16,8 +16,11 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 var builder = WebApplication.CreateBuilder(args);
 
 // 2. Database Configuration (EF Core with SQL Server)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString) || connectionString.Contains("localdb", StringComparison.OrdinalIgnoreCase))
+{
+    connectionString = "Server=db78011.public.databaseasp.net; Database=db78011; User Id=db78011; Password=Mr3_@2EqRh7=; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;";
+}
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
@@ -156,6 +159,31 @@ app.UseCors("AllowFrontendApp");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/api/health", async (ApplicationDbContext db) =>
+{
+    try
+    {
+        var canConnect = await db.Database.CanConnectAsync();
+        var userCount = canConnect ? await db.Users.CountAsync() : -1;
+        return Results.Ok(new
+        {
+            status = "Healthy",
+            databaseConnected = canConnect,
+            userCount = userCount,
+            serverUtc = DateTime.UtcNow
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new
+        {
+            status = "Unhealthy",
+            error = ex.Message,
+            inner = ex.InnerException?.Message
+        }, statusCode: 500);
+    }
+}).AllowAnonymous();
 
 app.MapControllers();
 
