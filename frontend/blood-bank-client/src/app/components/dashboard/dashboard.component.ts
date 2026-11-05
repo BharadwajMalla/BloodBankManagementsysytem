@@ -119,14 +119,25 @@ import { BloodBag, BloodGroup, BloodRequest, BloodStock, ComponentType, Donation
                   <h2 class="text-xl font-black text-slate-900">Blood Bank A Stock Levels</h2>
                   <p class="text-xs text-slate-500">Select a component to view its blood groups and available units</p>
                 </div>
-                <button
-                  type="button"
-                  (click)="openAddStockModal()"
-                  class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/20 transition-all flex items-center space-x-1.5 self-start"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                  <span>Replenish / Add Units</span>
-                </button>
+                <div class="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    (click)="confirmClearAllData()"
+                    [disabled]="isClearing"
+                    class="px-3.5 py-2.5 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 font-bold rounded-xl text-xs border border-slate-200 hover:border-red-200 transition-all flex items-center space-x-1.5 disabled:opacity-50"
+                  >
+                    <svg class="w-4 h-4 text-slate-500 hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    <span>{{ isClearing ? 'Clearing...' : 'Clear All Data (Wipe to Empty)' }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    (click)="openAddStockModal()"
+                    class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/20 transition-all flex items-center space-x-1.5"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    <span>Replenish / Add Units</span>
+                  </button>
+                </div>
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -929,14 +940,36 @@ import { BloodBag, BloodGroup, BloodRequest, BloodStock, ComponentType, Donation
       }
     </div>
 
-    <!-- ADD STOCK MODAL (Blood Bank A only) -->
+    <!-- ADD / REPLENISH STOCK MODAL (Blood Bank A only) -->
     @if (showAddStockModal) {
       <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100">
           <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 class="text-lg font-bold text-slate-900">Add One Blood Bag</h3>
+            <h3 class="text-lg font-bold text-slate-900">
+              {{ stockModalMode === 'replenish' ? 'Replenish Blood Bank A Units' : 'Add Blood Bag Barcode' }}
+            </h3>
             <button type="button" (click)="showAddStockModal = false" class="text-slate-400 hover:text-slate-600">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          <!-- Mode Toggle -->
+          <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold">
+            <button
+              type="button"
+              (click)="stockModalMode = 'replenish'"
+              [ngClass]="stockModalMode === 'replenish' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+              class="flex-1 py-1.5 rounded-lg transition-all text-center"
+            >
+              Replenish Units
+            </button>
+            <button
+              type="button"
+              (click)="stockModalMode = 'bag'"
+              [ngClass]="stockModalMode === 'bag' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+              class="flex-1 py-1.5 rounded-lg transition-all text-center"
+            >
+              Add Single Bag
             </button>
           </div>
 
@@ -947,39 +980,73 @@ import { BloodBag, BloodGroup, BloodRequest, BloodStock, ComponentType, Donation
             </div>
           }
 
-          <form [formGroup]="addStockForm" (ngSubmit)="submitAddStock()" class="space-y-4">
-            <div>
-              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Blood Bag Number</label>
-              <input type="text" formControlName="bagNumber" placeholder="e.g. BAG-2026-0001" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold"/>
-            </div>
-            <div>
-              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Blood Group</label>
-              <select formControlName="bloodGroup" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
-                @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Component Type</label>
-              <select formControlName="componentType" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
-                @for (comp of componentTypes; track comp) { <option [value]="comp">{{ comp }}</option> }
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Date Added</label>
-              <input type="date" formControlName="addedDate" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
-            </div>
-            <div class="flex items-center justify-end space-x-2 pt-2">
-              <button type="button" (click)="showAddStockModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
-              <button type="submit" [disabled]="isAddingStock || addStockForm.invalid" class="px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md disabled:opacity-50 flex items-center space-x-1.5">
-                @if (isAddingStock) {
-                  <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  <span>Adding Bag...</span>
-                } @else {
-                  <span>Add Blood Bag</span>
-                }
-              </button>
-            </div>
-          </form>
+          @if (stockModalMode === 'replenish') {
+            <!-- REPLENISH FORM -->
+            <form [formGroup]="replenishStockForm" (ngSubmit)="submitReplenishStock()" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Blood Group</label>
+                <select formControlName="bloodGroup" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 bg-white">
+                  @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Component Type</label>
+                <select formControlName="componentType" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-900 bg-white">
+                  @for (comp of componentTypes; track comp) { <option [value]="comp">{{ comp }}</option> }
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Quantity Units</label>
+                <input type="number" min="1" max="10000" formControlName="quantityUnits" placeholder="e.g. 10" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-900"/>
+              </div>
+              <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button type="button" (click)="showAddStockModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100 transition-colors">Cancel</button>
+                <button type="submit" [disabled]="isAddingStock || replenishStockForm.invalid" class="px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md disabled:opacity-50 flex items-center space-x-1.5 transition-all">
+                  @if (isAddingStock) {
+                    <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>Adding to Depository...</span>
+                  } @else {
+                    <span>Add to Depository</span>
+                  }
+                </button>
+              </div>
+            </form>
+          } @else {
+            <!-- SINGLE BAG FORM -->
+            <form [formGroup]="addStockForm" (ngSubmit)="submitAddStock()" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Blood Bag Number</label>
+                <input type="text" formControlName="bagNumber" placeholder="e.g. BAG-2026-0001" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold"/>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Blood Group</label>
+                <select formControlName="bloodGroup" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
+                  @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Component Type</label>
+                <select formControlName="componentType" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                  @for (comp of componentTypes; track comp) { <option [value]="comp">{{ comp }}</option> }
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Date Added</label>
+                <input type="date" formControlName="addedDate" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+              <div class="flex items-center justify-end space-x-2 pt-2">
+                <button type="button" (click)="showAddStockModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
+                <button type="submit" [disabled]="isAddingStock || addStockForm.invalid" class="px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md disabled:opacity-50 flex items-center space-x-1.5">
+                  @if (isAddingStock) {
+                    <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>Adding Bag...</span>
+                  } @else {
+                    <span>Add Blood Bag</span>
+                  }
+                </button>
+              </div>
+            </form>
+          }
         </div>
       </div>
     }
@@ -1033,7 +1100,9 @@ export class DashboardComponent implements OnInit {
   // Modal States
   public showAddStockModal = false;
   public showCreateCampModal = false;
+  public stockModalMode: 'replenish' | 'bag' = 'replenish';
   public isAddingStock = false;
+  public isClearing = false;
   public addStockError: string | null = null;
   public hospitalSubmitSuccess = false;
   public donorSubmitSuccess = false;
@@ -1116,6 +1185,12 @@ export class DashboardComponent implements OnInit {
     bloodGroup: ['O-', [Validators.required]],
     componentType: ['Whole Blood', [Validators.required]],
     addedDate: [new Date().toISOString().substring(0, 10), [Validators.required]]
+  });
+
+  public replenishStockForm: FormGroup = this.fb.group({
+    bloodGroup: ['O-', [Validators.required]],
+    componentType: ['Whole Blood', [Validators.required]],
+    quantityUnits: [10, [Validators.required, Validators.min(1), Validators.max(10000)]]
   });
 
   public createCampForm: FormGroup = this.fb.group({
@@ -1210,9 +1285,61 @@ export class DashboardComponent implements OnInit {
   public openAddStockModal(component: ComponentType = this.selectedStockComponent()): void {
     this.showIssuedComponents.set(false);
     this.selectedStockComponent.set(component);
-    this.addStockForm.patchValue({ componentType: component });
+    this.stockModalMode = 'replenish';
+    this.replenishStockForm.patchValue({ componentType: component, bloodGroup: 'O-', quantityUnits: 10 });
+    this.addStockForm.patchValue({
+      componentType: component,
+      bloodGroup: 'O-',
+      bagNumber: `BAG-${new Date().toISOString().substring(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`
+    });
     this.addStockError = null;
     this.showAddStockModal = true;
+  }
+
+  public submitReplenishStock(): void {
+    if (this.replenishStockForm.invalid) return;
+
+    this.isAddingStock = true;
+    this.addStockError = null;
+
+    const val = this.replenishStockForm.value;
+    const payload = {
+      bloodGroup: val.bloodGroup,
+      componentType: val.componentType,
+      quantityUnits: Number(val.quantityUnits)
+    };
+
+    this.bloodBankService.replenishStock(payload).subscribe({
+      next: () => {
+        this.isAddingStock = false;
+        this.showAddStockModal = false;
+        this.loadBankData();
+      },
+      error: (err) => {
+        this.isAddingStock = false;
+        this.addStockError = err.error?.message || (err.status === 401 ? 'Session expired. Please log in again.' : 'Failed to replenish stock.');
+        console.error('Replenish stock failed:', err);
+      }
+    });
+  }
+
+  public confirmClearAllData(): void {
+    if (!confirm('Are you sure you want to clear all data? This will empty all stock levels, blood bags, camps, requests, and donation records so you can test adding everything from scratch.')) {
+      return;
+    }
+
+    this.isClearing = true;
+    this.bloodBankService.clearAllData().subscribe({
+      next: () => {
+        this.isClearing = false;
+        alert('All operational data has been cleared. Depository is now completely empty!');
+        this.loadBankData();
+      },
+      error: (err) => {
+        this.isClearing = false;
+        alert(err.error?.message || 'Failed to clear data.');
+      }
+    });
   }
 
   private loadBankData(): void {

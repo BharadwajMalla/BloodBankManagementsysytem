@@ -6,6 +6,8 @@ public interface IBloodBankService
 {
     Task<IEnumerable<BloodStockDto>> GetStockAsync(string? group, string? component);
     Task<BloodStockDto?> AddStockAsync(AddStockDto dto);
+    Task<BloodStockDto> ReplenishStockAsync(ReplenishStockDto dto);
+    Task ClearAllDataAsync();
     Task<bool> BagExistsAsync(string number);
     Task<IEnumerable<BloodBagDto>> GetBagsAsync(string? component);
     Task<IEnumerable<DonationCamp>> GetCampsAsync();

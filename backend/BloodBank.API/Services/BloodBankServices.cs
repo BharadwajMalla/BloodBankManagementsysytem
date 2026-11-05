@@ -13,6 +13,40 @@ public sealed class BloodBankService : IBloodBankService
     public BloodBankService(IBloodBankRepository repo) => _repo = repo;
     public async Task<IEnumerable<BloodStockDto>> GetStockAsync(string? g,string? c) => (await _repo.GetStocksAsync(string.IsNullOrWhiteSpace(g)?null:g.Trim().ToUpperInvariant(), string.IsNullOrWhiteSpace(c)?null:c.Trim())).Select(s=>new BloodStockDto {Id=s.Id,BloodGroup=s.BloodGroup,ComponentType=s.ComponentType,QuantityUnits=s.QuantityUnits,BloodBankName=s.BloodBankName,LastUpdated=s.LastUpdated});
     public async Task<BloodStockDto?> AddStockAsync(AddStockDto d) { var g=d.BloodGroup.Trim().ToUpperInvariant(); var c=d.ComponentType.Trim(); var n=d.BagNumber.Trim(); if(await _repo.BagNumberExistsAsync(n)) return null; await _repo.AddBagAsync(new BloodBag {BagNumber=n,BloodGroup=g,ComponentType=c,AddedDate=d.AddedDate==default?DateTime.UtcNow:d.AddedDate}); var s=await _repo.FindStockAsync(g,c); if(s==null){s=new BloodStock{Id=Guid.NewGuid(),BloodGroup=g,ComponentType=c,QuantityUnits=1,BloodBankName="Blood Bank A",LastUpdated=DateTime.UtcNow};await _repo.AddStockAsync(s);}else{s.QuantityUnits++;s.LastUpdated=DateTime.UtcNow;} await _repo.SaveChangesAsync(); return new BloodStockDto{Id=s.Id,BloodGroup=s.BloodGroup,ComponentType=s.ComponentType,QuantityUnits=s.QuantityUnits,BloodBankName=s.BloodBankName,LastUpdated=s.LastUpdated}; }
+    public async Task<BloodStockDto> ReplenishStockAsync(ReplenishStockDto d)
+    {
+        var g = d.BloodGroup.Trim().ToUpperInvariant();
+        var c = d.ComponentType.Trim();
+        var s = await _repo.FindStockAsync(g, c);
+        if (s == null)
+        {
+            s = new BloodStock { Id = Guid.NewGuid(), BloodGroup = g, ComponentType = c, QuantityUnits = d.QuantityUnits, BloodBankName = "Blood Bank A", LastUpdated = DateTime.UtcNow };
+            await _repo.AddStockAsync(s);
+        }
+        else
+        {
+            s.QuantityUnits += d.QuantityUnits;
+            s.LastUpdated = DateTime.UtcNow;
+        }
+
+        // Auto-create matching bag barcodes for the added units
+        for (int i = 0; i < d.QuantityUnits; i++)
+        {
+            var bagNum = $"BAG-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
+            await _repo.AddBagAsync(new BloodBag
+            {
+                BagNumber = bagNum,
+                BloodGroup = g,
+                ComponentType = c,
+                QuantityUnits = 1,
+                AddedDate = DateTime.UtcNow
+            });
+        }
+
+        await _repo.SaveChangesAsync();
+        return new BloodStockDto { Id = s.Id, BloodGroup = s.BloodGroup, ComponentType = s.ComponentType, QuantityUnits = s.QuantityUnits, BloodBankName = s.BloodBankName, LastUpdated = s.LastUpdated };
+    }
+    public Task ClearAllDataAsync() => _repo.ClearOperationalDataAsync();
     public Task<bool> BagExistsAsync(string n)=>_repo.BagNumberExistsAsync(n);
     public async Task<IEnumerable<BloodBagDto>> GetBagsAsync(string? c)=> (await _repo.GetBagsAsync(string.IsNullOrWhiteSpace(c)?null:c.Trim())).Select(b=>new BloodBagDto{Id=b.Id,BagNumber=b.BagNumber,BloodGroup=b.BloodGroup,ComponentType=b.ComponentType,QuantityUnits=b.QuantityUnits,AddedDate=b.AddedDate});
     public async Task<IEnumerable<DonationCamp>> GetCampsAsync()=>await _repo.GetCampsAsync();

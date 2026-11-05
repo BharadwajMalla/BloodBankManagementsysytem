@@ -26,5 +26,6 @@ public interface IBloodBankRepository
     Task<BloodInventory?> FindInventoryAsync(string bloodGroup, string bankName);
     Task<List<BloodInventory>> GetInventoryAsync(string? bloodGroup);
     Task AddInventoryAsync(BloodInventory inventory);
+    Task ClearOperationalDataAsync();
     Task SaveChangesAsync();
 }

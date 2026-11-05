@@ -24,6 +24,14 @@ export class BloodBankService {
     return this.http.post<BloodStock>(`${this.baseUrl}/stock`, payload);
   }
 
+  public replenishStock(payload: { bloodGroup: string; componentType: string; quantityUnits: number }): Observable<BloodStock> {
+    return this.http.post<BloodStock>(`${this.baseUrl}/replenish`, payload);
+  }
+
+  public clearAllData(): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/clear-all-data`, {});
+  }
+
   public getBloodBags(componentType?: string): Observable<BloodBag[]> {
     let params = new HttpParams();
     if (componentType) params = params.set('componentType', componentType);

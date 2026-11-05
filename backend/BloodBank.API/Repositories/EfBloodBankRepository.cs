@@ -35,5 +35,15 @@ public sealed class EfBloodBankRepository : IBloodBankRepository
     public Task<BloodInventory?> FindInventoryAsync(string group, string bank) => _db.BloodInventories.FirstOrDefaultAsync(b => b.BloodGroup.ToUpper() == group && b.BloodBankName.ToLower() == bank.ToLower());
     public Task<List<BloodInventory>> GetInventoryAsync(string? group) => _db.BloodInventories.AsNoTracking().Where(b => string.IsNullOrWhiteSpace(group) || b.BloodGroup.ToUpper() == group).OrderBy(b => b.BloodGroup).ThenByDescending(b => b.QuantityUnits).ToListAsync();
     public Task AddInventoryAsync(BloodInventory inventory) => _db.BloodInventories.AddAsync(inventory).AsTask();
+    public async Task ClearOperationalDataAsync()
+    {
+        _db.BloodRequests.RemoveRange(_db.BloodRequests);
+        _db.DonationRecords.RemoveRange(_db.DonationRecords);
+        _db.DonationCamps.RemoveRange(_db.DonationCamps);
+        _db.BloodBags.RemoveRange(_db.BloodBags);
+        _db.BloodStocks.RemoveRange(_db.BloodStocks);
+        _db.BloodInventories.RemoveRange(_db.BloodInventories);
+        await _db.SaveChangesAsync();
+    }
     public Task SaveChangesAsync() => _db.SaveChangesAsync();
 }
