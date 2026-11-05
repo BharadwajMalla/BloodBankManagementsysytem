@@ -259,4 +259,13 @@ app.MapGet("/api/health", async (ApplicationDbContext db) =>
 
 app.MapControllers();
 
+if (args.Contains("--seed-data"))
+{
+    using var seedScope = app.Services.CreateScope();
+    var seedDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await DbInitializer.SeedLiveDataAsync(seedDb);
+    Console.WriteLine("SEED_COMPLETE_SUCCESS");
+    return;
+}
+
 app.Run();

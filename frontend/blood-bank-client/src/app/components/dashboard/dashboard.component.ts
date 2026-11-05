@@ -433,6 +433,21 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  public seedSampleData(): void {
+    this.isClearing = true;
+    this.bloodBankService.seedLiveData().subscribe({
+      next: () => {
+        this.isClearing = false;
+        alert('Live example data has been loaded directly into the database!');
+        this.loadBankData();
+      },
+      error: (err) => {
+        this.isClearing = false;
+        alert(err.error?.message || 'Failed to seed data.');
+      }
+    });
+  }
+
   public confirmClearAllData(): void {
     if (!confirm('Are you sure you want to clear all data? This will empty all stock levels, blood bags, camps, requests, and donation records so you can test adding everything from scratch.')) {
       return;

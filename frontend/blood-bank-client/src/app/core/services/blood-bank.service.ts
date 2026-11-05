@@ -28,6 +28,10 @@ export class BloodBankService {
     return this.http.post<BloodStock>(`${this.baseUrl}/replenish`, payload);
   }
 
+  public seedLiveData(): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/seed-live-data`, {});
+  }
+
   public clearAllData(): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.baseUrl}/clear-all-data`, {});
   }

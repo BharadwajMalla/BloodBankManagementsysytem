@@ -9,7 +9,7 @@
     </div>
     
     @if (authService.isBloodBank()) {
-      <p class="dashboard-nav-label">Main</p>
+      <!-- <p class="dashboard-nav-label">Main</p> -->
       <nav class="dashboard-nav">
         <!-- 1. Stock overview -->
         <button [class.active]="activeBankTab === 'stock'" (click)="activeBankTab = 'stock'; showIssuedComponents.set(false)">

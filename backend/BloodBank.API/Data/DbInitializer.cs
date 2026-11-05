@@ -374,4 +374,519 @@ public static class DbInitializer
             logger.LogError(ex, "DbInitializer encountered error: {Message}", ex.Message);
         }
     }
+
+    public static async Task SeedLiveDataAsync(ApplicationDbContext context, ILogger? logger = null)
+    {
+        // 1. Clear existing operational records
+        context.BloodRequests.RemoveRange(context.BloodRequests);
+        context.DonationRecords.RemoveRange(context.DonationRecords);
+        context.DonationCamps.RemoveRange(context.DonationCamps);
+        context.BloodBags.RemoveRange(context.BloodBags);
+        context.BloodStocks.RemoveRange(context.BloodStocks);
+        context.BloodInventories.RemoveRange(context.BloodInventories);
+        context.ComponentCollections.RemoveRange(context.ComponentCollections);
+        context.ComponentDiscards.RemoveRange(context.ComponentDiscards);
+        context.ComponentReturns.RemoveRange(context.ComponentReturns);
+
+        var existingDonors = await context.Users.Where(u => u.Role == "Donor").ToListAsync();
+        context.Users.RemoveRange(existingDonors);
+
+        await context.SaveChangesAsync();
+
+        // 2. Ensure Admin account exists
+        if (!await context.Users.AnyAsync(u => u.Email == "admin@bloodbankA.org"))
+        {
+            await context.Users.AddAsync(new User
+            {
+                Id = Guid.NewGuid(),
+                FullName = "Blood Bank A Administrator",
+                Email = "admin@bloodbankA.org",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
+                Role = "BloodBank",
+                Phone = "+91-9820011001",
+                IsEmailVerified = true,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        // 3. Seed Registered Indian Donors
+        var donorAarav = new User
+        {
+            Id = Guid.NewGuid(),
+            FullName = "Aarav Sharma",
+            Email = "aarav.sharma91@gmail.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Sharma@1991", 11),
+            Role = "Donor",
+            Phone = "+91-9820145672",
+            DateOfBirth = new DateTime(1991, 5, 14, 0, 0, 0, DateTimeKind.Utc),
+            Sex = "Male",
+            Address = "Flat 402, Sea Green Apts, Worli, Mumbai",
+            BloodGroup = "O+",
+            IsEmailVerified = true,
+            CreatedAt = DateTime.UtcNow.AddMonths(-10)
+        };
+
+        var donorPooja = new User
+        {
+            Id = Guid.NewGuid(),
+            FullName = "Pooja Reddy",
+            Email = "pooja.reddy24@gmail.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Reddy@1995", 11),
+            Role = "Donor",
+            Phone = "+91-9849012345",
+            DateOfBirth = new DateTime(1995, 8, 24, 0, 0, 0, DateTimeKind.Utc),
+            Sex = "Female",
+            Address = "Plot 88, Jubilee Hills, Hyderabad",
+            BloodGroup = "B+",
+            IsEmailVerified = true,
+            CreatedAt = DateTime.UtcNow.AddMonths(-6)
+        };
+
+        var donorVikram = new User
+        {
+            Id = Guid.NewGuid(),
+            FullName = "Vikram Malhotra",
+            Email = "vikram.m88@outlook.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Malhotra@1988", 11),
+            Role = "Donor",
+            Phone = "+91-9811234567",
+            DateOfBirth = new DateTime(1988, 11, 10, 0, 0, 0, DateTimeKind.Utc),
+            Sex = "Male",
+            Address = "B-12, Greater Kailash Part 1, New Delhi",
+            BloodGroup = "A+",
+            IsEmailVerified = true,
+            CreatedAt = DateTime.UtcNow.AddMonths(-14)
+        };
+
+        var donorAnanya = new User
+        {
+            Id = Guid.NewGuid(),
+            FullName = "Ananya Sen",
+            Email = "ananya.sen@gmail.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Sen@1997", 11),
+            Role = "Donor",
+            Phone = "+91-9830987654",
+            DateOfBirth = new DateTime(1997, 3, 29, 0, 0, 0, DateTimeKind.Utc),
+            Sex = "Female",
+            Address = "24/B Southern Avenue, Ballygunge, Kolkata",
+            BloodGroup = "AB+",
+            IsEmailVerified = true,
+            CreatedAt = DateTime.UtcNow.AddMonths(-4)
+        };
+
+        var donorKarthik = new User
+        {
+            Id = Guid.NewGuid(),
+            FullName = "Karthik Nair",
+            Email = "karthik.nair95@gmail.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Nair@1993", 11),
+            Role = "Donor",
+            Phone = "+91-9447123456",
+            DateOfBirth = new DateTime(1993, 12, 5, 0, 0, 0, DateTimeKind.Utc),
+            Sex = "Male",
+            Address = "MG Road, Marine Drive, Kochi",
+            BloodGroup = "O-",
+            IsEmailVerified = true,
+            CreatedAt = DateTime.UtcNow.AddMonths(-18)
+        };
+
+        var donorSneha = new User
+        {
+            Id = Guid.NewGuid(),
+            FullName = "Sneha Patel",
+            Email = "sneha.patel@gmail.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Patel@1996", 11),
+            Role = "Donor",
+            Phone = "+91-9825123456",
+            DateOfBirth = new DateTime(1996, 7, 18, 0, 0, 0, DateTimeKind.Utc),
+            Sex = "Female",
+            Address = "Sector 21, Gandhinagar, Gujarat",
+            BloodGroup = "A-",
+            IsEmailVerified = true,
+            CreatedAt = DateTime.UtcNow.AddMonths(-8)
+        };
+
+        await context.Users.AddRangeAsync(donorAarav, donorPooja, donorVikram, donorAnanya, donorKarthik, donorSneha);
+
+        // 4. Seed Donation Records for Donors
+        await context.DonationRecords.AddRangeAsync(
+            new DonationRecord
+            {
+                Id = Guid.NewGuid(),
+                DonorId = donorAarav.Id,
+                DonorName = donorAarav.FullName,
+                BloodGroup = donorAarav.BloodGroup!,
+                UnitsDonated = 1,
+                DonationDate = DateTime.UtcNow.AddMonths(-2),
+                CampName = "Rotary Club Blood Drive",
+                BloodBankName = "Blood Bank A",
+                WeightKg = 74.0m,
+                PulsePerMinute = 72,
+                Hemoglobin = 15.2m,
+                Hematocrit = 45.0m,
+                BloodPressure = "120/80",
+                TemperatureCelsius = 36.6m,
+                ScreeningStaffName = "Dr. Radhika Sen",
+                MedicalExamAccepted = true,
+                VisualInspectionPassed = true,
+                DonorConfirmed = true
+            },
+            new DonationRecord
+            {
+                Id = Guid.NewGuid(),
+                DonorId = donorPooja.Id,
+                DonorName = donorPooja.FullName,
+                BloodGroup = donorPooja.BloodGroup!,
+                UnitsDonated = 1,
+                DonationDate = DateTime.UtcNow.AddMonths(-1),
+                CampName = "Apollo Health Camp",
+                BloodBankName = "Blood Bank A",
+                WeightKg = 58.5m,
+                PulsePerMinute = 76,
+                Hemoglobin = 13.5m,
+                Hematocrit = 40.2m,
+                BloodPressure = "118/76",
+                TemperatureCelsius = 36.5m,
+                ScreeningStaffName = "Dr. Radhika Sen",
+                MedicalExamAccepted = true,
+                VisualInspectionPassed = true,
+                DonorConfirmed = true
+            },
+            new DonationRecord
+            {
+                Id = Guid.NewGuid(),
+                DonorId = donorVikram.Id,
+                DonorName = donorVikram.FullName,
+                BloodGroup = donorVikram.BloodGroup!,
+                UnitsDonated = 1,
+                DonationDate = DateTime.UtcNow.AddMonths(-3),
+                CampName = "Tech Park Drive",
+                BloodBankName = "Blood Bank A",
+                WeightKg = 81.0m,
+                PulsePerMinute = 70,
+                Hemoglobin = 15.8m,
+                Hematocrit = 46.5m,
+                BloodPressure = "124/82",
+                TemperatureCelsius = 36.7m,
+                ScreeningStaffName = "Dr. Radhika Sen",
+                MedicalExamAccepted = true,
+                VisualInspectionPassed = true,
+                DonorConfirmed = true
+            },
+            new DonationRecord
+            {
+                Id = Guid.NewGuid(),
+                DonorId = donorKarthik.Id,
+                DonorName = donorKarthik.FullName,
+                BloodGroup = donorKarthik.BloodGroup!,
+                UnitsDonated = 1,
+                DonationDate = DateTime.UtcNow.AddMonths(-4),
+                CampName = "Kerala Police Blood Camp",
+                BloodBankName = "Blood Bank A",
+                WeightKg = 69.0m,
+                PulsePerMinute = 74,
+                Hemoglobin = 14.6m,
+                Hematocrit = 43.8m,
+                BloodPressure = "122/78",
+                TemperatureCelsius = 36.6m,
+                ScreeningStaffName = "Dr. Radhika Sen",
+                MedicalExamAccepted = true,
+                VisualInspectionPassed = true,
+                DonorConfirmed = true
+            }
+        );
+
+        // 5. Seed Blood Stocks & Bags
+        var stockItems = new[]
+        {
+            ("Whole Blood", "A+", 18),
+            ("Whole Blood", "B+", 22),
+            ("Whole Blood", "O+", 30),
+            ("Whole Blood", "O-", 6),
+            ("Whole Blood", "A-", 4),
+            ("Whole Blood", "B-", 5),
+            ("Whole Blood", "AB+", 8),
+            ("Whole Blood", "AB-", 1), // Low stock alert! (1 unit)
+
+            ("Red Blood Cells (PRBC)", "A+", 14),
+            ("Red Blood Cells (PRBC)", "B+", 16),
+            ("Red Blood Cells (PRBC)", "O+", 25),
+            ("Red Blood Cells (PRBC)", "O-", 5),
+            ("Red Blood Cells (PRBC)", "AB+", 6),
+            ("Red Blood Cells (PRBC)", "AB-", 0), // Depleted stock alert! (0 units)
+
+            ("Platelets", "A+", 10),
+            ("Platelets", "B+", 12),
+            ("Platelets", "O+", 15),
+            ("Platelets", "AB+", 4),
+
+            ("Fresh Frozen Plasma (FFP)", "A+", 15),
+            ("Fresh Frozen Plasma (FFP)", "B+", 18),
+            ("Fresh Frozen Plasma (FFP)", "O+", 20),
+            ("Fresh Frozen Plasma (FFP)", "AB+", 10),
+
+            ("Cryoprecipitate", "A+", 8),
+            ("Cryoprecipitate", "O+", 12)
+        };
+
+        var bagCounter = 100;
+        foreach (var (comp, group, qty) in stockItems)
+        {
+            await context.BloodStocks.AddAsync(new BloodStock
+            {
+                Id = Guid.NewGuid(),
+                ComponentType = comp,
+                BloodGroup = group,
+                QuantityUnits = qty,
+                BloodBankName = "Blood Bank A",
+                LastUpdated = DateTime.UtcNow
+            });
+
+            for (int i = 0; i < Math.Min(qty, 2); i++)
+            {
+                bagCounter++;
+                var prefix = comp.Contains("Whole") ? "WB" : comp.Contains("PRBC") ? "PRBC" : comp.Contains("Platelet") ? "PLT" : comp.Contains("Plasma") ? "FFP" : "CRYO";
+                await context.BloodBags.AddAsync(new BloodBag
+                {
+                    Id = Guid.NewGuid(),
+                    BagNumber = $"BAG-{prefix}-{group.Replace("+", "P").Replace("-", "N")}-{bagCounter}",
+                    BloodGroup = group,
+                    ComponentType = comp,
+                    QuantityUnits = 1,
+                    AddedDate = DateTime.UtcNow.AddDays(-i * 2),
+                    IsIssued = false
+                });
+            }
+        }
+
+        // 6. Seed Donation Camps
+        await context.DonationCamps.AddRangeAsync(
+            new DonationCamp
+            {
+                Id = Guid.NewGuid(),
+                CampName = "Rotary Club Mega Blood Drive 2026",
+                Location = "City Community Center, Sector 14",
+                CampDate = DateTime.UtcNow.AddDays(5),
+                TargetUnits = 100,
+                CollectedUnits = 0,
+                OrganizedBy = "Rotary Club & Blood Bank A",
+                ContactPhone = "+91-9820011223",
+                Status = "Scheduled",
+                Notes = "Annual corporate & community blood donation drive. Refreshments provided."
+            },
+            new DonationCamp
+            {
+                Id = Guid.NewGuid(),
+                CampName = "Tech Park Corporate Donation Camp",
+                Location = "Cyber Gateway Campus, Building 3",
+                CampDate = DateTime.UtcNow.AddDays(12),
+                TargetUnits = 75,
+                CollectedUnits = 0,
+                OrganizedBy = "Blood Bank A",
+                ContactPhone = "+91-9884022334",
+                Status = "Scheduled",
+                Notes = "IT corridor wellness week donation drive."
+            },
+            new DonationCamp
+            {
+                Id = Guid.NewGuid(),
+                CampName = "Apollo Hospital Public Health Camp",
+                Location = "Apollo Hospital Auditorium",
+                CampDate = DateTime.UtcNow.AddDays(-14),
+                TargetUnits = 60,
+                CollectedUnits = 64,
+                OrganizedBy = "Apollo & Blood Bank A",
+                ContactPhone = "+91-9811234567",
+                Status = "Completed",
+                Notes = "Exceeded target with 64 units safely collected."
+            }
+        );
+
+        // 7. Seed Incoming & Fulfilled Blood Requests (with Account Summary & Payments)
+        await context.BloodRequests.AddRangeAsync(
+            // Pending 1: Critical Emergency Request
+            new BloodRequest
+            {
+                Id = Guid.NewGuid(),
+                RequesterId = Guid.NewGuid(),
+                RequesterType = "Hospital",
+                RequesterName = "Apollo Multi-Specialty Hospital",
+                HospitalName = "Apollo Multi-Specialty Hospital",
+                RequesterContact = "+91-9840123456",
+                PatientName = "Rajesh Verma",
+                BloodGroup = "O-",
+                ComponentType = "Red Blood Cells (PRBC)",
+                QuantityUnits = 2,
+                Urgency = "Critical",
+                Status = "Pending",
+                HospitalDepartment = "Emergency Trauma ICU",
+                MedicalReason = "Severe blood loss secondary to road traffic accident surgery",
+                CreatedAt = DateTime.UtcNow.AddHours(-3),
+                PaymentStatus = "Pending"
+            },
+            // Pending 2: Urgent Request
+            new BloodRequest
+            {
+                Id = Guid.NewGuid(),
+                RequesterId = Guid.NewGuid(),
+                RequesterType = "Hospital",
+                RequesterName = "Care Multi-Speciality Hospital",
+                HospitalName = "Care Multi-Speciality Hospital",
+                RequesterContact = "+91-9884011223",
+                PatientName = "Deepak Kulkarni",
+                BloodGroup = "A+",
+                ComponentType = "Platelets",
+                QuantityUnits = 1,
+                Urgency = "Urgent",
+                Status = "Pending",
+                HospitalDepartment = "Oncology Day Care",
+                MedicalReason = "Thrombocytopenia platelet drop during chemotherapy cycle",
+                CreatedAt = DateTime.UtcNow.AddHours(-1),
+                PaymentStatus = "Pending"
+            },
+            // Fulfilled 1: UPI Paid Request with Transaction ID
+            new BloodRequest
+            {
+                Id = Guid.NewGuid(),
+                RequesterId = Guid.NewGuid(),
+                RequesterType = "Hospital",
+                RequesterName = "Fortis Memorial Hospital",
+                HospitalName = "Fortis Memorial Hospital",
+                RequesterContact = "+91-9811987654",
+                PatientName = "Sunita Deshmukh",
+                BloodGroup = "B+",
+                ComponentType = "Whole Blood",
+                QuantityUnits = 2,
+                Urgency = "Normal",
+                Status = "Fulfilled",
+                HospitalDepartment = "General Surgery",
+                MedicalReason = "Elective orthopedic hip replacement surgery",
+                IssuedBagNumbers = "BAG-WB-BP-101, BAG-WB-BP-102",
+                PaymentMode = "UPI",
+                PaymentStatus = "Paid",
+                TransactionId = "UPI202611059871",
+                AmountPaid = 1700.00m,
+                AdminComments = "Cross-match non-reactive. Payment verified via UPI UTR.",
+                CreatedAt = DateTime.UtcNow.AddHours(-8),
+                ProcessedAt = DateTime.UtcNow.AddHours(-6)
+            },
+            // Fulfilled 2: Cash Paid Request
+            new BloodRequest
+            {
+                Id = Guid.NewGuid(),
+                RequesterId = Guid.NewGuid(),
+                RequesterType = "Hospital",
+                RequesterName = "City Care Hospital",
+                HospitalName = "City Care Hospital",
+                RequesterContact = "+91-9820554433",
+                PatientName = "Meera Iyer",
+                BloodGroup = "O+",
+                ComponentType = "Fresh Frozen Plasma (FFP)",
+                QuantityUnits = 1,
+                Urgency = "Normal",
+                Status = "Fulfilled",
+                HospitalDepartment = "Hematology",
+                MedicalReason = "Pre-operative coagulopathy plasma support",
+                IssuedBagNumbers = "BAG-FFP-OP-105",
+                PaymentMode = "Cash",
+                PaymentStatus = "Paid",
+                AmountPaid = 650.00m,
+                AdminComments = "Thawed at 37C and issued. Cash received at desk.",
+                CreatedAt = DateTime.UtcNow.AddDays(-1),
+                ProcessedAt = DateTime.UtcNow.AddDays(-1).AddHours(2)
+            }
+        );
+
+        // 8. Seed Component Collections (including near-expiry alert)
+        await context.ComponentCollections.AddRangeAsync(
+            new ComponentCollection
+            {
+                Id = Guid.NewGuid(),
+                BagBarcode = "BAG-2026-WB-8801",
+                ComponentType = "Whole Blood",
+                BloodGroup = "O+",
+                BagType = "Triple (450ml)",
+                VolumeMl = 450,
+                CollectionDate = DateTime.UtcNow.AddDays(-5),
+                ExpiryDate = DateTime.UtcNow.AddDays(30),
+                Status = "Available"
+            },
+            new ComponentCollection
+            {
+                Id = Guid.NewGuid(),
+                BagBarcode = "BAG-2026-PLT-8802",
+                ComponentType = "Platelets",
+                BloodGroup = "A+",
+                BagType = "Single (250ml)",
+                VolumeMl = 250,
+                CollectionDate = DateTime.UtcNow.AddDays(-2),
+                ExpiryDate = DateTime.UtcNow.AddDays(3), // Expiring in 3 days!
+                Status = "Available"
+            },
+            new ComponentCollection
+            {
+                Id = Guid.NewGuid(),
+                BagBarcode = "BAG-2026-PRBC-8803",
+                ComponentType = "Red Blood Cells (PRBC)",
+                BloodGroup = "B+",
+                BagType = "Quadruple (350ml)",
+                VolumeMl = 320,
+                CollectionDate = DateTime.UtcNow.AddDays(-8),
+                ExpiryDate = DateTime.UtcNow.AddDays(34),
+                Status = "Available"
+            },
+            new ComponentCollection
+            {
+                Id = Guid.NewGuid(),
+                BagBarcode = "BAG-2026-FFP-8804",
+                ComponentType = "Fresh Frozen Plasma (FFP)",
+                BloodGroup = "AB+",
+                BagType = "Double (200ml)",
+                VolumeMl = 200,
+                CollectionDate = DateTime.UtcNow.AddDays(-10),
+                ExpiryDate = DateTime.UtcNow.AddDays(355),
+                Status = "Available"
+            }
+        );
+
+        // 9. Seed Component Discards (including pending approval alert)
+        await context.ComponentDiscards.AddRangeAsync(
+            new ComponentDiscard
+            {
+                Id = Guid.NewGuid(),
+                BagBarcode = "BAG-2026-DIS-9901",
+                Reason = "Gross hemolysis detected during post-centrifugation inspection",
+                DiscardedBy = "Lab Tech S. Murthy",
+                ApprovalStatus = "Pending",
+                CreatedAt = DateTime.UtcNow.AddHours(-4)
+            },
+            new ComponentDiscard
+            {
+                Id = Guid.NewGuid(),
+                BagBarcode = "BAG-2026-DIS-9902",
+                Reason = "Clot formation observed in platelet concentrate bag",
+                DiscardedBy = "Lab Tech S. Murthy",
+                ApprovalStatus = "Approved",
+                ApprovedBy = "Blood Bank Admin",
+                CreatedAt = DateTime.UtcNow.AddDays(-2),
+                ApprovedAt = DateTime.UtcNow.AddDays(-2).AddHours(3)
+            }
+        );
+
+        // 10. Seed Component Returns
+        await context.ComponentReturns.AddAsync(
+            new ComponentReturn
+            {
+                Id = Guid.NewGuid(),
+                BagBarcode = "BAG-2026-RET-7701",
+                Reason = "Surgery postponed by surgical team, cold chain strictly maintained at 4C",
+                ReturnedBy = "Apollo Hospital Logistics - Nurse Priya",
+                ReturnDate = DateTime.UtcNow.AddHours(-5)
+            }
+        );
+
+        await context.SaveChangesAsync();
+        logger?.LogInformation("Live example operational data successfully populated directly into the database.");
+    }
+
 }
