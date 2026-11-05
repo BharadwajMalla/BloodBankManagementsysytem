@@ -2,7 +2,7 @@ import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AuthResponse, LoginRequest, RegisterRequest, User, UserRole } from '../models/user.model';
+import { AuthResponse, LoginRequest, RegisterRequest, ResetPasswordRequest, SendOtpResponse, User, UserRole } from '../models/user.model';
 import { Router } from '@angular/router';
 
 @Injectable({
@@ -37,6 +37,18 @@ export class AuthService {
     return this.http.post<AuthResponse>(`${environment.apiUrl}/Auth/register`, payload).pipe(
       tap((response) => this.handleAuthSuccess(response))
     );
+  }
+
+  public sendRegistrationOtp(email: string): Observable<SendOtpResponse> {
+    return this.http.post<SendOtpResponse>(`${environment.apiUrl}/Auth/send-registration-otp`, { email });
+  }
+
+  public sendForgotPasswordOtp(email: string): Observable<SendOtpResponse> {
+    return this.http.post<SendOtpResponse>(`${environment.apiUrl}/Auth/forgot-password/send-otp`, { email });
+  }
+
+  public resetPassword(payload: ResetPasswordRequest): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${environment.apiUrl}/Auth/forgot-password/reset`, payload);
   }
 
   public login(payload: LoginRequest): Observable<AuthResponse> {

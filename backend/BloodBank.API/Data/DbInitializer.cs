@@ -178,6 +178,25 @@ public static class DbInitializer
                     BEGIN
                         ALTER TABLE [Users] ADD [HospitalRegNumber] nvarchar(50) NULL;
                     END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'IsEmailVerified')
+                    BEGIN
+                        ALTER TABLE [Users] ADD [IsEmailVerified] bit NOT NULL DEFAULT 0;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'EmailOtps')
+                    BEGIN
+                        CREATE TABLE [EmailOtps] (
+                            [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                            [Email] nvarchar(200) NOT NULL,
+                            [OtpCode] nvarchar(10) NOT NULL,
+                            [Purpose] nvarchar(50) NOT NULL,
+                            [ExpiresAt] datetime2 NOT NULL,
+                            [IsUsed] bit NOT NULL DEFAULT 0,
+                            [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE()
+                        );
+                        CREATE INDEX [IX_EmailOtps_Email_OtpCode_Purpose] ON [EmailOtps] ([Email], [OtpCode], [Purpose]);
+                    END
                 ");
             }
             else

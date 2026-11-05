@@ -29,7 +29,19 @@ export interface RegisterRequest {
   password: string;
   role: UserRole;
   phone?: string;
+  otpCode: string;
   bloodGroup?: string;
   hospitalName?: string;
   hospitalRegNumber?: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  otpCode: string;
+  newPassword: string;
+}
+
+export interface SendOtpResponse {
+  message: string;
+  previewOtp?: string;
 }

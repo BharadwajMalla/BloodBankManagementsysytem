@@ -13,15 +13,18 @@ public class AuthService : IAuthService
     private readonly IBloodBankRepository _repo;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthService> _logger;
+    private readonly IEmailOtpService _otpService;
 
     public AuthService(
         IBloodBankRepository repo,
         IConfiguration configuration,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        IEmailOtpService otpService)
     {
         _repo = repo;
         _configuration = configuration;
         _logger = logger;
+        _otpService = otpService;
     }
 
     public string HashPassword(string password)
@@ -75,6 +78,13 @@ public class AuthService : IAuthService
     {
         var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
 
+        // 1. Verify 6-digit registration OTP
+        var isOtpValid = await _otpService.VerifyOtpAsync(normalizedEmail, dto.OtpCode, "Registration");
+        if (!isOtpValid)
+        {
+            throw new InvalidOperationException("Invalid or expired email verification code. Please enter the latest 6-digit code sent to your email.");
+        }
+
         var existingUser = await _repo.FindUserByEmailAsync(normalizedEmail);
 
         if (existingUser != null)
@@ -93,13 +103,14 @@ public class AuthService : IAuthService
             BloodGroup = dto.BloodGroup,
             HospitalName = dto.HospitalName,
             HospitalRegNumber = dto.HospitalRegNumber,
+            IsEmailVerified = true,
             CreatedAt = DateTime.UtcNow
         };
 
         await _repo.AddUserAsync(newUser);
         await _repo.SaveChangesAsync();
 
-        _logger.LogInformation("New user registered: {Email} (Role: {Role})", newUser.Email, newUser.Role);
+        _logger.LogInformation("New user registered and email verified: {Email} (Role: {Role})", newUser.Email, newUser.Role);
 
         var token = GenerateJwtToken(newUser);
 
@@ -109,6 +120,30 @@ public class AuthService : IAuthService
             ExpiresAt = DateTime.UtcNow.AddHours(24),
             User = MapToUserDto(newUser)
         };
+    }
+
+    public async Task<bool> ResetPasswordAsync(ResetPasswordDto dto)
+    {
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
+
+        var user = await _repo.FindUserByEmailAsync(normalizedEmail);
+        if (user == null)
+        {
+            throw new InvalidOperationException("No registered account found with that email address.");
+        }
+
+        var isOtpValid = await _otpService.VerifyOtpAsync(normalizedEmail, dto.OtpCode, "PasswordReset");
+        if (!isOtpValid)
+        {
+            throw new InvalidOperationException("Invalid or expired verification OTP code. Please request a fresh OTP.");
+        }
+
+        user.PasswordHash = HashPassword(dto.NewPassword);
+        user.IsEmailVerified = true;
+        await _repo.SaveChangesAsync();
+
+        _logger.LogInformation("Password reset successfully for user: {Email}", normalizedEmail);
+        return true;
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginDto dto)

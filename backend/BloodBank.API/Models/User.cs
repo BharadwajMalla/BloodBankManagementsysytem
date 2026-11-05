@@ -35,5 +35,7 @@ public class User
     [MaxLength(50)]
     public string? HospitalRegNumber { get; set; } // For Hospitals
 
+    public bool IsEmailVerified { get; set; } = false;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

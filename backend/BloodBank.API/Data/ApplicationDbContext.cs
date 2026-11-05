@@ -17,6 +17,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<DonationCamp> DonationCamps => Set<DonationCamp>();
     public DbSet<BloodRequest> BloodRequests => Set<BloodRequest>();
     public DbSet<DonationRecord> DonationRecords => Set<DonationRecord>();
+    public DbSet<EmailOtp> EmailOtps => Set<EmailOtp>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +98,17 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.DonorName).IsRequired().HasMaxLength(150);
             entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
             entity.Property(e => e.DonationDate).HasDefaultValueSql(utcNowSql);
+        });
+
+        // EmailOtp Configuration
+        modelBuilder.Entity<EmailOtp>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.OtpCode).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Purpose).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql(utcNowSql);
+            entity.HasIndex(e => new { e.Email, e.OtpCode, e.Purpose });
         });
     }
 }

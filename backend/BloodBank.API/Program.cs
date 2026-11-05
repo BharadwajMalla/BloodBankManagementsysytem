@@ -84,6 +84,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // 3. Register Domain Services & Repositories
 builder.Services.AddScoped<IBloodBankRepository, EfBloodBankRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IEmailOtpService, EmailOtpService>();
 builder.Services.AddScoped<IBloodBankService, BloodBankService>();
 builder.Services.AddScoped<IDonorService, DonorService>();
 builder.Services.AddScoped<IHospitalService, HospitalService>();
