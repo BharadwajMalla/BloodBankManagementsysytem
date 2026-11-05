@@ -413,7 +413,6 @@
                 }
               </div>
 
-              <ag-grid-angular class="dashboard-grid" [theme]="gridTheme" [rowData]="bankRequests()" [columnDefs]="requestColumnDefs" [pagination]="true" [paginationPageSize]="10" [domLayout]="'autoHeight'"></ag-grid-angular>
               <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                 <table class="legacy-table w-full text-left text-sm text-slate-600">
                   <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
@@ -534,7 +533,6 @@
                 <div class="rounded-xl bg-white border border-slate-200 p-4"><p class="text-xs text-slate-500">Payments completed</p><p class="text-xl font-black text-emerald-700">{{ completedPaymentCount() }}</p></div>
               </div>
 
-              <ag-grid-angular class="dashboard-grid" [theme]="gridTheme" [rowData]="issuedRequests()" [columnDefs]="issuedColumnDefs" [pagination]="true" [paginationPageSize]="10" [domLayout]="'autoHeight'"></ag-grid-angular>
               <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                 <table class="w-full text-left text-sm text-slate-600">
                   <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
@@ -589,7 +587,6 @@
                 </button>
               </div>
 
-              <ag-grid-angular class="dashboard-grid" [theme]="gridTheme" [rowData]="bankCamps()" [columnDefs]="campColumnDefs" [pagination]="true" [paginationPageSize]="10" [domLayout]="'autoHeight'"></ag-grid-angular>
               <div class="legacy-camp-cards grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 @for (camp of bankCamps(); track camp.id) {
                   <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 hover:shadow-md transition-shadow">
@@ -646,51 +643,52 @@
               </div>
 
               @if (showCreateDonorModal) {
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                  <div class="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 class="text-base font-black text-slate-900">Create Donor Details</h3>
-                      <p class="text-xs text-slate-500">The donor can use these credentials to sign in.</p>
-                    </div>
-                    <button type="button" (click)="showCreateDonorModal = false" class="text-slate-400 hover:text-slate-700 text-xl">Ã—</button>
-                  </div>
-                  @if (createDonorError) {
-                    <p class="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{{ createDonorError }}</p>
-                  }
-                  <form [formGroup]="createDonorForm" (ngSubmit)="submitCreateDonor()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input formControlName="firstName" placeholder="First name" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
-                    <input formControlName="lastName" placeholder="Last name" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
-                    <input type="email" formControlName="email" placeholder="Email address" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
-                    <input type="date" formControlName="dateOfBirth" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
-                    <select formControlName="sex" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
-                      <option value="">Select sex</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <input type="tel" formControlName="phone" placeholder="Contact number" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
-                    <select formControlName="bloodGroup" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
-                      @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
-                    </select>
-                    <textarea formControlName="address" placeholder="Address" rows="2" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm md:col-span-2"></textarea>
-                    <p class="md:col-span-2 text-xs text-slate-500">Password is generated automatically as <strong>LASTNAME&#64;YYYY</strong> using the donor's last name and birth year.</p>
-                    <div class="md:col-span-2 flex justify-end gap-3">
-                      <button type="button" (click)="showCreateDonorModal = false" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm">Cancel</button>
-                      <button type="submit" [disabled]="createDonorForm.invalid || isCreatingDonor" class="px-4 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm disabled:opacity-50">
-                        {{ isCreatingDonor ? 'Saving...' : 'Create Donor' }}
-                      </button>
-                    </div>
-                  </form>
-                  @if (generatedPassword) {
-                    <div class="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
-                      Donor created. Temporary password: <strong>{{ generatedPassword }}</strong>
-                    </div>
-                  }
-                </div>
-              }
+        <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 class="text-lg font-black text-slate-900">Create Donor Details</h3>
+                <p class="text-xs text-slate-500">The donor can use these credentials to sign in.</p>
+              </div>
+              <button type="button" (click)="showCreateDonorModal = false" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm">✕</button>
+            </div>
+            @if (createDonorError) {
+              <p class="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{{ createDonorError }}</p>
+            }
+            <form [formGroup]="createDonorForm" (ngSubmit)="submitCreateDonor()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input formControlName="firstName" placeholder="First name" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+              <input formControlName="lastName" placeholder="Last name" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+              <input type="email" formControlName="email" placeholder="Email address" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+              <input type="date" formControlName="dateOfBirth" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+              <select formControlName="sex" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                <option value="">Select sex</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+              <input type="tel" formControlName="phone" placeholder="Contact number" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+              <select formControlName="bloodGroup" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+              </select>
+              <textarea formControlName="address" placeholder="Address" rows="2" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm md:col-span-2"></textarea>
+              <p class="md:col-span-2 text-xs text-slate-500">Password is generated automatically as <strong>LASTNAME&#64;YYYY</strong> using the donor's last name and birth year.</p>
+              <div class="md:col-span-2 flex justify-end gap-3 pt-2">
+                <button type="button" (click)="showCreateDonorModal = false" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm">Cancel</button>
+                <button type="submit" [disabled]="createDonorForm.invalid || isCreatingDonor" class="px-4 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm disabled:opacity-50">
+                  {{ isCreatingDonor ? 'Saving...' : 'Create Donor' }}
+                </button>
+              </div>
+            </form>
+            @if (generatedPassword) {
+              <div class="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
+                Donor created. Temporary password: <strong>{{ generatedPassword }}</strong>
+              </div>
+            }
+          </div>
+        </div>
+      }
 
-              <ag-grid-angular class="dashboard-grid" [theme]="gridTheme" [rowData]="bankDonors()" [columnDefs]="donorColumnDefs" [pagination]="true" [paginationPageSize]="10" [domLayout]="'autoHeight'"></ag-grid-angular>
-              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
                 <table class="w-full text-left text-sm text-slate-600">
                   <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
                     <tr>

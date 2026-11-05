@@ -1,26 +1,35 @@
- :host {
+:host {
   display: block;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: #e9eef8;
   color: #27344d;
 }
 
 .dashboard-shell {
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
   display: flex;
   background: #e9eef8;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  overflow: hidden;
 }
 
 .dashboard-sidebar {
-  width: 238px;
-  flex: 0 0 238px;
-  min-height: 100vh;
-  padding: 28px 16px 20px;
+  width: 240px;
+  flex: 0 0 240px;
+  height: 100vh;
+  max-height: 100vh;
+  padding: 24px 16px 20px;
   background: #182035;
   color: #d7dced;
   display: flex;
   flex-direction: column;
+  position: sticky;
+  top: 0;
+  left: 0;
+  overflow-y: auto;
+  z-index: 40;
 }
 
 .dashboard-brand,
@@ -169,9 +178,17 @@
 .dashboard-main {
   min-width: 0;
   flex: 1;
+  height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .dashboard-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   height: 61px;
   display: flex;
   align-items: center;

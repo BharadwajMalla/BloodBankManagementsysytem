@@ -6,13 +6,11 @@ import { BloodBankService } from '../../core/services/blood-bank.service';
 import { DonorService } from '../../core/services/donor.service';
 import { HospitalService } from '../../core/services/hospital.service';
 import { BloodBag, BloodGroup, BloodRequest, BloodStock, ComponentCollection, ComponentDiscard, ComponentReturn, ComponentType, DonationCamp, DonationHistory, DonorDetails } from '../../core/models/blood-bank.model';
-import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, themeQuartz } from 'ag-grid-community';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, AgGridAngular],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
@@ -182,44 +180,6 @@ export class DashboardComponent implements OnInit {
   public componentDiscardForm = this.fb.group({ bagBarcode: ['', Validators.required], reason: ['', Validators.required], discardedBy: ['', Validators.required] });
   public componentReturnForm = this.fb.group({ bagBarcode: ['', Validators.required], reason: ['', Validators.required], returnedBy: ['', Validators.required] });
   public componentError: string | null = null;
-  public gridTheme = themeQuartz;
-  public campColumnDefs: ColDef<DonationCamp>[] = [
-    { field: 'campName', headerName: 'Camp name', flex: 1.4 },
-    { field: 'location', headerName: 'Location', flex: 1.3 },
-    { field: 'campDate', headerName: 'Date', flex: 1, valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '' },
-    { field: 'targetUnits', headerName: 'Target units', width: 130 },
-    { field: 'collectedUnits', headerName: 'Collected', width: 120 },
-    { field: 'status', headerName: 'Status', width: 130 }
-  ];
-  public donorColumnDefs: ColDef<DonorDetails>[] = [
-    { field: 'fullName', headerName: 'Donor name', flex: 1.2 },
-    { field: 'bloodGroup', headerName: 'Blood group', width: 125 },
-    { field: 'email', headerName: 'Email', flex: 1.4 },
-    { field: 'phone', headerName: 'Contact', width: 140 },
-    { field: 'sex', headerName: 'Sex', width: 100 },
-    { field: 'totalDonations', headerName: 'Donations', width: 110 },
-    { field: 'eligibilityStatus', headerName: 'Eligibility', flex: 1.1 },
-    { field: 'donationStatus', headerName: 'Donation status', flex: 1 }
-  ];
-  public requestColumnDefs: ColDef<BloodRequest>[] = [
-    { field: 'hospitalName', headerName: 'Hospital', flex: 1.3, valueGetter: params => params.data?.hospitalName || params.data?.requesterName },
-    { field: 'patientName', headerName: 'Patient', flex: 1.1 },
-    { field: 'bloodGroup', headerName: 'Group', width: 100 },
-    { field: 'componentType', headerName: 'Component', flex: 1.3 },
-    { field: 'quantityUnits', headerName: 'Units', width: 90 },
-    { field: 'urgency', headerName: 'Urgency', width: 110 },
-    { field: 'status', headerName: 'Status', width: 120 },
-    { field: 'createdAt', headerName: 'Created', flex: 1, valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '' }
-  ];
-  public issuedColumnDefs: ColDef<BloodRequest>[] = [
-    { field: 'hospitalName', headerName: 'Hospital', flex: 1.2, valueGetter: params => params.data?.hospitalName || params.data?.requesterName },
-    { field: 'patientName', headerName: 'Patient', flex: 1.1 },
-    { field: 'componentType', headerName: 'Component', flex: 1.3 },
-    { field: 'bloodGroup', headerName: 'Group', width: 95 },
-    { field: 'issuedBagNumbers', headerName: 'Bag ID', flex: 1.2 },
-    { field: 'paymentStatus', headerName: 'Payment', width: 120 },
-    { field: 'processedAt', headerName: 'Issued on', flex: 1, valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '' }
-  ];
 
   // Hospital Signals
   public hospitalRequests = signal<BloodRequest[]>([]);
