@@ -96,6 +96,17 @@ export class DashboardComponent implements OnInit {
   public bankCamps = signal<DonationCamp[]>([]);
   public bankDonors = signal<DonorDetails[]>([]);
   public bankRequests = signal<BloodRequest[]>([]);
+  public requestFilterStatus = signal<'Active' | 'Fulfilled' | 'All'>('Active');
+  public filteredBankRequests = computed<BloodRequest[]>(() => {
+    const filter = this.requestFilterStatus();
+    if (filter === 'Active') {
+      return this.bankRequests().filter(r => r.status === 'Pending' || r.status === 'Approved');
+    }
+    if (filter === 'Fulfilled') {
+      return this.bankRequests().filter(r => r.status === 'Fulfilled');
+    }
+    return this.bankRequests();
+  });
   public issuedRequests = computed<BloodRequest[]>(() => {
     return this.bankRequests().filter(request => request.status === 'Fulfilled');
   });
@@ -359,23 +370,26 @@ export class DashboardComponent implements OnInit {
   }
 
   public getBloodGroupBagCount(bloodGroup: BloodGroup): number {
-    const fromCollections = this.componentCollections()
+    const availableCollections = this.componentCollections()
       .filter(c => c.componentType === this.selectedStockComponent() && c.bloodGroup === bloodGroup && c.status === 'Available')
       .length;
-    const fromBags = this.bankBags().filter(bag =>
+    const availableBags = this.bankBags().filter(bag =>
       bag.componentType === this.selectedStockComponent() && bag.bloodGroup === bloodGroup && !bag.isIssued
     ).length;
-    return Math.max(fromCollections, fromBags);
+    const stockUnits = this.getBloodGroupUnitTotal(bloodGroup);
+    return Math.max(availableCollections, availableBags, stockUnits);
   }
 
   public getBloodGroupUnitTotal(bloodGroup: BloodGroup): number {
-    const fromCollections = this.componentCollections()
+    const stock = this.bankStocks().find(
+      s => s.componentType === this.selectedStockComponent() && s.bloodGroup === bloodGroup
+    );
+    if (stock) {
+      return stock.quantityUnits;
+    }
+    return this.componentCollections()
       .filter(c => c.componentType === this.selectedStockComponent() && c.bloodGroup === bloodGroup && c.status === 'Available')
       .length;
-    const fromStock = this.bankStocks()
-      .filter(stock => stock.componentType === this.selectedStockComponent() && stock.bloodGroup === bloodGroup)
-      .reduce((total, stock) => total + stock.quantityUnits, 0);
-    return Math.max(fromCollections, fromStock);
   }
 
   public getStockPeriod(addedDate: string): string {
@@ -400,13 +414,13 @@ export class DashboardComponent implements OnInit {
   }
 
   public getComponentUnitTotal(component: ComponentType): number {
-    const fromCollections = this.componentCollections()
+    const stocks = this.bankStocks().filter(s => s.componentType === component);
+    if (stocks.length > 0) {
+      return stocks.reduce((total, stock) => total + stock.quantityUnits, 0);
+    }
+    return this.componentCollections()
       .filter(c => c.componentType === component && c.status === 'Available')
       .length;
-    const fromStock = this.bankStocks()
-      .filter(stock => stock.componentType === component)
-      .reduce((total, stock) => total + stock.quantityUnits, 0);
-    return Math.max(fromCollections, fromStock);
   }
 
   public getComponentGroupCount(component: ComponentType): number {

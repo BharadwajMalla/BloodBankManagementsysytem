@@ -187,7 +187,94 @@ public sealed class BloodBankService : IBloodBankService
     public async Task<IEnumerable<BloodRequestResponseDto>> GetRequestsAsync(string? s)=>(await _repo.GetRequestsAsync(status:string.IsNullOrWhiteSpace(s)?null:s.Trim())).Select(Mapping.Request);
     public async Task<BloodRequestResponseDto> CreateRequestAsync(Guid id,CreateBloodRequestDto d){var u=await _repo.FindUserAsync(id);var r=CreateRequest(id,"BloodBank",u?.FullName??"Blood Bank A",u?.Phone??u?.Email,d);await _repo.AddRequestAsync(r);await _repo.SaveChangesAsync();return Mapping.Request(r);}
     private static BloodRequest CreateRequest(Guid id,string type,string name,string? contact,CreateBloodRequestDto d)=>new(){Id=Guid.NewGuid(),RequesterId=id,RequesterType=type,RequesterName=name,RequesterContact=contact,HospitalName=d.HospitalName?.Trim(),PatientName=d.PatientName.Trim(),BloodGroup=d.BloodGroup.Trim().ToUpperInvariant(),ComponentType=d.ComponentType.Trim(),QuantityUnits=d.QuantityUnits,Urgency=d.Urgency,Status="Pending",HospitalDepartment=d.HospitalDepartment,MedicalReason=d.MedicalReason,CreatedAt=DateTime.UtcNow};
-    public async Task<(BloodRequestResponseDto?,string?)> ProcessRequestAsync(Guid id,ProcessRequestDto d){var r=await _repo.FindRequestAsync(id);if(r==null)return(null,"Request not found.");if(d.Status=="Fulfilled"&&r.Status!="Fulfilled"){if(d.PaymentMode is not ("Cash" or "UPI"))return(null,"Select Cash or UPI payment before fulfilling the request.");if(d.PaymentMode=="UPI"&&string.IsNullOrWhiteSpace(d.TransactionId))return(null,"UPI transaction ID is required before completing payment.");var s=await _repo.FindStockAsync(r.BloodGroup,r.ComponentType);if(s==null||s.QuantityUnits<r.QuantityUnits)return(null,$"Insufficient stock of {r.BloodGroup} ({r.ComponentType}). Available: {s?.QuantityUnits??0} units, Requested: {r.QuantityUnits} units.");var bags=await _repo.GetAvailableBagsAsync(r.BloodGroup,r.ComponentType,r.QuantityUnits);if(bags.Count<r.QuantityUnits)return(null,$"Insufficient individual bags for {r.BloodGroup} ({r.ComponentType}). Available bags: {bags.Count}, Requested: {r.QuantityUnits}.");foreach(var b in bags){b.IsIssued=true;b.IssuedDate=DateTime.UtcNow;}r.IssuedBagNumbers=string.Join(", ",bags.Select(b=>b.BagNumber));s.QuantityUnits-=r.QuantityUnits;s.LastUpdated=DateTime.UtcNow;r.PaymentMode=d.PaymentMode;r.PaymentStatus="Completed";r.TransactionId=d.PaymentMode=="UPI"?d.TransactionId!.Trim():null;r.AmountPaid=d.AmountPaid??(GetDefaultComponentPrice(r.ComponentType)*r.QuantityUnits);}r.Status=d.Status;r.AdminComments=d.AdminComments;r.ProcessedAt=DateTime.UtcNow;await _repo.SaveChangesAsync();return(Mapping.Request(r),null);}
+    public async Task<(BloodRequestResponseDto?, string?)> ProcessRequestAsync(Guid id, ProcessRequestDto d)
+    {
+        var r = await _repo.FindRequestAsync(id);
+        if (r == null) return (null, "Request not found.");
+
+        if (d.Status == "Fulfilled" && r.Status != "Fulfilled")
+        {
+            if (d.PaymentMode is not ("Cash" or "UPI"))
+                return (null, "Select Cash or UPI payment before fulfilling the request.");
+            if (d.PaymentMode == "UPI" && string.IsNullOrWhiteSpace(d.TransactionId))
+                return (null, "UPI transaction ID is required before completing payment.");
+
+            var s = await _repo.FindStockAsync(r.BloodGroup, r.ComponentType);
+            if (s == null || s.QuantityUnits < r.QuantityUnits)
+                return (null, $"Insufficient stock of {r.BloodGroup} ({r.ComponentType}). Available: {s?.QuantityUnits ?? 0} units, Requested: {r.QuantityUnits} units.");
+
+            // Get existing available bags for this component and blood group
+            var bags = await _repo.GetAvailableBagsAsync(r.BloodGroup, r.ComponentType, r.QuantityUnits);
+            var issuedBagList = new List<string>();
+
+            // Mark existing bags as Issued in both BloodBags and ComponentCollections
+            foreach (var b in bags)
+            {
+                b.IsIssued = true;
+                b.IssuedDate = DateTime.UtcNow;
+                issuedBagList.Add(b.BagNumber);
+
+                var collectionItem = await _repo.FindComponentCollectionByBarcodeAsync(b.BagNumber);
+                if (collectionItem != null)
+                {
+                    collectionItem.Status = "Issued";
+                }
+            }
+
+            // If more units were requested than pre-barcoded bags in DB, generate tracked issued bags
+            for (int i = bags.Count; i < r.QuantityUnits; i++)
+            {
+                var prefix = r.ComponentType.Contains("Whole") ? "WB" :
+                             r.ComponentType.Contains("PRBC") ? "PRBC" :
+                             r.ComponentType.Contains("Platelet") ? "PLT" :
+                             r.ComponentType.Contains("Plasma") ? "FFP" : "CRYO";
+                var cleanGroup = r.BloodGroup.Replace("+", "P").Replace("-", "N");
+                var autoBarcode = $"BAG-{prefix}-{cleanGroup}-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}";
+
+                await _repo.AddBagAsync(new BloodBag
+                {
+                    Id = Guid.NewGuid(),
+                    BagNumber = autoBarcode,
+                    BloodGroup = r.BloodGroup,
+                    ComponentType = r.ComponentType,
+                    QuantityUnits = 1,
+                    AddedDate = DateTime.UtcNow,
+                    IsIssued = true,
+                    IssuedDate = DateTime.UtcNow
+                });
+
+                await _repo.AddComponentCollectionAsync(new ComponentCollection
+                {
+                    Id = Guid.NewGuid(),
+                    BagBarcode = autoBarcode,
+                    ComponentType = r.ComponentType,
+                    BloodGroup = r.BloodGroup,
+                    BagType = r.ComponentType.Contains("Platelet") ? "Single Bag (250ml)" : r.ComponentType.Contains("Whole") ? "Triple Bag (450ml)" : "Double Bag (350ml)",
+                    VolumeMl = r.ComponentType.Contains("Platelet") ? 250 : r.ComponentType.Contains("Whole") ? 450 : 350,
+                    CollectionDate = DateTime.UtcNow,
+                    ExpiryDate = DateTime.UtcNow.AddDays(r.ComponentType.Contains("Platelet") ? 5 : r.ComponentType.Contains("Whole") ? 35 : 42),
+                    Status = "Issued"
+                });
+
+                issuedBagList.Add(autoBarcode);
+            }
+
+            r.IssuedBagNumbers = string.Join(", ", issuedBagList);
+            s.QuantityUnits = Math.Max(0, s.QuantityUnits - r.QuantityUnits);
+            s.LastUpdated = DateTime.UtcNow;
+
+            r.PaymentMode = d.PaymentMode;
+            r.PaymentStatus = "Completed";
+            r.TransactionId = d.PaymentMode == "UPI" ? d.TransactionId!.Trim() : null;
+            r.AmountPaid = d.AmountPaid ?? (GetDefaultComponentPrice(r.ComponentType) * r.QuantityUnits);
+        }
+
+        r.Status = d.Status;
+        r.AdminComments = d.AdminComments;
+        r.ProcessedAt = DateTime.UtcNow;
+        await _repo.SaveChangesAsync();
+        return (Mapping.Request(r), null);
+    }
     private static decimal GetDefaultComponentPrice(string componentType) => componentType switch
     {
         "Whole Blood" => 1500m,
