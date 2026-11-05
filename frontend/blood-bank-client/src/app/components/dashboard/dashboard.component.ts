@@ -1,10 +1,11 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
 import { BloodBankService } from '../../core/services/blood-bank.service';
 import { DonorService } from '../../core/services/donor.service';
 import { HospitalService } from '../../core/services/hospital.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { BloodBag, BloodGroup, BloodRequest, BloodStock, ComponentCollection, ComponentDiscard, ComponentReturn, ComponentType, DonationCamp, DonationHistory, DonorDetails } from '../../core/models/blood-bank.model';
 
 @Component({
@@ -16,10 +17,21 @@ import { BloodBag, BloodGroup, BloodRequest, BloodStock, ComponentCollection, Co
 })
 export class DashboardComponent implements OnInit {
   public authService = inject(AuthService);
+  public notificationService = inject(NotificationService);
   private bloodBankService = inject(BloodBankService);
   private donorService = inject(DonorService);
   private hospitalService = inject(HospitalService);
   private fb = inject(FormBuilder);
+
+  constructor() {
+    effect(() => {
+      const tabReq = this.notificationService.activeTabRequest();
+      if (tabReq) {
+        this.activeBankTab = tabReq as any;
+        this.notificationService.activeTabRequest.set(null);
+      }
+    });
+  }
 
   // Tabs
   public activeBankTab: 'stock' | 'camps' | 'donors' | 'requests' | 'issued' | 'summary' | 'collection' | 'discard' | 'return' = 'stock';
@@ -463,7 +475,10 @@ export class DashboardComponent implements OnInit {
     });
     this.bloodBankService.getComponentCollections().subscribe(items => this.componentCollections.set(items));
     this.bloodBankService.getComponentDiscards().subscribe(items => this.componentDiscards.set(items));
-    this.bloodBankService.getComponentReturns().subscribe(items => this.componentReturns.set(items));
+    this.bloodBankService.getComponentReturns().subscribe(items => {
+      this.componentReturns.set(items);
+      this.notificationService.refresh();
+    });
   }
 
   public createComponentCollection(): void {
