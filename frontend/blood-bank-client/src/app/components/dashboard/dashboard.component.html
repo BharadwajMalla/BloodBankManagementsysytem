@@ -17,41 +17,58 @@
     @if (authService.isBloodBank()) {
       <p class="dashboard-nav-label">Main</p>
       <nav class="dashboard-nav">
+        <!-- 1. Stock overview -->
         <button [class.active]="activeBankTab === 'stock'" (click)="activeBankTab = 'stock'; showIssuedComponents.set(false)">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
           <span>Stock overview</span>
         </button>
-        <button [class.active]="activeBankTab === 'camps'" (click)="activeBankTab = 'camps'">
-          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-          <span>Donation camps</span>
-        </button>
-        <button [class.active]="activeBankTab === 'donors'" (click)="activeBankTab = 'donors'">
-          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-          <span>Donor details</span>
-        </button>
+
+        <!-- 2. Incoming requests -->
         <button [class.active]="activeBankTab === 'requests'" (click)="activeBankTab = 'requests'">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           <span>Incoming requests</span>
         </button>
+
+        <!-- 3. Issued components -->
         <button [class.active]="activeBankTab === 'issued'" (click)="activeBankTab = 'issued'; showIssuedComponents.set(true)">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           <span>Issued components</span>
         </button>
-        <button [class.active]="activeBankTab === 'summary'" (click)="activeBankTab = 'summary'">
-          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6m-5 0a3 3 0 110 6H9l3 6m-3-6h6"/></svg>
-          <span>Account summary</span>
+
+        <!-- 4. Donation camps -->
+        <button [class.active]="activeBankTab === 'camps'" (click)="activeBankTab = 'camps'">
+          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span>Donation camps</span>
         </button>
+
+        <!-- 5. Donor details -->
+        <button [class.active]="activeBankTab === 'donors'" (click)="activeBankTab = 'donors'">
+          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          <span>Donor details</span>
+        </button>
+
+        <!-- 6. Component collection -->
         <button [class.active]="activeBankTab === 'collection'" (click)="activeBankTab = 'collection'">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           <span>Component collection</span>
         </button>
+
+        <!-- 7. Components discarded -->
         <button [class.active]="activeBankTab === 'discard'" (click)="activeBankTab = 'discard'">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
           <span>Components discarded</span>
         </button>
+
+        <!-- 8. Components return -->
         <button [class.active]="activeBankTab === 'return'" (click)="activeBankTab = 'return'">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
           <span>Components return</span>
+        </button>
+
+        <!-- 9. Account summary (Last) -->
+        <button [class.active]="activeBankTab === 'summary'" (click)="activeBankTab = 'summary'">
+          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6m-5 0a3 3 0 110 6H9l3 6m-3-6h6"/></svg>
+          <span>Account summary</span>
         </button>
       </nav>
     } @else if (authService.isHospital()) {
@@ -152,6 +169,7 @@
         <div class="space-y-6">
           <!-- Blood Bank Tab Navigation -->
           <div class="legacy-bank-tabs flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+            <!-- 1. Stock Details -->
             <button
               (click)="activeBankTab = 'stock'; showIssuedComponents.set(false)"
               [ngClass]="activeBankTab === 'stock' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
@@ -161,24 +179,7 @@
               <span>Stock Details</span>
             </button>
 
-            <button
-              (click)="activeBankTab = 'camps'"
-              [ngClass]="activeBankTab === 'camps' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
-              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-              <span>Camp Details</span>
-            </button>
-
-            <button
-              (click)="activeBankTab = 'donors'"
-              [ngClass]="activeBankTab === 'donors' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
-              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-              <span>Donor Details</span>
-            </button>
-
+            <!-- 2. Incoming Requests -->
             <button
               (click)="activeBankTab = 'requests'"
               [ngClass]="activeBankTab === 'requests' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
@@ -193,6 +194,7 @@
               }
             </button>
 
+            <!-- 3. Component Issue -->
             <button
               (click)="activeBankTab = 'issued'; showIssuedComponents.set(true)"
               [ngClass]="activeBankTab === 'issued' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
@@ -201,38 +203,42 @@
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h6l4 4v12a2 2 0 01-2 2z"/></svg>
               <span>Component Issue</span>
             </button>
-            <button (click)="activeBankTab = 'summary'" [ngClass]="activeBankTab === 'summary' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'bg-white text-slate-700 border border-slate-200'" class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-1.5"><span class="font-bold">₹</span><span>Account Summary</span></button>
+
+            <!-- 4. Camp Details -->
+            <button
+              (click)="activeBankTab = 'camps'"
+              [ngClass]="activeBankTab === 'camps' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span>Camp Details</span>
+            </button>
+
+            <!-- 5. Donor Details -->
+            <button
+              (click)="activeBankTab = 'donors'"
+              [ngClass]="activeBankTab === 'donors' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              <span>Donor Details</span>
+            </button>
+
+            <!-- 6. Component Collection -->
             <button (click)="activeBankTab = 'collection'" [ngClass]="activeBankTab === 'collection' ? 'bg-rose-600 text-white' : 'bg-white text-slate-700 border border-slate-200'" class="px-5 py-2.5 rounded-xl text-sm font-bold">Component Collection</button>
+
+            <!-- 7. Components Discarded -->
             <button (click)="activeBankTab = 'discard'" [ngClass]="activeBankTab === 'discard' ? 'bg-rose-600 text-white' : 'bg-white text-slate-700 border border-slate-200'" class="px-5 py-2.5 rounded-xl text-sm font-bold">Components Discarded</button>
+
+            <!-- 8. Components Return -->
             <button (click)="activeBankTab = 'return'" [ngClass]="activeBankTab === 'return' ? 'bg-rose-600 text-white' : 'bg-white text-slate-700 border border-slate-200'" class="px-5 py-2.5 rounded-xl text-sm font-bold">Components Return</button>
+
+            <!-- 9. Account Summary (Last) -->
+            <button (click)="activeBankTab = 'summary'" [ngClass]="activeBankTab === 'summary' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'bg-white text-slate-700 border border-slate-200'" class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-1.5"><span class="font-bold">₹</span><span>Account Summary</span></button>
           </div>
 
           @if (componentError) { <div class="p-3 rounded-xl bg-rose-50 text-rose-700 text-sm">{{ componentError }}</div> }
-          @if (activeBankTab === 'collection') {
-            <section class="space-y-4">
-              <form [formGroup]="componentCollectionForm" (ngSubmit)="createComponentCollection()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm">
-                <select formControlName="componentType" class="input"><option *ngFor="let type of componentTypes" [value]="type">{{ type }}</option></select>
-                <select formControlName="bloodGroup" class="input"><option *ngFor="let group of bloodGroups" [value]="group">{{ group }}</option></select>
-                <input formControlName="bagType" placeholder="Type of bag" class="input">
-                <input formControlName="volumeMl" type="number" placeholder="Volume (ml)" class="input">
-                <input formControlName="bagBarcode" placeholder="Bag barcode / ID" class="input">
-                <label class="text-xs">Collection date<input formControlName="collectionDate" type="date" class="input"></label>
-                <label class="text-xs">Expiry date<input formControlName="expiryDate" type="date" class="input"></label>
-                <button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Save collection</button>
-              </form>
-              <div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Component</th><th>Group</th><th>Bag</th><th>Volume</th><th>Collection</th><th>Expiry</th><th>Status</th></tr>
-                <tr *ngFor="let item of componentCollections()" class="border-b"><td class="p-3">{{item.componentType}}</td><td>{{item.bloodGroup}}</td><td>{{item.bagBarcode}}</td><td>{{item.volumeMl}} ml</td><td>{{item.collectionDate | date}}</td><td>{{item.expiryDate | date}}</td><td>{{item.status}}</td><td><button (click)="deleteComponentCollection(item.id)" class="text-rose-700 font-bold">Delete</button></td></tr>
-              </table></div>
-            </section>
-          }
-          @if (activeBankTab === 'discard') {
-            <section class="space-y-4"><form [formGroup]="componentDiscardForm" (ngSubmit)="createComponentDiscard()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm">
-              <input formControlName="bagBarcode" placeholder="Issued bag barcode" class="input"><input formControlName="reason" placeholder="Reason for discard" class="input"><input formControlName="discardedBy" placeholder="Discarded by" class="input"><button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Submit for approval</button>
-            </form><div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Bag</th><th>Reason</th><th>Discarded by</th><th>Status</th><th>Action</th></tr><tr *ngFor="let item of componentDiscards()" class="border-b"><td class="p-3">{{item.bagBarcode}}</td><td>{{item.reason}}</td><td>{{item.discardedBy}}</td><td>{{item.approvalStatus}}</td><td><button *ngIf="item.approvalStatus === 'Pending' && (authService.isAdmin() || authService.isBloodBank())" (click)="reviewComponentDiscard(item.id, true)" class="text-emerald-700 font-bold mr-2">Approve</button><button *ngIf="item.approvalStatus === 'Pending' && (authService.isAdmin() || authService.isBloodBank())" (click)="reviewComponentDiscard(item.id, false)" class="text-rose-700 font-bold mr-2">Reject</button><button (click)="deleteComponentDiscard(item.id)" class="text-slate-700 font-bold">Delete</button></td></tr></table></div></section>
-          }
-          @if (activeBankTab === 'return') {
-            <section class="space-y-4"><form [formGroup]="componentReturnForm" (ngSubmit)="createComponentReturn()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm"><input formControlName="bagBarcode" placeholder="Issued bag barcode" class="input"><input formControlName="reason" placeholder="Reason for return" class="input"><input formControlName="returnedBy" placeholder="Returned by" class="input"><button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Record return</button></form><div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Bag</th><th>Reason</th><th>Returned by</th><th>Date</th><th>Action</th></tr><tr *ngFor="let item of componentReturns()" class="border-b"><td class="p-3">{{item.bagBarcode}}</td><td>{{item.reason}}</td><td>{{item.returnedBy}}</td><td>{{item.returnDate | date}}</td><td><button (click)="deleteComponentReturn(item.id)" class="text-rose-700 font-bold">Delete</button></td></tr></table></div></section>
-          }
+          
           <!-- TAB 1: STOCK DETAILS -->
           @if (activeBankTab === 'stock') {
             <div class="space-y-6">
@@ -363,6 +369,148 @@
                             No bags registered for {{ selectedStockComponent() }} ({{ selectedBloodGroup() }}). Click "+ Replenish / Add Units" above to add.
                           } @else {
                             No bags registered for {{ selectedStockComponent() }}. Click "+ Replenish / Add Units" above to add bags.
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          <!-- TAB 4: REQUEST FORMS (HOSPITALS & DONORS) -->
+          @if (activeBankTab === 'requests') {
+            <div class="space-y-6">
+              <div>
+                <h2 class="text-xl font-black text-slate-900">Incoming Blood & Component Requests</h2>
+                <p class="text-xs text-slate-500">Create and manage requisitions for Hospitals, Donors, and Blood Bank A</p>
+              </div>
+
+              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+                <h3 class="text-base font-black text-slate-900 mb-4">Create Request</h3>
+                <form [formGroup]="bloodBankRequestForm" (ngSubmit)="submitBloodBankRequest()" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <input formControlName="hospitalName" placeholder="Hospital name" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <input formControlName="patientName" placeholder="Patient name" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <select formControlName="bloodGroup" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                    @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                  </select>
+                  <select formControlName="componentType" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                    @for (component of componentTypes; track component) { <option [value]="component">{{ component }}</option> }
+                  </select>
+                  <input type="number" min="1" formControlName="quantityUnits" placeholder="Units" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <select formControlName="urgency" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                    <option value="Normal">Normal</option><option value="Urgent">Urgent</option><option value="Critical">Critical</option>
+                  </select>
+                  <input formControlName="hospitalDepartment" placeholder="Department (optional)" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <input formControlName="medicalReason" placeholder="Reason (optional)" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <button type="submit" [disabled]="bloodBankRequestForm.invalid || isSubmittingBloodBankRequest" class="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold text-sm disabled:opacity-50">
+                    {{ isSubmittingBloodBankRequest ? 'Creating...' : 'Create Request' }}
+                  </button>
+                </form>
+                @if (bloodBankRequestError) {
+                  <p class="mt-3 text-xs text-red-600">{{ bloodBankRequestError }}</p>
+                }
+              </div>
+
+              <ag-grid-angular class="dashboard-grid" [theme]="gridTheme" [rowData]="bankRequests()" [columnDefs]="requestColumnDefs" [pagination]="true" [paginationPageSize]="10" [domLayout]="'autoHeight'"></ag-grid-angular>
+              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <table class="legacy-table w-full text-left text-sm text-slate-600">
+                  <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
+                    <tr>
+                      <th class="py-3.5 px-6">Requester</th>
+                      <th class="py-3.5 px-6">Patient & Reason</th>
+                      <th class="py-3.5 px-6">Item & Units</th>
+                      <th class="py-3.5 px-6">Urgency</th>
+                      <th class="py-3.5 px-6">Status</th>
+                      <th class="py-3.5 px-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    @for (req of bankRequests(); track req.id) {
+                      <tr class="hover:bg-slate-50/80">
+                        <td class="py-4 px-6">
+                          <span class="text-xs font-bold px-2 py-0.5 rounded-md"
+                            [ngClass]="req.requesterType === 'Hospital' ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800'"
+                          >
+                            {{ req.requesterType }}
+                          </span>
+                          <div class="font-bold text-slate-900 mt-1">{{ req.hospitalName || req.requesterName }}</div>
+                          <div class="text-[11px] text-slate-400">{{ req.requesterContact }}</div>
+                        </td>
+                        <td class="py-4 px-6">
+                          <div class="font-bold text-slate-900">{{ req.patientName }}</div>
+                          <div class="text-xs text-slate-500">{{ req.medicalReason || 'Emergency treatment' }}</div>
+                          @if (req.hospitalDepartment) {
+                            <div class="text-[11px] text-slate-400">Dept: {{ req.hospitalDepartment }}</div>
+                          }
+                        </td>
+                        <td class="py-4 px-6">
+                          <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 font-black text-rose-700 bg-rose-50 border border-rose-200 rounded">
+                              {{ req.bloodGroup }}
+                            </span>
+                            <span class="font-semibold text-slate-800">{{ req.componentType }}</span>
+                          </div>
+                          <div class="text-xs font-bold text-slate-500 mt-1">{{ req.quantityUnits }} units requested</div>
+                          @if (req.issuedBagNumbers) {
+                            <div class="text-xs font-bold text-indigo-700 mt-2">Bags issued: {{ req.issuedBagNumbers }}</div>
+                          }
+                        </td>
+                        <td class="py-4 px-6">
+                          <span class="px-2 py-0.5 text-xs font-bold rounded-full"
+                            [ngClass]="{
+                              'bg-red-100 text-red-800': req.urgency === 'Critical',
+                              'bg-amber-100 text-amber-800': req.urgency === 'Urgent',
+                              'bg-slate-100 text-slate-700': req.urgency === 'Normal'
+                            }"
+                          >
+                            {{ req.urgency }}
+                          </span>
+                        </td>
+                        <td class="py-4 px-6 font-bold">
+                          <span class="px-2.5 py-1 text-xs rounded-full"
+                            [ngClass]="{
+                              'bg-amber-100 text-amber-800': req.status === 'Pending',
+                              'bg-blue-100 text-blue-800': req.status === 'Approved',
+                              'bg-emerald-100 text-emerald-800': req.status === 'Fulfilled',
+                              'bg-red-100 text-red-800': req.status === 'Rejected'
+                            }"
+                          >
+                            {{ req.status }}
+                          </span>
+                        </td>
+                        <td class="py-4 px-6 text-right whitespace-nowrap">
+                          @if (req.status === 'Pending') {
+                            <div class="flex items-center justify-end space-x-1.5">
+                              <button
+                                (click)="processBankRequest(req.id, 'Approved')"
+                                class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                (click)="processBankRequest(req.id, 'Fulfilled')"
+                                class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                              >
+                                Fulfill & Deduct
+                              </button>
+                              <button
+                                (click)="processBankRequest(req.id, 'Rejected')"
+                                class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          } @else if (req.status === 'Approved') {
+                            <button
+                              (click)="processBankRequest(req.id, 'Fulfilled')"
+                              class="px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                            >
+                              Dispatch & Fulfill
+                            </button>
+                          } @else {
+                            <span class="text-xs text-slate-400 italic">Closed</span>
                           }
                         </td>
                       </tr>
@@ -601,146 +749,32 @@
             </div>
           }
 
-          <!-- TAB 4: REQUEST FORMS (HOSPITALS & DONORS) -->
-          @if (activeBankTab === 'requests') {
-            <div class="space-y-6">
-              <div>
-                <h2 class="text-xl font-black text-slate-900">Incoming Blood & Component Requests</h2>
-                <p class="text-xs text-slate-500">Create and manage requisitions for Hospitals, Donors, and Blood Bank A</p>
-              </div>
+          
 
-              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
-                <h3 class="text-base font-black text-slate-900 mb-4">Create Request</h3>
-                <form [formGroup]="bloodBankRequestForm" (ngSubmit)="submitBloodBankRequest()" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <input formControlName="hospitalName" placeholder="Hospital name" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
-                  <input formControlName="patientName" placeholder="Patient name" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
-                  <select formControlName="bloodGroup" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
-                    @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
-                  </select>
-                  <select formControlName="componentType" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
-                    @for (component of componentTypes; track component) { <option [value]="component">{{ component }}</option> }
-                  </select>
-                  <input type="number" min="1" formControlName="quantityUnits" placeholder="Units" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
-                  <select formControlName="urgency" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
-                    <option value="Normal">Normal</option><option value="Urgent">Urgent</option><option value="Critical">Critical</option>
-                  </select>
-                  <input formControlName="hospitalDepartment" placeholder="Department (optional)" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
-                  <input formControlName="medicalReason" placeholder="Reason (optional)" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
-                  <button type="submit" [disabled]="bloodBankRequestForm.invalid || isSubmittingBloodBankRequest" class="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold text-sm disabled:opacity-50">
-                    {{ isSubmittingBloodBankRequest ? 'Creating...' : 'Create Request' }}
-                  </button>
-                </form>
-                @if (bloodBankRequestError) {
-                  <p class="mt-3 text-xs text-red-600">{{ bloodBankRequestError }}</p>
-                }
-              </div>
-
-              <ag-grid-angular class="dashboard-grid" [theme]="gridTheme" [rowData]="bankRequests()" [columnDefs]="requestColumnDefs" [pagination]="true" [paginationPageSize]="10" [domLayout]="'autoHeight'"></ag-grid-angular>
-              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-                <table class="legacy-table w-full text-left text-sm text-slate-600">
-                  <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
-                    <tr>
-                      <th class="py-3.5 px-6">Requester</th>
-                      <th class="py-3.5 px-6">Patient & Reason</th>
-                      <th class="py-3.5 px-6">Item & Units</th>
-                      <th class="py-3.5 px-6">Urgency</th>
-                      <th class="py-3.5 px-6">Status</th>
-                      <th class="py-3.5 px-6 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-slate-100">
-                    @for (req of bankRequests(); track req.id) {
-                      <tr class="hover:bg-slate-50/80">
-                        <td class="py-4 px-6">
-                          <span class="text-xs font-bold px-2 py-0.5 rounded-md"
-                            [ngClass]="req.requesterType === 'Hospital' ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800'"
-                          >
-                            {{ req.requesterType }}
-                          </span>
-                          <div class="font-bold text-slate-900 mt-1">{{ req.hospitalName || req.requesterName }}</div>
-                          <div class="text-[11px] text-slate-400">{{ req.requesterContact }}</div>
-                        </td>
-                        <td class="py-4 px-6">
-                          <div class="font-bold text-slate-900">{{ req.patientName }}</div>
-                          <div class="text-xs text-slate-500">{{ req.medicalReason || 'Emergency treatment' }}</div>
-                          @if (req.hospitalDepartment) {
-                            <div class="text-[11px] text-slate-400">Dept: {{ req.hospitalDepartment }}</div>
-                          }
-                        </td>
-                        <td class="py-4 px-6">
-                          <div class="flex items-center space-x-2">
-                            <span class="px-2 py-0.5 font-black text-rose-700 bg-rose-50 border border-rose-200 rounded">
-                              {{ req.bloodGroup }}
-                            </span>
-                            <span class="font-semibold text-slate-800">{{ req.componentType }}</span>
-                          </div>
-                          <div class="text-xs font-bold text-slate-500 mt-1">{{ req.quantityUnits }} units requested</div>
-                          @if (req.issuedBagNumbers) {
-                            <div class="text-xs font-bold text-indigo-700 mt-2">Bags issued: {{ req.issuedBagNumbers }}</div>
-                          }
-                        </td>
-                        <td class="py-4 px-6">
-                          <span class="px-2 py-0.5 text-xs font-bold rounded-full"
-                            [ngClass]="{
-                              'bg-red-100 text-red-800': req.urgency === 'Critical',
-                              'bg-amber-100 text-amber-800': req.urgency === 'Urgent',
-                              'bg-slate-100 text-slate-700': req.urgency === 'Normal'
-                            }"
-                          >
-                            {{ req.urgency }}
-                          </span>
-                        </td>
-                        <td class="py-4 px-6 font-bold">
-                          <span class="px-2.5 py-1 text-xs rounded-full"
-                            [ngClass]="{
-                              'bg-amber-100 text-amber-800': req.status === 'Pending',
-                              'bg-blue-100 text-blue-800': req.status === 'Approved',
-                              'bg-emerald-100 text-emerald-800': req.status === 'Fulfilled',
-                              'bg-red-100 text-red-800': req.status === 'Rejected'
-                            }"
-                          >
-                            {{ req.status }}
-                          </span>
-                        </td>
-                        <td class="py-4 px-6 text-right whitespace-nowrap">
-                          @if (req.status === 'Pending') {
-                            <div class="flex items-center justify-end space-x-1.5">
-                              <button
-                                (click)="processBankRequest(req.id, 'Approved')"
-                                class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                (click)="processBankRequest(req.id, 'Fulfilled')"
-                                class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
-                              >
-                                Fulfill & Deduct
-                              </button>
-                              <button
-                                (click)="processBankRequest(req.id, 'Rejected')"
-                                class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          } @else if (req.status === 'Approved') {
-                            <button
-                              (click)="processBankRequest(req.id, 'Fulfilled')"
-                              class="px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
-                            >
-                              Dispatch & Fulfill
-                            </button>
-                          } @else {
-                            <span class="text-xs text-slate-400 italic">Closed</span>
-                          }
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            </div>
+          @if (activeBankTab === 'collection') {
+            <section class="space-y-4">
+              <form [formGroup]="componentCollectionForm" (ngSubmit)="createComponentCollection()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm">
+                <select formControlName="componentType" class="input"><option *ngFor="let type of componentTypes" [value]="type">{{ type }}</option></select>
+                <select formControlName="bloodGroup" class="input"><option *ngFor="let group of bloodGroups" [value]="group">{{ group }}</option></select>
+                <input formControlName="bagType" placeholder="Type of bag" class="input">
+                <input formControlName="volumeMl" type="number" placeholder="Volume (ml)" class="input">
+                <input formControlName="bagBarcode" placeholder="Bag barcode / ID" class="input">
+                <label class="text-xs">Collection date<input formControlName="collectionDate" type="date" class="input"></label>
+                <label class="text-xs">Expiry date<input formControlName="expiryDate" type="date" class="input"></label>
+                <button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Save collection</button>
+              </form>
+              <div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Component</th><th>Group</th><th>Bag</th><th>Volume</th><th>Collection</th><th>Expiry</th><th>Status</th></tr>
+                <tr *ngFor="let item of componentCollections()" class="border-b"><td class="p-3">{{item.componentType}}</td><td>{{item.bloodGroup}}</td><td>{{item.bagBarcode}}</td><td>{{item.volumeMl}} ml</td><td>{{item.collectionDate | date}}</td><td>{{item.expiryDate | date}}</td><td>{{item.status}}</td><td><button (click)="deleteComponentCollection(item.id)" class="text-rose-700 font-bold">Delete</button></td></tr>
+              </table></div>
+            </section>
+          }
+          @if (activeBankTab === 'discard') {
+            <section class="space-y-4"><form [formGroup]="componentDiscardForm" (ngSubmit)="createComponentDiscard()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm">
+              <input formControlName="bagBarcode" placeholder="Issued bag barcode" class="input"><input formControlName="reason" placeholder="Reason for discard" class="input"><input formControlName="discardedBy" placeholder="Discarded by" class="input"><button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Submit for approval</button>
+            </form><div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Bag</th><th>Reason</th><th>Discarded by</th><th>Status</th><th>Action</th></tr><tr *ngFor="let item of componentDiscards()" class="border-b"><td class="p-3">{{item.bagBarcode}}</td><td>{{item.reason}}</td><td>{{item.discardedBy}}</td><td>{{item.approvalStatus}}</td><td><button *ngIf="item.approvalStatus === 'Pending' && (authService.isAdmin() || authService.isBloodBank())" (click)="reviewComponentDiscard(item.id, true)" class="text-emerald-700 font-bold mr-2">Approve</button><button *ngIf="item.approvalStatus === 'Pending' && (authService.isAdmin() || authService.isBloodBank())" (click)="reviewComponentDiscard(item.id, false)" class="text-rose-700 font-bold mr-2">Reject</button><button (click)="deleteComponentDiscard(item.id)" class="text-slate-700 font-bold">Delete</button></td></tr></table></div></section>
+          }
+          @if (activeBankTab === 'return') {
+            <section class="space-y-4"><form [formGroup]="componentReturnForm" (ngSubmit)="createComponentReturn()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm"><input formControlName="bagBarcode" placeholder="Issued bag barcode" class="input"><input formControlName="reason" placeholder="Reason for return" class="input"><input formControlName="returnedBy" placeholder="Returned by" class="input"><button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Record return</button></form><div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Bag</th><th>Reason</th><th>Returned by</th><th>Date</th><th>Action</th></tr><tr *ngFor="let item of componentReturns()" class="border-b"><td class="p-3">{{item.bagBarcode}}</td><td>{{item.reason}}</td><td>{{item.returnedBy}}</td><td>{{item.returnDate | date}}</td><td><button (click)="deleteComponentReturn(item.id)" class="text-rose-700 font-bold">Delete</button></td></tr></table></div></section>
           }
 
           <!-- TAB: ACCOUNT SUMMARY -->
