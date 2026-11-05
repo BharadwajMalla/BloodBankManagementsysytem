@@ -646,15 +646,29 @@ public static class DbInitializer
             {
                 bagCounter++;
                 var prefix = comp.Contains("Whole") ? "WB" : comp.Contains("PRBC") ? "PRBC" : comp.Contains("Platelet") ? "PLT" : comp.Contains("Plasma") ? "FFP" : "CRYO";
+                var barcode = $"BAG-{prefix}-{group.Replace("+", "P").Replace("-", "N")}-{bagCounter}";
                 await context.BloodBags.AddAsync(new BloodBag
                 {
                     Id = Guid.NewGuid(),
-                    BagNumber = $"BAG-{prefix}-{group.Replace("+", "P").Replace("-", "N")}-{bagCounter}",
+                    BagNumber = barcode,
                     BloodGroup = group,
                     ComponentType = comp,
                     QuantityUnits = 1,
                     AddedDate = DateTime.UtcNow.AddDays(-i * 2),
                     IsIssued = false
+                });
+
+                await context.ComponentCollections.AddAsync(new ComponentCollection
+                {
+                    Id = Guid.NewGuid(),
+                    BagBarcode = barcode,
+                    ComponentType = comp,
+                    BloodGroup = group,
+                    BagType = comp.Contains("Platelet") ? "Single Bag (250ml)" : comp.Contains("Whole") ? "Triple Bag (450ml)" : "Double Bag (350ml)",
+                    VolumeMl = comp.Contains("Platelet") ? 250 : comp.Contains("Whole") ? 450 : 350,
+                    CollectionDate = DateTime.UtcNow.AddDays(-i * 2),
+                    ExpiryDate = DateTime.UtcNow.AddDays(comp.Contains("Platelet") ? 5 : comp.Contains("Whole") ? 35 : 42),
+                    Status = "Available"
                 });
             }
         }

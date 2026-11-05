@@ -27,6 +27,8 @@ export interface BloodBag {
   componentType: ComponentType;
   quantityUnits: number;
   addedDate: string;
+  isIssued?: boolean;
+  issuedDate?: string;
 }
 
 export interface DonationCamp {

@@ -240,11 +240,11 @@
                   </button>
                   <button
                     type="button"
-                    (click)="openAddStockModal()"
+                    (click)="activeBankTab = 'collection'"
                     class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/20 transition-all flex items-center space-x-1.5"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    <span>Replenish / Add Units</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>+ Add via Component Collection</span>
                   </button>
                 </div>
               </div>
@@ -318,39 +318,77 @@
                       }
                     </p>
                   </div>
-                  <button type="button" (click)="openAddStockModal(selectedStockComponent())" class="text-xs font-bold text-rose-600 hover:text-rose-700">
-                    + Add {{ selectedStockComponent() }} Bag
+                  <button type="button" (click)="activeBankTab = 'collection'" class="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center space-x-1">
+                    <span>+ Add in Component Collection &rarr;</span>
                   </button>
                 </div>
                 <table class="w-full text-left text-sm text-slate-600">
-                  <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
+                  <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
                     <tr>
-                      <th class="py-3 px-6">Bag Number</th>
+                      <th class="py-3 px-6">Bag Barcode</th>
                       <th class="py-3 px-6">Blood Group</th>
-                      <th class="py-3 px-6">Units</th>
-                      <th class="py-3 px-6">Date Added</th>
-                      <th class="py-3 px-6">Stock Period</th>
+                      <th class="py-3 px-6">Volume & Bag</th>
+                      <th class="py-3 px-6">Collection Date</th>
+                      <th class="py-3 px-6">Expiry Date</th>
+                      <th class="py-3 px-6">Status</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-100">
-                    @for (bag of selectedBloodGroupBags(); track bag.id) {
+                    @if (selectedComponentCollections().length > 0) {
+                      @for (item of selectedComponentCollections(); track item.id) {
+                        <tr class="hover:bg-slate-50/80 transition-colors">
+                          <td class="py-3.5 px-6 font-bold text-slate-900 font-mono text-xs flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full"
+                              [ngClass]="{
+                                'bg-emerald-500': item.status === 'Available',
+                                'bg-rose-500': item.status === 'Discarded',
+                                'bg-indigo-500': item.status === 'Issued'
+                              }"></span>
+                            <span>{{ item.bagBarcode }}</span>
+                          </td>
+                          <td class="py-3.5 px-6">
+                            <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-black border border-rose-200 text-xs">{{ item.bloodGroup }}</span>
+                          </td>
+                          <td class="py-3.5 px-6 text-slate-700 font-medium text-xs">
+                            {{ item.volumeMl }} ml <span class="text-slate-400">({{ item.bagType }})</span>
+                          </td>
+                          <td class="py-3.5 px-6 text-slate-500 text-xs">{{ item.collectionDate | date:'mediumDate' }}</td>
+                          <td class="py-3.5 px-6 text-slate-500 text-xs">{{ item.expiryDate | date:'mediumDate' }}</td>
+                          <td class="py-3.5 px-6">
+                            <span class="px-2 py-0.5 rounded text-[11px] font-bold"
+                              [ngClass]="{
+                                'bg-emerald-50 text-emerald-700 border border-emerald-200': item.status === 'Available',
+                                'bg-rose-50 text-rose-700 border border-rose-200': item.status === 'Discarded',
+                                'bg-indigo-50 text-indigo-700 border border-indigo-200': item.status === 'Issued'
+                              }">
+                              {{ item.status }}
+                            </span>
+                          </td>
+                        </tr>
+                      }
+                    } @else if (selectedBloodGroupBags().length > 0) {
+                      @for (bag of selectedBloodGroupBags(); track bag.id) {
+                        <tr class="hover:bg-slate-50/80 transition-colors">
+                          <td class="py-3.5 px-6 font-bold text-slate-900 font-mono text-xs flex items-center space-x-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span>{{ bag.bagNumber }}</span>
+                          </td>
+                          <td class="py-3.5 px-6">
+                            <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-black border border-rose-200 text-xs">{{ bag.bloodGroup }}</span>
+                          </td>
+                          <td class="py-3.5 px-6 text-slate-700 font-medium text-xs">{{ bag.quantityUnits }} unit</td>
+                          <td class="py-3.5 px-6 text-slate-500 text-xs">{{ bag.addedDate | date:'mediumDate' }}</td>
+                          <td class="py-3.5 px-6 text-slate-500 text-xs">{{ getStockPeriod(bag.addedDate) }}</td>
+                          <td class="py-3.5 px-6">
+                            <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">Available</span>
+                          </td>
+                        </tr>
+                      }
+                    } @else {
                       <tr>
-                        <td class="py-3 px-6 font-bold text-slate-900">{{ bag.bagNumber }}</td>
-                        <td class="py-3 px-6">
-                          <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-black border border-rose-200">{{ bag.bloodGroup }}</span>
-                        </td>
-                        <td class="py-3 px-6 font-bold">{{ bag.quantityUnits }}</td>
-                        <td class="py-3 px-6 text-xs text-slate-400">{{ bag.addedDate | date:'mediumDate' }}</td>
-                        <td class="py-3 px-6 text-xs font-bold text-slate-600">{{ getStockPeriod(bag.addedDate) }}</td>
-                      </tr>
-                    } @empty {
-                      <tr>
-                        <td colspan="5" class="py-8 text-center text-xs text-slate-500">
-                          @if (selectedBloodGroup()) {
-                            No bags registered for {{ selectedStockComponent() }} ({{ selectedBloodGroup() }}). Click "+ Replenish / Add Units" above to add.
-                          } @else {
-                            No bags registered for {{ selectedStockComponent() }}. Click "+ Replenish / Add Units" above to add bags.
-                          }
+                        <td colspan="6" class="py-10 text-center text-slate-400">
+                          <p class="font-bold text-slate-600 text-sm">No bags collected yet for {{ selectedStockComponent() }} @if(selectedBloodGroup()){({{ selectedBloodGroup() }})}</p>
+                          <p class="text-xs text-slate-400 mt-1">Components added in <button type="button" (click)="activeBankTab = 'collection'" class="text-rose-600 font-bold underline">Component Collection</button> will automatically appear here.</p>
                         </td>
                       </tr>
                     }
@@ -731,20 +769,161 @@
           
 
           @if (activeBankTab === 'collection') {
-            <section class="space-y-4">
-              <form [formGroup]="componentCollectionForm" (ngSubmit)="createComponentCollection()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm">
-                <select formControlName="componentType" class="input"><option *ngFor="let type of componentTypes" [value]="type">{{ type }}</option></select>
-                <select formControlName="bloodGroup" class="input"><option *ngFor="let group of bloodGroups" [value]="group">{{ group }}</option></select>
-                <input formControlName="bagType" placeholder="Type of bag" class="input">
-                <input formControlName="volumeMl" type="number" placeholder="Volume (ml)" class="input">
-                <input formControlName="bagBarcode" placeholder="Bag barcode / ID" class="input">
-                <label class="text-xs">Collection date<input formControlName="collectionDate" type="date" class="input"></label>
-                <label class="text-xs">Expiry date<input formControlName="expiryDate" type="date" class="input"></label>
-                <button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Save collection</button>
-              </form>
-              <div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Component</th><th>Group</th><th>Bag</th><th>Volume</th><th>Collection</th><th>Expiry</th><th>Status</th></tr>
-                <tr *ngFor="let item of componentCollections()" class="border-b"><td class="p-3">{{item.componentType}}</td><td>{{item.bloodGroup}}</td><td>{{item.bagBarcode}}</td><td>{{item.volumeMl}} ml</td><td>{{item.collectionDate | date}}</td><td>{{item.expiryDate | date}}</td><td>{{item.status}}</td><td><button (click)="deleteComponentCollection(item.id)" class="text-rose-700 font-bold">Delete</button></td></tr>
-              </table></div>
+            <section class="space-y-6">
+              <!-- Top Alert & Success Notification -->
+              @if (collectionSuccessMessage) {
+                <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center justify-between shadow-sm">
+                  <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span class="font-bold">{{ collectionSuccessMessage }}</span>
+                  </div>
+                  <button type="button" (click)="activeBankTab = 'stock'" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors">
+                    View in Stock Overview &rarr;
+                  </button>
+                </div>
+              }
+
+              <!-- Component Collection Intake Form Card -->
+              <div class="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200/80 shadow-sm space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+                  <div>
+                    <h2 class="text-lg font-black text-slate-900 flex items-center space-x-2">
+                      <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                      <span>Collect & Register Blood Component</span>
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Components added here immediately update the Stock Overview based on component type and blood group.</p>
+                  </div>
+                  <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Live Stock Sync Active</span>
+                  </span>
+                </div>
+
+                <form [formGroup]="componentCollectionForm" (ngSubmit)="createComponentCollection()" class="space-y-4">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- 1. Component Type -->
+                    <div>
+                      <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Component Type</label>
+                      <select formControlName="componentType" (change)="onCollectionComponentTypeChange()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-xs font-semibold bg-white">
+                        <option *ngFor="let type of componentTypes" [value]="type">{{ type }}</option>
+                      </select>
+                    </div>
+
+                    <!-- 2. Blood Group -->
+                    <div>
+                      <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Blood Group</label>
+                      <select formControlName="bloodGroup" (change)="onCollectionComponentTypeChange()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-xs font-semibold bg-white">
+                        <option *ngFor="let group of bloodGroups" [value]="group">{{ group }}</option>
+                      </select>
+                    </div>
+
+                    <!-- 3. Bag Type -->
+                    <div>
+                      <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Bag Type</label>
+                      <input formControlName="bagType" placeholder="e.g. Triple Bag (450ml)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-xs">
+                    </div>
+
+                    <!-- 4. Volume (ml) -->
+                    <div>
+                      <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Volume (ml)</label>
+                      <input formControlName="volumeMl" type="number" placeholder="450" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-xs font-bold">
+                    </div>
+
+                    <!-- 5. Bag Barcode / ID -->
+                    <div class="sm:col-span-2">
+                      <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">Bag Barcode / Unique ID</label>
+                        <button type="button" (click)="autoGenerateBarcode()" class="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline">Generate Barcode</button>
+                      </div>
+                      <input formControlName="bagBarcode" placeholder="e.g. BAG-2026-WB-A-1001" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-xs font-mono font-bold">
+                    </div>
+
+                    <!-- 6. Collection Date -->
+                    <div>
+                      <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Collection Date</label>
+                      <input formControlName="collectionDate" type="date" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-xs">
+                    </div>
+
+                    <!-- 7. Expiry Date -->
+                    <div>
+                      <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Expiry Date</label>
+                      <input formControlName="expiryDate" type="date" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-xs font-semibold">
+                    </div>
+                  </div>
+
+                  <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                    <button type="submit" [disabled]="componentCollectionForm.invalid" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/20 transition-all flex items-center space-x-2">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                      <span>Collect & Add to Depository</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Component Collections Registry Table -->
+              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 class="text-sm font-black text-slate-900">Component Collection Intake Registry</h3>
+                    <p class="text-xs text-slate-500">{{ componentCollections().length }} bag(s) recorded in clinical repository</p>
+                  </div>
+                  <button type="button" (click)="activeBankTab = 'stock'" class="text-xs font-bold text-slate-600 hover:text-rose-600 flex items-center space-x-1">
+                    <span>View in Stock Overview &rarr;</span>
+                  </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
+                      <tr>
+                        <th class="py-3 px-6">Bag Barcode</th>
+                        <th class="py-3 px-6">Component</th>
+                        <th class="py-3 px-6">Group</th>
+                        <th class="py-3 px-6">Volume & Bag</th>
+                        <th class="py-3 px-6">Collection Date</th>
+                        <th class="py-3 px-6">Expiry Date</th>
+                        <th class="py-3 px-6">Status</th>
+                        <th class="py-3 px-6 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      @for (item of componentCollections(); track item.id) {
+                        <tr class="hover:bg-slate-50 transition-colors">
+                          <td class="py-3.5 px-6 font-bold text-slate-900 font-mono text-xs">{{ item.bagBarcode }}</td>
+                          <td class="py-3.5 px-6 font-semibold text-slate-800">{{ item.componentType }}</td>
+                          <td class="py-3.5 px-6">
+                            <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-black border border-rose-200 text-xs">{{ item.bloodGroup }}</span>
+                          </td>
+                          <td class="py-3.5 px-6 text-slate-700 font-medium">{{ item.volumeMl }} ml <span class="text-xs text-slate-400">({{ item.bagType }})</span></td>
+                          <td class="py-3.5 px-6 text-slate-500 text-xs">{{ item.collectionDate | date:'mediumDate' }}</td>
+                          <td class="py-3.5 px-6 text-slate-500 text-xs">{{ item.expiryDate | date:'mediumDate' }}</td>
+                          <td class="py-3.5 px-6">
+                            <span class="px-2 py-0.5 rounded text-[11px] font-bold"
+                              [ngClass]="{
+                                'bg-emerald-50 text-emerald-700 border border-emerald-200': item.status === 'Available',
+                                'bg-rose-50 text-rose-700 border border-rose-200': item.status === 'Discarded',
+                                'bg-indigo-50 text-indigo-700 border border-indigo-200': item.status === 'Issued'
+                              }">
+                              {{ item.status }}
+                            </span>
+                          </td>
+                          <td class="py-3.5 px-6 text-right">
+                            <button (click)="deleteComponentCollection(item.id)" class="text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors">Delete</button>
+                          </td>
+                        </tr>
+                      }
+                      @if (componentCollections().length === 0) {
+                        <tr>
+                          <td colspan="8" class="py-10 text-center text-slate-400">
+                            <p class="font-bold text-slate-600 text-sm">No component bags collected yet</p>
+                            <p class="text-xs text-slate-400 mt-1">Use the form above to register your first component collection.</p>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </section>
           }
           @if (activeBankTab === 'discard') {
@@ -958,7 +1137,7 @@
           <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-4">
             <div class="flex items-center justify-between">
               <div><h3 class="text-lg font-black text-slate-900">Donation History</h3><p class="text-xs text-slate-500">{{ donationHistoryDonor.fullName }}</p></div>
-              <button type="button" (click)="showDonationHistoryModal = false" class="text-slate-400 text-xl">Ã—</button>
+              <button type="button" (click)="showDonationHistoryModal = false" class="text-slate-400 text-xl">✕</button>
             </div>
             @for (record of donationHistory; track record.id) {
               <article class="rounded-xl border border-slate-200 p-4 space-y-3">
@@ -1622,117 +1801,6 @@
       }
     </div>
 
-    <!-- ADD / REPLENISH STOCK MODAL (Blood Bank A only) -->
-    @if (showAddStockModal) {
-      <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100">
-          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 class="text-lg font-bold text-slate-900">
-              {{ stockModalMode === 'replenish' ? 'Replenish Blood Bank A Units' : 'Add Blood Bag Barcode' }}
-            </h3>
-            <button type="button" (click)="showAddStockModal = false" class="text-slate-400 hover:text-slate-600">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-          </div>
-
-          <!-- Mode Toggle -->
-          <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold">
-            <button
-              type="button"
-              (click)="stockModalMode = 'replenish'"
-              [ngClass]="stockModalMode === 'replenish' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
-              class="flex-1 py-1.5 rounded-lg transition-all text-center"
-            >
-              Replenish Units
-            </button>
-            <button
-              type="button"
-              (click)="stockModalMode = 'bag'"
-              [ngClass]="stockModalMode === 'bag' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
-              class="flex-1 py-1.5 rounded-lg transition-all text-center"
-            >
-              Add Single Bag
-            </button>
-          </div>
-
-          @if (addStockError) {
-            <div class="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center space-x-2">
-              <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
-              <span>{{ addStockError }}</span>
-            </div>
-          }
-
-          @if (stockModalMode === 'replenish') {
-            <!-- REPLENISH FORM -->
-            <form [formGroup]="replenishStockForm" (ngSubmit)="submitReplenishStock()" class="space-y-4">
-              <div>
-                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Blood Group</label>
-                <select formControlName="bloodGroup" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 bg-white">
-                  @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Component Type</label>
-                <select formControlName="componentType" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-900 bg-white">
-                  @for (comp of componentTypes; track comp) { <option [value]="comp">{{ comp }}</option> }
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Quantity Units</label>
-                <input type="number" min="1" max="10000" formControlName="quantityUnits" placeholder="e.g. 10" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-900"/>
-              </div>
-              <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
-                <button type="button" (click)="showAddStockModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100 transition-colors">Cancel</button>
-                <button type="submit" [disabled]="isAddingStock || replenishStockForm.invalid" class="px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md disabled:opacity-50 flex items-center space-x-1.5 transition-all">
-                  @if (isAddingStock) {
-                    <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    <span>Adding to Depository...</span>
-                  } @else {
-                    <span>Add to Depository</span>
-                  }
-                </button>
-              </div>
-            </form>
-          } @else {
-            <!-- SINGLE BAG FORM -->
-            <form [formGroup]="addStockForm" (ngSubmit)="submitAddStock()" class="space-y-4">
-              <div>
-                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Blood Bag Number</label>
-                <input type="text" formControlName="bagNumber" placeholder="e.g. BAG-2026-0001" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold"/>
-              </div>
-              <div>
-                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Blood Group</label>
-                <select formControlName="bloodGroup" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
-                  @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Component Type</label>
-                <select formControlName="componentType" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
-                  @for (comp of componentTypes; track comp) { <option [value]="comp">{{ comp }}</option> }
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Date Added</label>
-                <input type="date" formControlName="addedDate" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
-              </div>
-              <div class="flex items-center justify-end space-x-2 pt-2">
-                <button type="button" (click)="showAddStockModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
-                <button type="submit" [disabled]="isAddingStock || addStockForm.invalid" class="px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md disabled:opacity-50 flex items-center space-x-1.5">
-                  @if (isAddingStock) {
-                    <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    <span>Adding Bag...</span>
-                  } @else {
-                    <span>Add Blood Bag</span>
-                  }
-                </button>
-              </div>
-            </form>
-          }
-        </div>
-      </div>
-    }
-
     @if (showDonationModal && selectedDonor) {
       <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-4">
@@ -1741,7 +1809,7 @@
               <h3 class="text-lg font-bold text-slate-900">Donation Eligibility Check</h3>
               <p class="text-xs text-slate-500">{{ selectedDonor.fullName }} · {{ selectedDonor.bloodGroup }}</p>
             </div>
-            <button type="button" (click)="showDonationModal = false" class="text-slate-400 text-xl">Ã—</button>
+            <button type="button" (click)="showDonationModal = false" class="text-slate-400 text-xl">✕</button>
           </div>
           @if (donationStage === 'eligibility') {
           <form [formGroup]="donationForm" (ngSubmit)="proceedToScreening()" class="space-y-3">

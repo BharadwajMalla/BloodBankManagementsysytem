@@ -192,6 +192,17 @@ export class DashboardComponent implements OnInit {
   public componentDiscardForm = this.fb.group({ bagBarcode: ['', Validators.required], reason: ['', Validators.required], discardedBy: ['', Validators.required] });
   public componentReturnForm = this.fb.group({ bagBarcode: ['', Validators.required], reason: ['', Validators.required], returnedBy: ['', Validators.required] });
   public componentError: string | null = null;
+  public collectionSuccessMessage: string | null = null;
+
+  public selectedComponentCollections = computed<ComponentCollection[]>(() => {
+    const group = this.selectedBloodGroup();
+    const comp = this.selectedStockComponent();
+    return this.componentCollections().filter(c => {
+      const matchComp = c.componentType === comp;
+      const matchGroup = !group || c.bloodGroup === group;
+      return matchComp && matchGroup;
+    });
+  });
 
   // Hospital Signals
   public hospitalRequests = signal<BloodRequest[]>([]);
@@ -348,17 +359,23 @@ export class DashboardComponent implements OnInit {
   }
 
   public getBloodGroupBagCount(bloodGroup: BloodGroup): number {
-    return this.bankBags().filter(bag =>
-      bag.componentType === this.selectedStockComponent() && bag.bloodGroup === bloodGroup
+    const fromCollections = this.componentCollections()
+      .filter(c => c.componentType === this.selectedStockComponent() && c.bloodGroup === bloodGroup && c.status === 'Available')
+      .length;
+    const fromBags = this.bankBags().filter(bag =>
+      bag.componentType === this.selectedStockComponent() && bag.bloodGroup === bloodGroup && !bag.isIssued
     ).length;
+    return Math.max(fromCollections, fromBags);
   }
 
   public getBloodGroupUnitTotal(bloodGroup: BloodGroup): number {
-    return this.bankStocks()
-      .filter(stock =>
-        stock.componentType === this.selectedStockComponent() && stock.bloodGroup === bloodGroup
-      )
+    const fromCollections = this.componentCollections()
+      .filter(c => c.componentType === this.selectedStockComponent() && c.bloodGroup === bloodGroup && c.status === 'Available')
+      .length;
+    const fromStock = this.bankStocks()
+      .filter(stock => stock.componentType === this.selectedStockComponent() && stock.bloodGroup === bloodGroup)
       .reduce((total, stock) => total + stock.quantityUnits, 0);
+    return Math.max(fromCollections, fromStock);
   }
 
   public getStockPeriod(addedDate: string): string {
@@ -383,9 +400,13 @@ export class DashboardComponent implements OnInit {
   }
 
   public getComponentUnitTotal(component: ComponentType): number {
-    return this.bankStocks()
+    const fromCollections = this.componentCollections()
+      .filter(c => c.componentType === component && c.status === 'Available')
+      .length;
+    const fromStock = this.bankStocks()
       .filter(stock => stock.componentType === component)
       .reduce((total, stock) => total + stock.quantityUnits, 0);
+    return Math.max(fromCollections, fromStock);
   }
 
   public getComponentGroupCount(component: ComponentType): number {
@@ -496,6 +517,61 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  
+  public generateCollectionBarcode(componentType: string = 'Whole Blood', bloodGroup: string = 'O-'): string {
+    const prefix = componentType.includes('Whole') ? 'WB' :
+                   componentType.includes('PRBC') ? 'PRBC' :
+                   componentType.includes('Platelet') ? 'PLT' :
+                   componentType.includes('Plasma') ? 'FFP' : 'CRYO';
+    const cleanGroup = bloodGroup.replace('+', 'P').replace('-', 'N');
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    return `BAG-2026-${prefix}-${cleanGroup}-${randomSuffix}`;
+  }
+
+  public onCollectionComponentTypeChange(): void {
+    const comp = this.componentCollectionForm.get('componentType')?.value || 'Whole Blood';
+    let defaultVol = 450;
+    let defaultBag = 'Triple Bag (450ml)';
+    let daysToAdd = 35;
+
+    if (comp === 'Platelets') {
+      defaultVol = 250;
+      defaultBag = 'Single Bag (250ml)';
+      daysToAdd = 5;
+    } else if (comp === 'Red Blood Cells (PRBC)') {
+      defaultVol = 300;
+      defaultBag = 'Quadruple Bag (350ml)';
+      daysToAdd = 42;
+    } else if (comp === 'Fresh Frozen Plasma (FFP)') {
+      defaultVol = 200;
+      defaultBag = 'Double Bag (200ml)';
+      daysToAdd = 365;
+    } else if (comp === 'Cryoprecipitate') {
+      defaultVol = 50;
+      defaultBag = 'Single Cryo Bag (50ml)';
+      daysToAdd = 365;
+    }
+
+    const expDate = new Date();
+    expDate.setDate(expDate.getDate() + daysToAdd);
+
+    const currentGroup = this.componentCollectionForm.get('bloodGroup')?.value || 'O-';
+    this.componentCollectionForm.patchValue({
+      volumeMl: defaultVol,
+      bagType: defaultBag,
+      expiryDate: expDate.toISOString().substring(0, 10),
+      bagBarcode: this.generateCollectionBarcode(comp, currentGroup)
+    });
+  }
+
+  public autoGenerateBarcode(): void {
+    const comp = this.componentCollectionForm.get('componentType')?.value || 'Whole Blood';
+    const group = this.componentCollectionForm.get('bloodGroup')?.value || 'O-';
+    this.componentCollectionForm.patchValue({
+      bagBarcode: this.generateCollectionBarcode(comp, group)
+    });
+  }
+
   public createComponentCollection(): void {
     if (this.componentCollectionForm.invalid) return;
     this.componentError = null;
@@ -510,7 +586,21 @@ export class DashboardComponent implements OnInit {
       expiryDate: value.expiryDate ?? ''
     };
     this.bloodBankService.createComponentCollection(payload).subscribe({
-      next: () => { this.componentCollectionForm.reset({ componentType: 'Whole Blood', bloodGroup: 'O-', volumeMl: 450, collectionDate: new Date().toISOString().substring(0, 10), expiryDate: this.getDefaultExpiryDate() }); this.loadBankData(); },
+      next: () => {
+        this.collectionSuccessMessage = `Component bag ${payload.bagBarcode} registered successfully and added to Stock Overview!`;
+        setTimeout(() => this.collectionSuccessMessage = null, 6000);
+        this.componentCollectionForm.reset({
+          componentType: 'Whole Blood',
+          bloodGroup: 'O-',
+          bagType: 'Triple Bag (450ml)',
+          volumeMl: 450,
+          bagBarcode: this.generateCollectionBarcode('Whole Blood', 'O-'),
+          collectionDate: new Date().toISOString().substring(0, 10),
+          expiryDate: this.getDefaultExpiryDate()
+        });
+        this.loadBankData();
+      },
+      
       error: err => this.componentError = err.error?.message || 'Unable to save component collection.'
     });
   }
