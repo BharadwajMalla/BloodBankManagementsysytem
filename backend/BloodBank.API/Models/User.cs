@@ -26,6 +26,14 @@ public class User
     [MaxLength(20)]
     public string? Phone { get; set; }
 
+    public DateTime? DateOfBirth { get; set; }
+
+    [MaxLength(20)]
+    public string? Sex { get; set; }
+
+    [MaxLength(300)]
+    public string? Address { get; set; }
+
     [MaxLength(10)]
     public string? BloodGroup { get; set; } // For Donors
 

@@ -19,7 +19,9 @@ public sealed class EfBloodBankRepository : IBloodBankRepository
     public Task AddStockAsync(BloodStock stock) => _db.BloodStocks.AddAsync(stock).AsTask();
     public Task<List<BloodBag>> GetBagsAsync(string? component) => _db.BloodBags.AsNoTracking().Where(b => string.IsNullOrWhiteSpace(component) || b.ComponentType == component).OrderByDescending(b => b.AddedDate).ToListAsync();
     public Task<bool> BagNumberExistsAsync(string number) => _db.BloodBags.AnyAsync(b => b.BagNumber == number);
+    public Task<BloodBag?> FindBagByNumberAsync(string number) => _db.BloodBags.FirstOrDefaultAsync(b => b.BagNumber == number);
     public Task AddBagAsync(BloodBag bag) => _db.BloodBags.AddAsync(bag).AsTask();
+    public void RemoveBag(BloodBag bag) => _db.BloodBags.Remove(bag);
     public Task<List<DonationCamp>> GetCampsAsync(bool upcoming = false) => upcoming
         ? _db.DonationCamps.Where(c => c.CampDate >= DateTime.UtcNow.Date || c.Status == "Scheduled").OrderBy(c => c.CampDate).AsNoTracking().ToListAsync()
         : _db.DonationCamps.OrderByDescending(c => c.CampDate).AsNoTracking().ToListAsync();
@@ -28,6 +30,8 @@ public sealed class EfBloodBankRepository : IBloodBankRepository
     public void RemoveCamp(DonationCamp camp) => _db.DonationCamps.Remove(camp);
     public Task<List<User>> GetDonorsAsync() => _db.Users.AsNoTracking().Where(u => u.Role == "Donor").OrderBy(u => u.FullName).ToListAsync();
     public Task<List<DonationRecord>> GetDonationsAsync(IEnumerable<Guid> ids) => _db.DonationRecords.AsNoTracking().Where(r => ids.Contains(r.DonorId)).ToListAsync();
+    public Task<List<DonationRecord>> GetDonationsForDonorAsync(Guid donorId) => _db.DonationRecords.AsNoTracking().Where(r => r.DonorId == donorId).OrderByDescending(r => r.DonationDate).ToListAsync();
+    public Task AddDonationAsync(DonationRecord donation) => _db.DonationRecords.AddAsync(donation).AsTask();
     public Task<List<BloodRequest>> GetRequestsAsync(Guid? requesterId = null, string? status = null) => _db.BloodRequests.AsNoTracking().Where(r => !requesterId.HasValue || r.RequesterId == requesterId).Where(r => string.IsNullOrWhiteSpace(status) || r.Status == status).OrderByDescending(r => r.CreatedAt).ToListAsync();
     public Task<BloodRequest?> FindRequestAsync(Guid id) => _db.BloodRequests.FindAsync(id).AsTask();
     public Task AddRequestAsync(BloodRequest request) => _db.BloodRequests.AddAsync(request).AsTask();
@@ -35,6 +39,19 @@ public sealed class EfBloodBankRepository : IBloodBankRepository
     public Task<BloodInventory?> FindInventoryAsync(string group, string bank) => _db.BloodInventories.FirstOrDefaultAsync(b => b.BloodGroup.ToUpper() == group && b.BloodBankName.ToLower() == bank.ToLower());
     public Task<List<BloodInventory>> GetInventoryAsync(string? group) => _db.BloodInventories.AsNoTracking().Where(b => string.IsNullOrWhiteSpace(group) || b.BloodGroup.ToUpper() == group).OrderBy(b => b.BloodGroup).ThenByDescending(b => b.QuantityUnits).ToListAsync();
     public Task AddInventoryAsync(BloodInventory inventory) => _db.BloodInventories.AddAsync(inventory).AsTask();
+    public Task<List<ComponentCollection>> GetComponentCollectionsAsync() => _db.ComponentCollections.AsNoTracking().OrderByDescending(x => x.CollectionDate).ToListAsync();
+    public Task<ComponentCollection?> FindComponentCollectionAsync(Guid id) => _db.ComponentCollections.FirstOrDefaultAsync(x => x.Id == id);
+    public Task<ComponentCollection?> FindComponentCollectionByBarcodeAsync(string barcode) => _db.ComponentCollections.FirstOrDefaultAsync(x => x.BagBarcode == barcode);
+    public Task AddComponentCollectionAsync(ComponentCollection item) => _db.ComponentCollections.AddAsync(item).AsTask();
+    public void RemoveComponentCollection(ComponentCollection item) => _db.ComponentCollections.Remove(item);
+    public Task<List<ComponentDiscard>> GetComponentDiscardsAsync() => _db.ComponentDiscards.AsNoTracking().OrderByDescending(x => x.CreatedAt).ToListAsync();
+    public Task<ComponentDiscard?> FindComponentDiscardAsync(Guid id) => _db.ComponentDiscards.FirstOrDefaultAsync(x => x.Id == id);
+    public Task AddComponentDiscardAsync(ComponentDiscard item) => _db.ComponentDiscards.AddAsync(item).AsTask();
+    public void RemoveComponentDiscard(ComponentDiscard item) => _db.ComponentDiscards.Remove(item);
+    public Task<List<ComponentReturn>> GetComponentReturnsAsync() => _db.ComponentReturns.AsNoTracking().OrderByDescending(x => x.ReturnDate).ToListAsync();
+    public Task<ComponentReturn?> FindComponentReturnAsync(Guid id) => _db.ComponentReturns.FirstOrDefaultAsync(x => x.Id == id);
+    public Task AddComponentReturnAsync(ComponentReturn item) => _db.ComponentReturns.AddAsync(item).AsTask();
+    public void RemoveComponentReturn(ComponentReturn item) => _db.ComponentReturns.Remove(item);
     public async Task ClearOperationalDataAsync()
     {
         _db.BloodRequests.RemoveRange(_db.BloodRequests);
@@ -43,6 +60,9 @@ public sealed class EfBloodBankRepository : IBloodBankRepository
         _db.BloodBags.RemoveRange(_db.BloodBags);
         _db.BloodStocks.RemoveRange(_db.BloodStocks);
         _db.BloodInventories.RemoveRange(_db.BloodInventories);
+        _db.ComponentCollections.RemoveRange(_db.ComponentCollections);
+        _db.ComponentDiscards.RemoveRange(_db.ComponentDiscards);
+        _db.ComponentReturns.RemoveRange(_db.ComponentReturns);
         await _db.SaveChangesAsync();
     }
     public Task SaveChangesAsync() => _db.SaveChangesAsync();

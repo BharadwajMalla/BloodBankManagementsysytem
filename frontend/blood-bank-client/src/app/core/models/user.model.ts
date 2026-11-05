@@ -1,4 +1,4 @@
-export type UserRole = 'BloodBank' | 'Donor' | 'Hospital' | 'Admin';
+export type UserRole = 'BloodBank' | 'Donor' | 'Hospital' | 'Admin' | 'TechnicalSupervisor' | 'Technician';
 
 export interface User {
   id: string;

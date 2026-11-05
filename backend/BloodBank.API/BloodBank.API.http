@@ -4,3 +4,18 @@ GET {{BloodBank.API_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+### Create donor details (requires BloodBank or Admin authorization)
+POST {{BloodBank.API_HostAddress}}/api/BloodBank/donors
+Content-Type: application/json
+
+{
+  "firstName": "Anita",
+  "lastName": "Sharma",
+  "email": "anita.sharma@example.com",
+  "phone": "9876543210",
+  "dateOfBirth": "1995-06-15",
+  "sex": "Female",
+  "address": "12 Main Street, Hyderabad",
+  "bloodGroup": "O+"
+}

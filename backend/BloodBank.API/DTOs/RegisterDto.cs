@@ -18,7 +18,7 @@ public class RegisterDto
     public string Password { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Role is required.")]
-    [RegularExpression("^(BloodBank|Donor|Hospital|Admin)$", ErrorMessage = "Role must be one of: BloodBank, Donor, Hospital.")]
+    [RegularExpression("^(BloodBank|Admin|TechnicalSupervisor|Technician|Donor|Hospital)$", ErrorMessage = "Role must be a valid Blood Bank, Donor, or Hospital role.")]
     public string Role { get; set; } = "Donor";
 
     [Required(ErrorMessage = "Mobile number is required.")]

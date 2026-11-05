@@ -3,9 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BloodBank.API.DTOs;
 using BloodBank.API.Services;
-using BloodBank.API.Models;
 namespace BloodBank.API.Controllers;
-[ApiController,Route("api/[controller]"),Authorize(Roles="BloodBank,Admin")]
+[ApiController,Route("api/[controller]"),Authorize(Roles="BloodBank,Admin,TechnicalSupervisor,Technician")]
 public class BloodBankController(IBloodBankService service):ControllerBase
 {
     private Guid UserId()=>Guid.Parse((User.FindFirst(ClaimTypes.NameIdentifier)??User.FindFirst("sub"))!.Value);
@@ -20,7 +19,35 @@ public class BloodBankController(IBloodBankService service):ControllerBase
     [HttpPut("updatecamps/{id:guid}")] public async Task<IActionResult> UpdateCamp(Guid id,CreateCampDto dto){if(!ModelState.IsValid)return BadRequest(ModelState);var x=await service.UpdateCampAsync(id,dto);return x==null?NotFound(new{message="Camp not found."}):Ok(x);}
     [HttpDelete("deletecamps/{id:guid}")] public async Task<IActionResult> DeleteCamp(Guid id)=>await service.DeleteCampAsync(id)?NoContent():NotFound(new{message="Camp not found."});
     [HttpGet("donors")] public async Task<IActionResult> GetDonors()=>Ok(await service.GetDonorsAsync());
+    [HttpPost("donors")] public async Task<IActionResult> CreateDonor(CreateDonorDto dto)
+    {
+        if(!ModelState.IsValid)return BadRequest(ModelState);
+        var donor=await service.CreateDonorAsync(dto);
+        return donor==null
+            ? Conflict(new{message="A user with this email already exists."})
+        : CreatedAtAction(nameof(GetDonors),new{id=donor.Donor.Id},donor);
+    }
+    [HttpPost("donors/{id:guid}/donation")] public async Task<IActionResult> CompleteDonation(Guid id, CompleteDonationDto dto)
+    {
+        var result = await service.CompleteDonationAsync(id, dto);
+        return result.IsEligible ? Ok(result) : BadRequest(result);
+    }
+    [HttpGet("donors/{id:guid}/donations")] public async Task<IActionResult> GetDonationHistory(Guid id)
+    {
+        return Ok(await service.GetDonationHistoryAsync(id));
+    }
     [HttpGet("requests")] public async Task<IActionResult> GetRequests(string? status)=>Ok(await service.GetRequestsAsync(status));
     [HttpPost("requests")] public async Task<IActionResult> CreateRequest(CreateBloodRequestDto dto){if(!ModelState.IsValid)return BadRequest(ModelState);var result=await service.CreateRequestAsync(UserId(),dto);return CreatedAtAction(nameof(GetRequests),new{id=result.Id},result);}
     [HttpPut("requests/{id}/process")] public async Task<IActionResult> Process(Guid id,ProcessRequestDto dto){var (result,error)=await service.ProcessRequestAsync(id,dto);return result==null?(error=="Request not found."?NotFound(new{message=error}):BadRequest(new{message=error})):Ok(result);}
+    [HttpGet("components/collections")] public async Task<IActionResult> GetComponentCollections()=>Ok(await service.GetComponentCollectionsAsync());
+    [HttpPost("components/collections")] public async Task<IActionResult> CreateComponentCollection(CreateComponentCollectionDto dto){if(!ModelState.IsValid)return BadRequest(ModelState);var (result,error)=await service.CreateComponentCollectionAsync(dto);return result==null?Conflict(new{message=error}):Ok(result);}
+    [HttpPut("components/collections/{id:guid}")] public async Task<IActionResult> UpdateComponentCollection(Guid id,CreateComponentCollectionDto dto){if(!ModelState.IsValid)return BadRequest(ModelState);var (result,error)=await service.UpdateComponentCollectionAsync(id,dto);return result==null?BadRequest(new{message=error}):Ok(result);}
+    [HttpDelete("components/collections/{id:guid}")] public async Task<IActionResult> DeleteComponentCollection(Guid id)=>await service.DeleteComponentCollectionAsync(id)?NoContent():NotFound(new{message="Collection not found or cannot be deleted."});
+    [HttpGet("components/discards")] public async Task<IActionResult> GetComponentDiscards()=>Ok(await service.GetComponentDiscardsAsync());
+    [HttpPost("components/discards")] public async Task<IActionResult> CreateComponentDiscard(CreateComponentDiscardDto dto){if(!ModelState.IsValid)return BadRequest(ModelState);var (result,error)=await service.CreateComponentDiscardAsync(dto);return result==null?BadRequest(new{message=error}):Ok(result);}
+    [HttpPut("components/discards/{id:guid}/review"),Authorize(Roles="Admin")] public async Task<IActionResult> ReviewComponentDiscard(Guid id,[FromQuery] bool approve){var (result,error)=await service.ReviewComponentDiscardAsync(id,approve,User.Identity?.Name??"Admin");return result==null?BadRequest(new{message=error}):Ok(result);}
+    [HttpDelete("components/discards/{id:guid}")] public async Task<IActionResult> DeleteComponentDiscard(Guid id)=>await service.DeleteComponentDiscardAsync(id)?NoContent():NotFound();
+    [HttpGet("components/returns")] public async Task<IActionResult> GetComponentReturns()=>Ok(await service.GetComponentReturnsAsync());
+    [HttpPost("components/returns")] public async Task<IActionResult> CreateComponentReturn(CreateComponentReturnDto dto){if(!ModelState.IsValid)return BadRequest(ModelState);var (result,error)=await service.CreateComponentReturnAsync(dto);return result==null?BadRequest(new{message=error}):Ok(result);}
+    [HttpDelete("components/returns/{id:guid}")] public async Task<IActionResult> DeleteComponentReturn(Guid id)=>await service.DeleteComponentReturnAsync(id)?NoContent():NotFound();
 }

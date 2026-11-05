@@ -21,10 +21,14 @@ export class AuthService {
 
   // Role Checks
   public isBloodBank = computed<boolean>(() => 
-    this.userRoleSignal() === 'BloodBank' || this.userRoleSignal() === 'Admin'
+    this.userRoleSignal() === 'BloodBank' ||
+    this.userRoleSignal() === 'Admin' ||
+    this.userRoleSignal() === 'TechnicalSupervisor' ||
+    this.userRoleSignal() === 'Technician'
   );
   public isDonor = computed<boolean>(() => this.userRoleSignal() === 'Donor');
   public isHospital = computed<boolean>(() => this.userRoleSignal() === 'Hospital');
+  public isAdmin = computed<boolean>(() => this.userRoleSignal() === 'Admin');
 
   constructor(
     private http: HttpClient,

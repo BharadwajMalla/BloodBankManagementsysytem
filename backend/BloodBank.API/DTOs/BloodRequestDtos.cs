@@ -49,4 +49,8 @@ public class BloodRequestResponseDto
     public DateTime CreatedAt { get; set; }
     public DateTime? ProcessedAt { get; set; }
     public string? IssuedBagNumbers { get; set; }
+    public string? PaymentMode { get; set; }
+    public string PaymentStatus { get; set; } = "Pending";
+    public string? TransactionId { get; set; }
+    public decimal? AmountPaid { get; set; }
 }

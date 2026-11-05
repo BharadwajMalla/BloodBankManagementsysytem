@@ -59,4 +59,15 @@ public class BloodRequest
 
     [MaxLength(2000)]
     public string? IssuedBagNumbers { get; set; }
+
+    [MaxLength(20)]
+    public string? PaymentMode { get; set; }
+
+    [MaxLength(20)]
+    public string PaymentStatus { get; set; } = "Pending";
+
+    [MaxLength(100)]
+    public string? TransactionId { get; set; }
+
+    public decimal? AmountPaid { get; set; }
 }

@@ -1,0 +1,1823 @@
+<div class="dashboard-shell">
+  <aside class="dashboard-sidebar">
+    <div class="dashboard-brand">
+      <div class="dashboard-brand-mark">+</div>
+      <div>
+        <strong>BloodBank</strong>
+        <span>Care management</span>
+      </div>
+    </div>
+    <div class="dashboard-profile">
+      <div class="dashboard-avatar">{{ (authService.currentUserSignal()?.fullName || 'U').charAt(0) }}</div>
+      <div>
+        <strong>{{ authService.currentUserSignal()?.fullName || 'User' }}</strong>
+        <span>{{ authService.userRoleSignal() }}</span>
+      </div>
+    </div>
+    @if (authService.isBloodBank()) {
+      <p class="dashboard-nav-label">Main</p>
+      <nav class="dashboard-nav">
+        <button [class.active]="activeBankTab === 'stock'" (click)="activeBankTab = 'stock'; showIssuedComponents.set(false)"><span>â–¦</span>Stock overview</button>
+        <button [class.active]="activeBankTab === 'camps'" (click)="activeBankTab = 'camps'"><span>â—«</span>Donation camps</button>
+        <button [class.active]="activeBankTab === 'donors'" (click)="activeBankTab = 'donors'"><span>â™™</span>Donor details</button>
+        <button [class.active]="activeBankTab === 'requests'" (click)="activeBankTab = 'requests'"><span>â–¤</span>Incoming requests</button>
+        <button [class.active]="activeBankTab === 'issued'" (click)="activeBankTab = 'issued'; showIssuedComponents.set(true)"><span>â–¡</span>Issued components</button>
+        <button [class.active]="activeBankTab === 'summary'" (click)="activeBankTab = 'summary'"><span>â‚¹</span>Account summary</button>
+        <button [class.active]="activeBankTab === 'collection'" (click)="activeBankTab = 'collection'"><span>ï¼‹</span>Component collection</button>
+        <button [class.active]="activeBankTab === 'discard'" (click)="activeBankTab = 'discard'"><span>âŒ«</span>Components discarded</button>
+        <button [class.active]="activeBankTab === 'return'" (click)="activeBankTab = 'return'"><span>â†©</span>Components return</button>
+      </nav>
+    } @else if (authService.isHospital()) {
+      <p class="dashboard-nav-label">Hospital portal</p>
+      <nav class="dashboard-nav">
+        <button [class.active]="activeHospitalTab === 'new-req'" (click)="activeHospitalTab = 'new-req'"><span>ï¼‹</span>New request</button>
+        <button [class.active]="activeHospitalTab === 'my-req'" (click)="activeHospitalTab = 'my-req'"><span>â–¤</span>My requests</button>
+        <button [class.active]="activeHospitalTab === 'stock-view'" (click)="activeHospitalTab = 'stock-view'"><span>â–¦</span>Stock availability</button>
+      </nav>
+    } @else {
+      <p class="dashboard-nav-label">Donor portal</p>
+      <nav class="dashboard-nav">
+        <button [class.active]="activeDonorTab === 'request'" (click)="activeDonorTab = 'request'"><span>ï¼‹</span>Request blood</button>
+        <button [class.active]="activeDonorTab === 'my-requests'" (click)="activeDonorTab = 'my-requests'"><span>â–¤</span>My requests</button>
+        <button [class.active]="activeDonorTab === 'camps'" (click)="activeDonorTab = 'camps'"><span>â—«</span>Donation camps</button>
+      </nav>
+    }
+    <button class="dashboard-signout" (click)="authService.logout()">â†ª <span>Sign out</span></button>
+  </aside>
+  <div class="dashboard-main">
+    <header class="dashboard-topbar">
+      <div class="dashboard-search"><span>âŒ•</span><input placeholder="Search..." aria-label="Search dashboard"></div>
+      <div class="dashboard-toolbar"><button aria-label="Settings">âš™</button><button aria-label="Notifications">â™§</button><button aria-label="Lock">â™™</button></div>
+    </header>
+    <div class="dashboard-content max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <!-- Top Banner -->
+      <div class="dashboard-hero bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div class="space-y-2">
+            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/10 text-rose-300 text-xs font-semibold backdrop-blur-sm border border-white/10">
+              <span class="w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>
+              <span>Blood Bank A Management System</span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-black tracking-tight">
+              @if (authService.isBloodBank()) {
+                Blood Bank A Central Command
+              } @else if (authService.isHospital()) {
+                Hospital Blood & Components Requisition Portal
+              } @else {
+                Donor Blood Community & Request Portal
+              }
+            </h1>
+            <p class="text-slate-300 text-sm max-w-xl">
+              Logged in as: <span class="font-semibold text-white">{{ authService.currentUserSignal()?.fullName }}</span> 
+              @if (authService.currentUserSignal()?.hospitalName) {
+                ({{ authService.currentUserSignal()?.hospitalName }})
+              }
+            </p>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <span
+              [ngClass]="{
+                'bg-rose-500 text-white': authService.isBloodBank(),
+                'bg-emerald-500 text-white': authService.isHospital(),
+                'bg-sky-500 text-white': authService.isDonor()
+              }"
+              class="px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm"
+            >
+              Role: {{ authService.userRoleSignal() }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- 1. BLOOD BANK A OPERATOR PORTAL (Stock, Camps, Donors, Request Forms)    -->
+      <!-- ========================================================================= -->
+      <div class="bank-portal-content" [class.hidden]="!authService.isBloodBank()">
+        <div class="space-y-6">
+          <!-- Blood Bank Tab Navigation -->
+          <div class="legacy-bank-tabs flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+            <button
+              (click)="activeBankTab = 'stock'; showIssuedComponents.set(false)"
+              [ngClass]="activeBankTab === 'stock' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+              <span>Stock Details</span>
+            </button>
+
+            <button
+              (click)="activeBankTab = 'camps'"
+              [ngClass]="activeBankTab === 'camps' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span>Camp Details</span>
+            </button>
+
+            <button
+              (click)="activeBankTab = 'donors'"
+              [ngClass]="activeBankTab === 'donors' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              <span>Donor Details</span>
+            </button>
+
+            <button
+              (click)="activeBankTab = 'requests'"
+              [ngClass]="activeBankTab === 'requests' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2 relative"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              <span>Incoming Request Forms</span>
+              @if (pendingRequestsCount() > 0) {
+                <span class="ml-1.5 px-2 py-0.5 text-xs font-black bg-amber-400 text-amber-950 rounded-full animate-bounce">
+                  {{ pendingRequestsCount() }}
+                </span>
+              }
+            </button>
+
+            <button
+              (click)="activeBankTab = 'issued'; showIssuedComponents.set(true)"
+              [ngClass]="activeBankTab === 'issued' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h6l4 4v12a2 2 0 01-2 2z"/></svg>
+              <span>Component Issue</span>
+            </button>
+            <button (click)="activeBankTab = 'summary'" [ngClass]="activeBankTab === 'summary' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'bg-white text-slate-700 border border-slate-200'" class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-1.5"><span class="font-bold">â‚¹</span><span>Account Summary</span></button>
+            <button (click)="activeBankTab = 'collection'" [ngClass]="activeBankTab === 'collection' ? 'bg-rose-600 text-white' : 'bg-white text-slate-700 border border-slate-200'" class="px-5 py-2.5 rounded-xl text-sm font-bold">Component Collection</button>
+            <button (click)="activeBankTab = 'discard'" [ngClass]="activeBankTab === 'discard' ? 'bg-rose-600 text-white' : 'bg-white text-slate-700 border border-slate-200'" class="px-5 py-2.5 rounded-xl text-sm font-bold">Components Discarded</button>
+            <button (click)="activeBankTab = 'return'" [ngClass]="activeBankTab === 'return' ? 'bg-rose-600 text-white' : 'bg-white text-slate-700 border border-slate-200'" class="px-5 py-2.5 rounded-xl text-sm font-bold">Components Return</button>
+          </div>
+
+          @if (componentError) { <div class="p-3 rounded-xl bg-rose-50 text-rose-700 text-sm">{{ componentError }}</div> }
+          @if (activeBankTab === 'collection') {
+            <section class="space-y-4">
+              <form [formGroup]="componentCollectionForm" (ngSubmit)="createComponentCollection()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm">
+                <select formControlName="componentType" class="input"><option *ngFor="let type of componentTypes" [value]="type">{{ type }}</option></select>
+                <select formControlName="bloodGroup" class="input"><option *ngFor="let group of bloodGroups" [value]="group">{{ group }}</option></select>
+                <input formControlName="bagType" placeholder="Type of bag" class="input">
+                <input formControlName="volumeMl" type="number" placeholder="Volume (ml)" class="input">
+                <input formControlName="bagBarcode" placeholder="Bag barcode / ID" class="input">
+                <label class="text-xs">Collection date<input formControlName="collectionDate" type="date" class="input"></label>
+                <label class="text-xs">Expiry date<input formControlName="expiryDate" type="date" class="input"></label>
+                <button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Save collection</button>
+              </form>
+              <div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Component</th><th>Group</th><th>Bag</th><th>Volume</th><th>Collection</th><th>Expiry</th><th>Status</th></tr>
+                <tr *ngFor="let item of componentCollections()" class="border-b"><td class="p-3">{{item.componentType}}</td><td>{{item.bloodGroup}}</td><td>{{item.bagBarcode}}</td><td>{{item.volumeMl}} ml</td><td>{{item.collectionDate | date}}</td><td>{{item.expiryDate | date}}</td><td>{{item.status}}</td><td><button (click)="deleteComponentCollection(item.id)" class="text-rose-700 font-bold">Delete</button></td></tr>
+              </table></div>
+            </section>
+          }
+          @if (activeBankTab === 'discard') {
+            <section class="space-y-4"><form [formGroup]="componentDiscardForm" (ngSubmit)="createComponentDiscard()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm">
+              <input formControlName="bagBarcode" placeholder="Issued bag barcode" class="input"><input formControlName="reason" placeholder="Reason for discard" class="input"><input formControlName="discardedBy" placeholder="Discarded by" class="input"><button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Submit for approval</button>
+            </form><div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Bag</th><th>Reason</th><th>Discarded by</th><th>Status</th><th>Action</th></tr><tr *ngFor="let item of componentDiscards()" class="border-b"><td class="p-3">{{item.bagBarcode}}</td><td>{{item.reason}}</td><td>{{item.discardedBy}}</td><td>{{item.approvalStatus}}</td><td><button *ngIf="item.approvalStatus === 'Pending' && (authService.isAdmin() || authService.isBloodBank())" (click)="reviewComponentDiscard(item.id, true)" class="text-emerald-700 font-bold mr-2">Approve</button><button *ngIf="item.approvalStatus === 'Pending' && (authService.isAdmin() || authService.isBloodBank())" (click)="reviewComponentDiscard(item.id, false)" class="text-rose-700 font-bold mr-2">Reject</button><button (click)="deleteComponentDiscard(item.id)" class="text-slate-700 font-bold">Delete</button></td></tr></table></div></section>
+          }
+          @if (activeBankTab === 'return') {
+            <section class="space-y-4"><form [formGroup]="componentReturnForm" (ngSubmit)="createComponentReturn()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm"><input formControlName="bagBarcode" placeholder="Issued bag barcode" class="input"><input formControlName="reason" placeholder="Reason for return" class="input"><input formControlName="returnedBy" placeholder="Returned by" class="input"><button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Record return</button></form><div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Bag</th><th>Reason</th><th>Returned by</th><th>Date</th><th>Action</th></tr><tr *ngFor="let item of componentReturns()" class="border-b"><td class="p-3">{{item.bagBarcode}}</td><td>{{item.reason}}</td><td>{{item.returnedBy}}</td><td>{{item.returnDate | date}}</td><td><button (click)="deleteComponentReturn(item.id)" class="text-rose-700 font-bold">Delete</button></td></tr></table></div></section>
+          }
+          <!-- TAB 1: STOCK DETAILS -->
+          @if (activeBankTab === 'stock') {
+            <div class="space-y-6">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 class="text-xl font-black text-slate-900">Blood Bank A Stock Levels</h2>
+                  <p class="text-xs text-slate-500">Select a component to view its blood groups and available units</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    (click)="confirmClearAllData()"
+                    [disabled]="isClearing"
+                    class="px-3.5 py-2.5 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-700 font-bold rounded-xl text-xs border border-slate-200 transition-all flex items-center space-x-1.5"
+                  >
+                    <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    <span>Clear All Data</span>
+                  </button>
+                  <button
+                    type="button"
+                    (click)="openAddStockModal()"
+                    class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/20 transition-all flex items-center space-x-1.5"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    <span>Replenish / Add Units</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Component Selection Cards -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                @for (component of componentTypes; track component) {
+                  <button
+                    type="button"
+                    (click)="selectStockComponent(component)"
+                    [ngClass]="selectedStockComponent() === component
+                      ? 'border-rose-500 bg-rose-50 ring-2 ring-rose-200'
+                      : 'border-slate-200 bg-white hover:border-rose-300 hover:shadow-md'"
+                    class="text-left p-4 rounded-2xl border shadow-sm transition-all"
+                  >
+                    <div class="flex items-start justify-between gap-2">
+                      <span class="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-black text-sm">
+                        {{ getComponentShortName(component) }}
+                      </span>
+                      @if (selectedStockComponent() === component) {
+                        <span class="text-[10px] font-black uppercase text-rose-600">Selected</span>
+                      }
+                    </div>
+                    <h3 class="mt-3 text-sm font-extrabold text-slate-900 leading-tight">{{ component }}</h3>
+                    <p class="mt-1 text-xs text-slate-500">
+                      {{ getComponentUnitTotal(component) }} units
+                      <span class="text-slate-400">Â· {{ getComponentGroupCount(component) }} blood groups</span>
+                    </p>
+                  </button>
+                }
+              </div>
+
+              <!-- Blood Groups for Selected Component -->
+              <div>
+                <div class="mb-3">
+                  <h3 class="text-base font-black text-slate-900">{{ selectedStockComponent() }} by Blood Group</h3>
+                  <p class="text-xs text-slate-500">Select a blood group to filter individual bags</p>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+                  @for (bloodGroup of bloodGroups; track bloodGroup) {
+                    <button
+                      type="button"
+                      (click)="selectBloodGroup(bloodGroup)"
+                      [ngClass]="selectedBloodGroup() === bloodGroup
+                        ? 'border-rose-500 bg-rose-50 ring-2 ring-rose-200'
+                        : 'border-slate-200 bg-white hover:border-rose-300 hover:shadow-md'"
+                      class="p-3 rounded-xl border shadow-sm transition-all"
+                    >
+                      <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-rose-100 text-rose-700 font-black">
+                        {{ bloodGroup }}
+                      </span>
+                      <span class="block mt-2 text-xs font-bold text-slate-700">
+                        {{ getBloodGroupUnitTotal(bloodGroup) }} units
+                        <span class="block text-[10px] text-slate-400">{{ getBloodGroupBagCount(bloodGroup) }} bags</span>
+                      </span>
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Stock Bag Details Table -->
+              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 class="text-sm font-black text-slate-900">Stock Bag Details</h3>
+                    <p class="text-xs text-slate-500">
+                      @if (selectedBloodGroup()) {
+                        Showing {{ selectedStockComponent() }} Â· {{ selectedBloodGroup() }} bags
+                      } @else {
+                        Showing all bags for {{ selectedStockComponent() }} (Click a blood group above to filter)
+                      }
+                    </p>
+                  </div>
+                  <button type="button" (click)="openAddStockModal(selectedStockComponent())" class="text-xs font-bold text-rose-600 hover:text-rose-700">
+                    + Add {{ selectedStockComponent() }} Bag
+                  </button>
+                </div>
+                <table class="w-full text-left text-sm text-slate-600">
+                  <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
+                    <tr>
+                      <th class="py-3 px-6">Bag Number</th>
+                      <th class="py-3 px-6">Blood Group</th>
+                      <th class="py-3 px-6">Units</th>
+                      <th class="py-3 px-6">Date Added</th>
+                      <th class="py-3 px-6">Stock Period</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    @for (bag of selectedBloodGroupBags(); track bag.id) {
+                      <tr>
+                        <td class="py-3 px-6 font-bold text-slate-900">{{ bag.bagNumber }}</td>
+                        <td class="py-3 px-6">
+                          <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-black border border-rose-200">{{ bag.bloodGroup }}</span>
+                        </td>
+                        <td class="py-3 px-6 font-bold">{{ bag.quantityUnits }}</td>
+                        <td class="py-3 px-6 text-xs text-slate-400">{{ bag.addedDate | date:'mediumDate' }}</td>
+                        <td class="py-3 px-6 text-xs font-bold text-slate-600">{{ getStockPeriod(bag.addedDate) }}</td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td colspan="5" class="py-8 text-center text-xs text-slate-500">
+                          @if (selectedBloodGroup()) {
+                            No bags registered for {{ selectedStockComponent() }} ({{ selectedBloodGroup() }}). Click "+ Replenish / Add Units" above to add.
+                          } @else {
+                            No bags registered for {{ selectedStockComponent() }}. Click "+ Replenish / Add Units" above to add bags.
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          @if (activeBankTab === 'issued') {
+            <div class="space-y-6">
+              <div>
+                <h2 class="text-xl font-black text-slate-900">Component Issue</h2>
+                <p class="text-xs text-slate-500">Components issued to patients from fulfilled requests</p>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="rounded-xl bg-white border border-slate-200 p-4"><p class="text-xs text-slate-500">Issued requests</p><p class="text-xl font-black text-slate-900">{{ issuedRequests().length }}</p></div>
+                <div class="rounded-xl bg-white border border-slate-200 p-4"><p class="text-xs text-slate-500">Units issued</p><p class="text-xl font-black text-slate-900">{{ issuedUnitTotal() }}</p></div>
+                <div class="rounded-xl bg-white border border-slate-200 p-4"><p class="text-xs text-slate-500">Payments completed</p><p class="text-xl font-black text-emerald-700">{{ completedPaymentCount() }}</p></div>
+              </div>
+
+              <ag-grid-angular class="dashboard-grid" [theme]="gridTheme" [rowData]="issuedRequests()" [columnDefs]="issuedColumnDefs" [pagination]="true" [paginationPageSize]="10" [domLayout]="'autoHeight'"></ag-grid-angular>
+              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <table class="w-full text-left text-sm text-slate-600">
+                  <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
+                    <tr>
+                      <th class="py-3.5 px-6">Hospital</th>
+                      <th class="py-3.5 px-6">Patient Name</th>
+                      <th class="py-3.5 px-6">Component Name</th>
+                      <th class="py-3.5 px-6">Component Type</th>
+                      <th class="py-3.5 px-6">Bag ID</th>
+                      <th class="py-3.5 px-6">Payment</th>
+                      <th class="py-3.5 px-6">Issued On</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    @for (request of issuedRequests(); track request.id) {
+                      <tr class="hover:bg-slate-50/80">
+                        <td class="py-4 px-6 font-bold text-slate-900">{{ request.hospitalName || request.requesterName }}</td>
+                        <td class="py-4 px-6 font-bold text-slate-900">{{ request.patientName }}</td>
+                        <td class="py-4 px-6 font-semibold text-slate-900">{{ request.componentType }}</td>
+                        <td class="py-4 px-6">
+                          <span class="inline-flex items-center justify-center w-10 h-8 rounded-lg bg-rose-50 text-rose-700 font-black border border-rose-200">{{ request.bloodGroup }}</span>
+                        </td>
+                        <td class="py-4 px-6 text-xs font-bold text-indigo-700">{{ request.issuedBagNumbers || 'Not recorded' }}</td>
+                        <td class="py-4 px-6 text-xs"><div class="font-bold text-emerald-700">{{ request.paymentStatus }}</div><div>{{ request.paymentMode || 'â€”' }}{{ request.transactionId ? ' Â· ' + request.transactionId : '' }}</div></td>
+                        <td class="py-4 px-6 text-xs text-slate-400">{{ (request.processedAt || request.createdAt) | date:'medium' }}</td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td colspan="7" class="py-10 px-6 text-center text-sm text-slate-500">No components have been issued yet.</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          @if (activeBankTab === 'camps') {
+            <div class="space-y-6">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 class="text-xl font-black text-slate-900">Donation Camps by Blood Bank A</h2>
+                  <p class="text-xs text-slate-500">Upcoming and completed field blood collection campaigns</p>
+                </div>
+                <button
+                  type="button"
+                  (click)="showCreateCampModal = true"
+                  class="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/20 transition-all flex items-center space-x-1.5 self-start"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                  <span>Organize New Camp</span>
+                </button>
+              </div>
+
+              <ag-grid-angular class="dashboard-grid" [theme]="gridTheme" [rowData]="bankCamps()" [columnDefs]="campColumnDefs" [pagination]="true" [paginationPageSize]="10" [domLayout]="'autoHeight'"></ag-grid-angular>
+              <div class="legacy-camp-cards grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                @for (camp of bankCamps(); track camp.id) {
+                  <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-start justify-between">
+                      <span class="px-2.5 py-1 text-[11px] font-bold rounded-full"
+                        [ngClass]="{
+                          'bg-sky-100 text-sky-800': camp.status === 'Scheduled',
+                          'bg-amber-100 text-amber-800': camp.status === 'Ongoing',
+                          'bg-emerald-100 text-emerald-800': camp.status === 'Completed'
+                        }"
+                      >
+                        {{ camp.status }}
+                      </span>
+                      <span class="text-xs font-bold text-slate-400">{{ camp.campDate | date:'mediumDate' }}</span>
+                    </div>
+
+                    <div>
+                      <h3 class="font-extrabold text-slate-900 text-base leading-snug">{{ camp.campName }}</h3>
+                      <p class="text-xs text-slate-500 mt-1 flex items-center">
+                        <svg class="w-3.5 h-3.5 mr-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        {{ camp.location }}
+                      </p>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span class="text-slate-500">Target Collection:</span>
+                      <span class="font-black text-rose-600">{{ camp.targetUnits }} units</span>
+                    </div>
+
+                    @if (camp.notes) {
+                      <p class="text-xs text-slate-400 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        "{{ camp.notes }}"
+                      </p>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- TAB 3: DONOR DETAILS -->
+          @if (activeBankTab === 'donors') {
+            <div class="space-y-6">
+              <div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 class="text-xl font-black text-slate-900">Registered Donors Directory</h2>
+                    <p class="text-xs text-slate-500">Contact information, blood groups, and donation history</p>
+                  </div>
+                  <button type="button" (click)="showCreateDonorModal = true" class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-md shadow-rose-600/20">
+                    + Add Donor
+                  </button>
+                </div>
+              </div>
+
+              @if (showCreateDonorModal) {
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                  <div class="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 class="text-base font-black text-slate-900">Create Donor Details</h3>
+                      <p class="text-xs text-slate-500">The donor can use these credentials to sign in.</p>
+                    </div>
+                    <button type="button" (click)="showCreateDonorModal = false" class="text-slate-400 hover:text-slate-700 text-xl">Ã—</button>
+                  </div>
+                  @if (createDonorError) {
+                    <p class="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{{ createDonorError }}</p>
+                  }
+                  <form [formGroup]="createDonorForm" (ngSubmit)="submitCreateDonor()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input formControlName="firstName" placeholder="First name" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+                    <input formControlName="lastName" placeholder="Last name" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+                    <input type="email" formControlName="email" placeholder="Email address" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+                    <input type="date" formControlName="dateOfBirth" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+                    <select formControlName="sex" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                      <option value="">Select sex</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <input type="tel" formControlName="phone" placeholder="Contact number" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+                    <select formControlName="bloodGroup" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                      @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                    </select>
+                    <textarea formControlName="address" placeholder="Address" rows="2" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm md:col-span-2"></textarea>
+                    <p class="md:col-span-2 text-xs text-slate-500">Password is generated automatically as <strong>LASTNAME&#64;YYYY</strong> using the donor's last name and birth year.</p>
+                    <div class="md:col-span-2 flex justify-end gap-3">
+                      <button type="button" (click)="showCreateDonorModal = false" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm">Cancel</button>
+                      <button type="submit" [disabled]="createDonorForm.invalid || isCreatingDonor" class="px-4 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm disabled:opacity-50">
+                        {{ isCreatingDonor ? 'Saving...' : 'Create Donor' }}
+                      </button>
+                    </div>
+                  </form>
+                  @if (generatedPassword) {
+                    <div class="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
+                      Donor created. Temporary password: <strong>{{ generatedPassword }}</strong>
+                    </div>
+                  }
+                </div>
+              }
+
+              <ag-grid-angular class="dashboard-grid" [theme]="gridTheme" [rowData]="bankDonors()" [columnDefs]="donorColumnDefs" [pagination]="true" [paginationPageSize]="10" [domLayout]="'autoHeight'"></ag-grid-angular>
+              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <table class="w-full text-left text-sm text-slate-600">
+                  <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
+                    <tr>
+                      <th class="py-3.5 px-6">Donor Name</th>
+                      <th class="py-3.5 px-6">Blood Group</th>
+                      <th class="py-3.5 px-6">Contact Details</th>
+                      <th class="py-3.5 px-6">Personal Details</th>
+                      <th class="py-3.5 px-6">Donations Logged</th>
+                      <th class="py-3.5 px-6">Eligibility Status</th>
+                      <th class="py-3.5 px-6">Donation Status</th>
+                      <th class="py-3.5 px-6">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    @for (donor of bankDonors(); track donor.id) {
+                      <tr class="hover:bg-slate-50/80">
+                        <td class="py-4 px-6 font-bold text-slate-900">{{ donor.fullName }}</td>
+                        <td class="py-4 px-6">
+                          <span class="px-2.5 py-1 text-xs font-black rounded-lg bg-rose-50 text-rose-700 border border-rose-200">
+                            {{ donor.bloodGroup || 'Pending' }}
+                          </span>
+                        </td>
+                        <td class="py-4 px-6 text-xs">
+                          <div>{{ donor.email }}</div>
+                          <div class="text-slate-400">{{ donor.phone || 'No phone recorded' }}</div>
+                        </td>
+                        <td class="py-4 px-6 text-xs">
+                          <div>{{ donor.dateOfBirth | date:'mediumDate' }} Â· {{ donor.sex || 'Not specified' }}</div>
+                          <div class="text-slate-400">{{ donor.address || 'No address recorded' }}</div>
+                        </td>
+                        <td class="py-4 px-6 font-bold text-slate-900">{{ donor.totalDonations }} donations</td>
+                        <td class="py-4 px-6">
+                          @if (donor.isEligibleToDonate) {
+                            <span class="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">{{ donor.eligibilityStatus }}</span>
+                          } @else {
+                            <span class="inline-block whitespace-nowrap px-2.5 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-200">{{ donor.eligibilityStatus }}</span>
+                          }
+                        </td>
+                        <td class="py-4 px-6 text-xs">
+                          <div class="font-bold">{{ donor.donationStatus }}</div>
+                          @if (donor.lastDonationDate) {
+                            <div class="text-slate-400">{{ donor.lastDonationDate | date:'mediumDate' }}</div>
+                          }
+                        </td>
+                        <td class="py-4 px-6">
+                          <div class="flex flex-col gap-1.5">
+                            <button type="button" (click)="openDonationHistory(donor)" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">View History</button>
+                            <button type="button" (click)="openDonationForm(donor)" [disabled]="!donor.isEligibleToDonate" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed">Record Donation</button>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          <!-- TAB 4: REQUEST FORMS (HOSPITALS & DONORS) -->
+          @if (activeBankTab === 'requests') {
+            <div class="space-y-6">
+              <div>
+                <h2 class="text-xl font-black text-slate-900">Incoming Blood & Component Requests</h2>
+                <p class="text-xs text-slate-500">Create and manage requisitions for Hospitals, Donors, and Blood Bank A</p>
+              </div>
+
+              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+                <h3 class="text-base font-black text-slate-900 mb-4">Create Request</h3>
+                <form [formGroup]="bloodBankRequestForm" (ngSubmit)="submitBloodBankRequest()" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <input formControlName="hospitalName" placeholder="Hospital name" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <input formControlName="patientName" placeholder="Patient name" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <select formControlName="bloodGroup" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                    @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                  </select>
+                  <select formControlName="componentType" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                    @for (component of componentTypes; track component) { <option [value]="component">{{ component }}</option> }
+                  </select>
+                  <input type="number" min="1" formControlName="quantityUnits" placeholder="Units" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <select formControlName="urgency" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                    <option value="Normal">Normal</option><option value="Urgent">Urgent</option><option value="Critical">Critical</option>
+                  </select>
+                  <input formControlName="hospitalDepartment" placeholder="Department (optional)" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <input formControlName="medicalReason" placeholder="Reason (optional)" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <button type="submit" [disabled]="bloodBankRequestForm.invalid || isSubmittingBloodBankRequest" class="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold text-sm disabled:opacity-50">
+                    {{ isSubmittingBloodBankRequest ? 'Creating...' : 'Create Request' }}
+                  </button>
+                </form>
+                @if (bloodBankRequestError) {
+                  <p class="mt-3 text-xs text-red-600">{{ bloodBankRequestError }}</p>
+                }
+              </div>
+
+              <ag-grid-angular class="dashboard-grid" [theme]="gridTheme" [rowData]="bankRequests()" [columnDefs]="requestColumnDefs" [pagination]="true" [paginationPageSize]="10" [domLayout]="'autoHeight'"></ag-grid-angular>
+              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <table class="legacy-table w-full text-left text-sm text-slate-600">
+                  <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
+                    <tr>
+                      <th class="py-3.5 px-6">Requester</th>
+                      <th class="py-3.5 px-6">Patient & Reason</th>
+                      <th class="py-3.5 px-6">Item & Units</th>
+                      <th class="py-3.5 px-6">Urgency</th>
+                      <th class="py-3.5 px-6">Status</th>
+                      <th class="py-3.5 px-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    @for (req of bankRequests(); track req.id) {
+                      <tr class="hover:bg-slate-50/80">
+                        <td class="py-4 px-6">
+                          <span class="text-xs font-bold px-2 py-0.5 rounded-md"
+                            [ngClass]="req.requesterType === 'Hospital' ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800'"
+                          >
+                            {{ req.requesterType }}
+                          </span>
+                          <div class="font-bold text-slate-900 mt-1">{{ req.hospitalName || req.requesterName }}</div>
+                          <div class="text-[11px] text-slate-400">{{ req.requesterContact }}</div>
+                        </td>
+                        <td class="py-4 px-6">
+                          <div class="font-bold text-slate-900">{{ req.patientName }}</div>
+                          <div class="text-xs text-slate-500">{{ req.medicalReason || 'Emergency treatment' }}</div>
+                          @if (req.hospitalDepartment) {
+                            <div class="text-[11px] text-slate-400">Dept: {{ req.hospitalDepartment }}</div>
+                          }
+                        </td>
+                        <td class="py-4 px-6">
+                          <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 font-black text-rose-700 bg-rose-50 border border-rose-200 rounded">
+                              {{ req.bloodGroup }}
+                            </span>
+                            <span class="font-semibold text-slate-800">{{ req.componentType }}</span>
+                          </div>
+                          <div class="text-xs font-bold text-slate-500 mt-1">{{ req.quantityUnits }} units requested</div>
+                          @if (req.issuedBagNumbers) {
+                            <div class="text-xs font-bold text-indigo-700 mt-2">Bags issued: {{ req.issuedBagNumbers }}</div>
+                          }
+                        </td>
+                        <td class="py-4 px-6">
+                          <span class="px-2 py-0.5 text-xs font-bold rounded-full"
+                            [ngClass]="{
+                              'bg-red-100 text-red-800': req.urgency === 'Critical',
+                              'bg-amber-100 text-amber-800': req.urgency === 'Urgent',
+                              'bg-slate-100 text-slate-700': req.urgency === 'Normal'
+                            }"
+                          >
+                            {{ req.urgency }}
+                          </span>
+                        </td>
+                        <td class="py-4 px-6 font-bold">
+                          <span class="px-2.5 py-1 text-xs rounded-full"
+                            [ngClass]="{
+                              'bg-amber-100 text-amber-800': req.status === 'Pending',
+                              'bg-blue-100 text-blue-800': req.status === 'Approved',
+                              'bg-emerald-100 text-emerald-800': req.status === 'Fulfilled',
+                              'bg-red-100 text-red-800': req.status === 'Rejected'
+                            }"
+                          >
+                            {{ req.status }}
+                          </span>
+                        </td>
+                        <td class="py-4 px-6 text-right whitespace-nowrap">
+                          @if (req.status === 'Pending') {
+                            <div class="flex items-center justify-end space-x-1.5">
+                              <button
+                                (click)="processBankRequest(req.id, 'Approved')"
+                                class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                (click)="processBankRequest(req.id, 'Fulfilled')"
+                                class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                              >
+                                Fulfill & Deduct
+                              </button>
+                              <button
+                                (click)="processBankRequest(req.id, 'Rejected')"
+                                class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          } @else if (req.status === 'Approved') {
+                            <button
+                              (click)="processBankRequest(req.id, 'Fulfilled')"
+                              class="px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                            >
+                              Dispatch & Fulfill
+                            </button>
+                          } @else {
+                            <span class="text-xs text-slate-400 italic">Closed</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          <!-- TAB: ACCOUNT SUMMARY -->
+          @if (activeBankTab === 'summary') {
+            <div class="space-y-6">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 class="text-xl font-black text-slate-900 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 font-black border border-emerald-200">₹</span>
+                    <span>Account Summary & Financial Ledger</span>
+                  </h2>
+                  <p class="text-xs text-slate-500">Revenue tracking, payment collection modes (Cash & UPI), and dispatch billing</p>
+                </div>
+              </div>
+
+              <!-- 4 Financial KPI Summary Cards -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Total Revenue -->
+                <div class="rounded-2xl bg-white border border-slate-200/80 p-5 shadow-sm space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Total Collections</span>
+                    <span class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">₹</span>
+                  </div>
+                  <div class="text-2xl font-black text-slate-900">₹{{ totalRevenue() | number }}</div>
+                  <p class="text-xs text-emerald-600 font-bold">Across all fulfilled issues</p>
+                </div>
+
+                <!-- Cash Collections -->
+                <div class="rounded-2xl bg-white border border-slate-200/80 p-5 shadow-sm space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Cash Collections</span>
+                    <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center text-xs font-black">CASH</span>
+                  </div>
+                  <div class="text-2xl font-black text-slate-900">₹{{ cashRevenue() | number }}</div>
+                  <p class="text-xs text-slate-500 font-medium">{{ cashTransactionsCount() }} cash transaction(s)</p>
+                </div>
+
+                <!-- UPI Collections -->
+                <div class="rounded-2xl bg-white border border-slate-200/80 p-5 shadow-sm space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">UPI / QR Collections</span>
+                    <span class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center text-xs font-black">UPI</span>
+                  </div>
+                  <div class="text-2xl font-black text-slate-900">₹{{ upiRevenue() | number }}</div>
+                  <p class="text-xs text-indigo-600 font-medium">{{ upiTransactionsCount() }} online QR transaction(s)</p>
+                </div>
+
+                <!-- Units Dispatched -->
+                <div class="rounded-2xl bg-white border border-slate-200/80 p-5 shadow-sm space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Units Dispatched</span>
+                    <span class="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold">🩸</span>
+                  </div>
+                  <div class="text-2xl font-black text-slate-900">{{ issuedUnitTotal() }} units</div>
+                  <p class="text-xs text-slate-500 font-medium">{{ issuedRequests().length }} requests fulfilled</p>
+                </div>
+              </div>
+
+              <!-- Filter and Search Bar -->
+              <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold uppercase tracking-wider text-slate-400 mr-1">Filter:</span>
+                  <button
+                    type="button"
+                    (click)="summaryFilterMode.set('All')"
+                    [ngClass]="summaryFilterMode() === 'All' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all"
+                  >
+                    All ({{ issuedRequests().length }})
+                  </button>
+                  <button
+                    type="button"
+                    (click)="summaryFilterMode.set('Cash')"
+                    [ngClass]="summaryFilterMode() === 'Cash' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all"
+                  >
+                    Cash ({{ cashTransactionsCount() }})
+                  </button>
+                  <button
+                    type="button"
+                    (click)="summaryFilterMode.set('UPI')"
+                    [ngClass]="summaryFilterMode() === 'UPI' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all"
+                  >
+                    UPI / QR ({{ upiTransactionsCount() }})
+                  </button>
+                </div>
+
+                <div class="relative w-full md:w-80">
+                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">⌕</span>
+                  <input
+                    type="text"
+                    [value]="summarySearchQuery()"
+                    (input)="summarySearchQuery.set($any($event.target).value)"
+                    placeholder="Search patient, hospital, UTR..."
+                    class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+              </div>
+
+              <!-- Ledger Table -->
+              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                  <h3 class="text-sm font-black text-slate-900">Collections Ledger</h3>
+                  <span class="text-xs text-slate-500 font-medium">{{ filteredSummaryRequests().length }} transaction(s) shown</span>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50/70 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
+                      <tr>
+                        <th class="py-3.5 px-6">Date / Time</th>
+                        <th class="py-3.5 px-6">Patient & Hospital</th>
+                        <th class="py-3.5 px-6">Component & Group</th>
+                        <th class="py-3.5 px-6">Units / Bags</th>
+                        <th class="py-3.5 px-6">Amount (₹)</th>
+                        <th class="py-3.5 px-6">Payment Mode & UTR</th>
+                        <th class="py-3.5 px-6">Status</th>
+                        <th class="py-3.5 px-6 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      @for (req of filteredSummaryRequests(); track req.id) {
+                        <tr class="hover:bg-slate-50/80 transition-colors">
+                          <td class="py-4 px-6 text-xs text-slate-500 whitespace-nowrap">
+                            <div class="font-bold text-slate-900">{{ (req.processedAt || req.createdAt) | date:'mediumDate' }}</div>
+                            <div class="text-[11px] text-slate-400">{{ (req.processedAt || req.createdAt) | date:'shortTime' }}</div>
+                          </td>
+                          <td class="py-4 px-6">
+                            <div class="font-black text-slate-900">{{ req.patientName }}</div>
+                            <div class="text-xs text-slate-500">{{ req.hospitalName || req.requesterName }}</div>
+                            @if (req.hospitalDepartment) {
+                              <div class="text-[11px] text-slate-400">Dept: {{ req.hospitalDepartment }}</div>
+                            }
+                          </td>
+                          <td class="py-4 px-6">
+                            <div class="flex items-center space-x-2">
+                              <span class="px-2 py-0.5 text-xs font-black rounded bg-rose-50 text-rose-700 border border-rose-200">
+                                {{ req.bloodGroup }}
+                              </span>
+                              <span class="font-bold text-slate-800 text-xs">{{ req.componentType }}</span>
+                            </div>
+                          </td>
+                          <td class="py-4 px-6">
+                            <span class="font-black text-slate-900">{{ req.quantityUnits }} unit(s)</span>
+                            @if (req.issuedBagNumbers) {
+                              <div class="text-[11px] font-mono text-indigo-700 mt-0.5">{{ req.issuedBagNumbers }}</div>
+                            }
+                          </td>
+                          <td class="py-4 px-6 whitespace-nowrap">
+                            <span class="text-sm font-black text-emerald-700">₹{{ getRequestAmount(req) | number }}</span>
+                          </td>
+                          <td class="py-4 px-6">
+                            @if (req.paymentMode === 'UPI') {
+                              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                UPI / QR
+                              </span>
+                              @if (req.transactionId) {
+                                <div class="text-[11px] font-mono text-slate-600 mt-1">UTR: {{ req.transactionId }}</div>
+                              }
+                            } @else if (req.paymentMode === 'Cash') {
+                              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                Cash Counter
+                              </span>
+                            } @else {
+                              <span class="text-xs text-slate-400">—</span>
+                            }
+                          </td>
+                          <td class="py-4 px-6">
+                            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              {{ req.paymentStatus || 'Completed' }}
+                            </span>
+                          </td>
+                          <td class="py-4 px-6 text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              (click)="openReceiptModal(req)"
+                              class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm flex items-center space-x-1 ml-auto"
+                            >
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h6l4 4v12a2 2 0 01-2 2z"/></svg>
+                              <span>View Receipt</span>
+                            </button>
+                          </td>
+                        </tr>
+                      } @empty {
+                        <tr>
+                          <td colspan="8" class="py-12 px-6 text-center text-sm text-slate-500">
+                            No component issue transactions match the current filters.
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      @if (showDonationHistoryModal && donationHistoryDonor) {
+        <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between">
+              <div><h3 class="text-lg font-black text-slate-900">Donation History</h3><p class="text-xs text-slate-500">{{ donationHistoryDonor.fullName }}</p></div>
+              <button type="button" (click)="showDonationHistoryModal = false" class="text-slate-400 text-xl">Ã—</button>
+            </div>
+            @for (record of donationHistory; track record.id) {
+              <article class="rounded-xl border border-slate-200 p-4 space-y-3">
+                <div class="flex flex-wrap justify-between gap-2"><strong>{{ record.donationDate | date:'medium' }}</strong><span>{{ record.unitsDonated }} unit(s) Â· {{ record.bloodGroup }}</span></div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <span>Weight: {{ record.weightKg || 'â€”' }} kg</span><span>Pulse: {{ record.pulsePerMinute || 'â€”' }}</span><span>Hb: {{ record.hemoglobin || 'â€”' }}</span><span>HCT: {{ record.hematocrit || 'â€”' }}</span>
+                  <span>BP: {{ record.bloodPressure || 'â€”' }}</span><span>Temp: {{ record.temperatureCelsius || 'â€”' }}</span><span>Platelets: {{ record.plateletCount || 'â€”' }}</span><span>Bag: {{ record.bagType || 'â€”' }}</span>
+                  <span>Screening staff: {{ record.screeningStaffName || 'â€”' }}</span><span>Medical officer: {{ record.medicalOfficerName || 'â€”' }}</span><span>Donor no.: {{ record.donorNumber || 'â€”' }}</span><span>Segment: {{ record.segmentNumber || 'â€”' }}</span>
+                  <span>Donation time: {{ record.donationStartTime || 'â€”' }} - {{ record.donationEndTime || 'â€”' }}</span><span>Site: {{ record.venipunctureSite || 'â€”' }}</span><span>Phlebotomist: {{ record.phlebotomistName || 'â€”' }}</span><span>Medical exam: {{ record.medicalExamAccepted ? 'Accepted' : 'Not accepted' }}</span>
+                </div>
+                <div class="text-xs text-slate-600">Eligibility answers: Healthy {{ record.feelsHealthyToday ? 'Yes' : 'No' }}, ate recently {{ record.ateRecently ? 'Yes' : 'No' }}, slept well {{ record.sleptWell ? 'Yes' : 'No' }}, recent donation {{ record.donatedRecently ? 'Yes' : 'No' }}, infection risk {{ record.hasInfectionRisk ? 'Yes' : 'No' }}, permanent disqualification {{ record.hasPermanentDisqualification ? 'Yes' : 'No' }}</div>
+                <div class="text-xs font-bold text-emerald-700">Donor confirmation: {{ record.donorConfirmed ? 'Received' : 'Not received' }} Â· Visual inspection: {{ record.visualInspectionPassed ? 'Passed' : 'Not passed' }}</div>
+              </article>
+            } @empty {
+              <p class="py-10 text-center text-sm text-slate-500">No completed donation records found.</p>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- PAYMENT MODAL -->
+      @if (showPaymentModal && selectedPaymentRequest) {
+        <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 border border-slate-100 max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 class="text-xl font-black text-slate-900">Payment & Component Issue</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Fulfill blood dispatch & collect patient payment</p>
+              </div>
+              <button type="button" (click)="showPaymentModal = false" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center">✕</button>
+            </div>
+
+            <!-- Billing Overview Box -->
+            <div class="rounded-2xl bg-slate-50 border border-slate-200/80 p-4 space-y-2.5 text-xs">
+              <div class="flex justify-between items-center">
+                <span class="text-slate-500">Patient Name:</span>
+                <span class="font-black text-slate-900 text-sm">{{ selectedPaymentRequest.patientName }}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-slate-500">Hospital / Facility:</span>
+                <span class="font-bold text-slate-800">{{ selectedPaymentRequest.hospitalName || selectedPaymentRequest.requesterName }}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-slate-500">Component & Group:</span>
+                <span class="font-bold text-slate-900">{{ selectedPaymentRequest.componentType }} ({{ selectedPaymentRequest.bloodGroup }})</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-slate-500">Quantity Dispatched:</span>
+                <span class="font-black text-rose-600">{{ selectedPaymentRequest.quantityUnits }} unit(s)</span>
+              </div>
+              @if (selectedPaymentRequest.issuedBagNumbers) {
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-500">Bags Allocated:</span>
+                  <span class="font-mono font-bold text-indigo-700">{{ selectedPaymentRequest.issuedBagNumbers }}</span>
+                </div>
+              }
+              <div class="pt-2 border-t border-slate-200 flex justify-between items-center text-sm">
+                <span class="font-bold text-slate-700">Calculated Payable Amount:</span>
+                <span class="text-lg font-black text-emerald-700">₹{{ getRequestAmount(selectedPaymentRequest) | number }}</span>
+              </div>
+            </div>
+
+            <form [formGroup]="paymentForm" (ngSubmit)="submitPaymentAndFulfill()" class="space-y-4">
+              <!-- Mode of Payment Selector -->
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Mode of Payment *</label>
+                <div class="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    (click)="paymentForm.patchValue({ paymentMode: 'Cash' })"
+                    [ngClass]="paymentForm.get('paymentMode')?.value === 'Cash' ? 'bg-blue-600 text-white font-black shadow-md shadow-blue-600/30 border-blue-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'"
+                    class="py-3 px-4 rounded-xl border text-xs flex items-center justify-center space-x-2 transition-all"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <span>Cash Counter</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    (click)="paymentForm.patchValue({ paymentMode: 'UPI' })"
+                    [ngClass]="paymentForm.get('paymentMode')?.value === 'UPI' ? 'bg-indigo-600 text-white font-black shadow-md shadow-indigo-600/30 border-indigo-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'"
+                    class="py-3 px-4 rounded-xl border text-xs flex items-center justify-center space-x-2 transition-all"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                    <span>UPI / QR Scan</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- UPI Flow: Show QR Code & Require UTR -->
+              @if (paymentForm.get('paymentMode')?.value === 'UPI') {
+                <div class="rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/60 p-4 text-center space-y-3">
+                  <div class="flex items-center justify-center space-x-1.5 text-indigo-900 font-bold text-xs uppercase tracking-wider">
+                    <svg class="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2V5h1v1H5zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zm2 2v-1h1v1H5zM13 3a1 1 0 00-1 1v3a1 1 0 001 1h3a1 1 0 001-1V4a1 1 0 00-1-1h-3zm1 2v1h1V5h-1z" clip-rule="evenodd"/></svg>
+                    <span>Scan with Any UPI App</span>
+                  </div>
+                  
+                  <div class="bg-white p-3 rounded-2xl shadow-sm inline-block border border-indigo-100">
+                    <img
+                      src="payment-qr.jpeg"
+                      alt="UPI Payment QR Code"
+                      class="w-48 h-48 object-contain rounded-xl mx-auto"
+                    />
+                  </div>
+                  <p class="text-[11px] text-slate-500">Google Pay · PhonePe · Paytm · BHIM · Amazon Pay</p>
+                  
+                  <div>
+                    <label class="block text-left text-xs font-bold text-indigo-950 mb-1">
+                      12-Digit UPI Transaction ID / UTR *
+                    </label>
+                    <input
+                      type="text"
+                      formControlName="transactionId"
+                      placeholder="e.g. 430129485731"
+                      class="w-full px-4 py-2.5 rounded-xl border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-xs bg-white"
+                    />
+                    @if (paymentForm.get('transactionId')?.touched && !paymentForm.get('transactionId')?.value) {
+                      <p class="text-[11px] text-red-600 text-left mt-1">Please enter the 12-digit UPI transaction reference / UTR number to complete issue.</p>
+                    }
+                  </div>
+                </div>
+              } @else {
+                <div class="rounded-2xl bg-blue-50/70 border border-blue-200 p-4 text-xs text-blue-900 flex items-start space-x-2">
+                  <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <div>
+                    <p class="font-bold">Cash Payment at Counter</p>
+                    <p class="text-blue-800 text-[11px] mt-0.5">Collect the exact amount (₹{{ getRequestAmount(selectedPaymentRequest) | number }}) at the reception counter before issuing blood units.</p>
+                  </div>
+                </div>
+              }
+
+              <!-- Amount Paid (editable if adjusted) -->
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Final Amount Paid (₹)
+                </label>
+                <input
+                  type="number"
+                  formControlName="amountPaid"
+                  class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-emerald-800"
+                />
+              </div>
+
+              <div class="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  (click)="showPaymentModal = false"
+                  class="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center space-x-1.5"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  <span>Mark Paid & Issue</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      }
+
+      <!-- PRINTABLE OFFICIAL BILL / RECEIPT MODAL -->
+      @if (showReceiptModal() && selectedReceiptRequest()) {
+        <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl space-y-6 border border-slate-100 max-h-[92vh] overflow-y-auto">
+            <!-- Receipt Actions Header (Screen only) -->
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Official Bill & Dispatch Receipt</span>
+              <div class="flex items-center space-x-2">
+                <button
+                  type="button"
+                  (click)="printReceipt()"
+                  class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center space-x-1.5 transition-all"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                  <span>Print Receipt</span>
+                </button>
+                <button
+                  type="button"
+                  (click)="closeReceiptModal()"
+                  class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <!-- Receipt Content (Printable Area) -->
+            <div id="receipt-printable-area" class="space-y-6 p-6 rounded-2xl border border-slate-200 bg-white">
+              <!-- Blood Bank Letterhead -->
+              <div class="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+                <div>
+                  <div class="flex items-center space-x-2">
+                    <span class="w-6 h-6 rounded-lg bg-rose-600 text-white font-black flex items-center justify-center text-xs">+</span>
+                    <h2 class="text-xl font-black tracking-tight text-slate-900">BLOOD BANK A</h2>
+                  </div>
+                  <p class="text-[11px] text-slate-500 mt-1 font-medium">Licensed Blood Bank & Component Separation Unit</p>
+                  <p class="text-[10px] text-slate-400">NABH Accredited · Central Medical Depository</p>
+                </div>
+                <div class="text-right">
+                  <div class="text-[11px] font-mono font-bold text-slate-900">RECEIPT #: REC-{{ selectedReceiptRequest()!.id.substring(0, 8).toUpperCase() }}</div>
+                  <div class="text-[10px] text-slate-500 mt-0.5">Date: {{ (selectedReceiptRequest()!.processedAt || selectedReceiptRequest()!.createdAt) | date:'medium' }}</div>
+                  <div class="inline-block mt-2 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider border border-emerald-200">
+                    PAID · COMPLETED
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bill To & Patient Info -->
+              <div class="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <p class="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Patient Details</p>
+                  <p class="font-black text-slate-900 text-sm mt-0.5">{{ selectedReceiptRequest()!.patientName }}</p>
+                  <p class="text-slate-600 mt-0.5">Ward: {{ selectedReceiptRequest()!.hospitalDepartment || 'General' }}</p>
+                  @if (selectedReceiptRequest()!.medicalReason) {
+                    <p class="text-[11px] text-slate-400 italic">Indication: {{ selectedReceiptRequest()!.medicalReason }}</p>
+                  }
+                </div>
+                <div>
+                  <p class="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Requisition Facility</p>
+                  <p class="font-bold text-slate-900 text-sm mt-0.5">{{ selectedReceiptRequest()!.hospitalName || selectedReceiptRequest()!.requesterName }}</p>
+                  <p class="text-slate-600 mt-0.5">Type: {{ selectedReceiptRequest()!.requesterType }}</p>
+                  <p class="text-[11px] text-slate-400">Contact: {{ selectedReceiptRequest()!.requesterContact }}</p>
+                </div>
+              </div>
+
+              <!-- Line Items Table -->
+              <div class="rounded-xl border border-slate-200 overflow-hidden text-xs">
+                <table class="w-full text-left">
+                  <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200">
+                    <tr>
+                      <th class="py-2.5 px-3">Description</th>
+                      <th class="py-2.5 px-3">Group</th>
+                      <th class="py-2.5 px-3">Allocated Bags</th>
+                      <th class="py-2.5 px-3 text-right">Units</th>
+                      <th class="py-2.5 px-3 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    <tr>
+                      <td class="py-3 px-3 font-bold text-slate-900">{{ selectedReceiptRequest()!.componentType }}</td>
+                      <td class="py-3 px-3">
+                        <span class="font-black text-rose-700">{{ selectedReceiptRequest()!.bloodGroup }}</span>
+                      </td>
+                      <td class="py-3 px-3 font-mono text-[11px] text-indigo-700">
+                        {{ selectedReceiptRequest()!.issuedBagNumbers || 'Standard Unit Dispatch' }}
+                      </td>
+                      <td class="py-3 px-3 text-right font-bold text-slate-800">{{ selectedReceiptRequest()!.quantityUnits }}</td>
+                      <td class="py-3 px-3 text-right font-black text-slate-900">₹{{ getRequestAmount(selectedReceiptRequest()!) | number }}</td>
+                    </tr>
+                  </tbody>
+                  <tfoot class="bg-slate-50 font-bold border-t border-slate-200">
+                    <tr>
+                      <td colspan="4" class="py-2.5 px-3 text-right uppercase text-[11px]">Total Paid:</td>
+                      <td class="py-2.5 px-3 text-right text-sm font-black text-emerald-700">₹{{ getRequestAmount(selectedReceiptRequest()!) | number }}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <!-- Payment Mode Breakdown & Audit -->
+              <div class="grid grid-cols-2 gap-4 p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                <div>
+                  <span class="text-slate-500">Payment Method:</span>
+                  <p class="font-black text-slate-900 mt-0.5">
+                    @if (selectedReceiptRequest()!.paymentMode === 'UPI') {
+                      UPI / Online QR
+                    } @else {
+                      Cash Counter
+                    }
+                  </p>
+                </div>
+                <div>
+                  <span class="text-slate-500">Transaction ID / UTR:</span>
+                  <p class="font-mono font-bold text-slate-900 mt-0.5">
+                    {{ selectedReceiptRequest()!.transactionId || 'CASH-' + selectedReceiptRequest()!.id.substring(0, 6).toUpperCase() }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Signatures & Verification -->
+              <div class="pt-6 border-t border-dashed border-slate-200 grid grid-cols-2 gap-8 text-[11px] text-slate-500">
+                <div>
+                  <div class="border-b border-slate-300 w-32 pb-6 mb-1"></div>
+                  <p class="font-bold text-slate-700">Received By (Signature)</p>
+                  <p class="text-[10px]">Patient / Hospital Representative</p>
+                </div>
+                <div class="text-right">
+                  <div class="border-b border-slate-300 w-32 ml-auto pb-6 mb-1"></div>
+                  <p class="font-bold text-slate-700">Authorized Medical Officer</p>
+                  <p class="text-[10px]">Blood Bank A Dispensing Authority</p>
+                </div>
+              </div>
+
+              <div class="text-center pt-2 text-[10px] text-slate-400">
+                This is a computer-generated tax invoice and issue dispatch certificate issued by Blood Bank A.
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- ========================================================================= -->
+      <!-- 2. HOSPITAL PORTAL (Only Request Blood/Components & Track Requisitions)   -->
+      <!-- ========================================================================= -->
+      @if (authService.isHospital()) {
+        <div class="space-y-6">
+          <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+            <button
+              (click)="activeHospitalTab = 'new-req'"
+              [ngClass]="activeHospitalTab === 'new-req' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>Submit Blood / Component Requisition</span>
+            </button>
+
+            <button
+              (click)="activeHospitalTab = 'my-req'"
+              [ngClass]="activeHospitalTab === 'my-req' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              <span>Track Hospital Requisitions ({{ hospitalRequests().length }})</span>
+            </button>
+
+            <button
+              (click)="activeHospitalTab = 'stock-view'"
+              [ngClass]="activeHospitalTab === 'stock-view' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+              <span>Blood Bank A Availability</span>
+            </button>
+          </div>
+
+          <!-- TAB 1: HOSPITAL REQUISITION FORM -->
+          @if (activeHospitalTab === 'new-req') {
+            <div class="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm max-w-2xl mx-auto space-y-6">
+              <div class="border-b border-slate-100 pb-4">
+                <h2 class="text-xl font-black text-slate-900">Hospital Blood & Component Requisition</h2>
+                <p class="text-xs text-slate-500 mt-1">Official dispatch request from your healthcare facility to Blood Bank A</p>
+              </div>
+
+              @if (hospitalSubmitSuccess) {
+                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center space-x-2">
+                  <svg class="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                  <span>Requisition transmitted successfully to Blood Bank A!</span>
+                </div>
+              }
+
+              <form [formGroup]="hospitalForm" (ngSubmit)="submitHospitalRequest()" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Patient Name *</label>
+                    <input type="text" formControlName="patientName" placeholder="Patient Full Name" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Department / Ward</label>
+                    <input type="text" formControlName="hospitalDepartment" placeholder="e.g. ICU / Surgery Ward" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Blood Group *</label>
+                    <select formControlName="bloodGroup" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-800">
+                      @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Component Type *</label>
+                    <select formControlName="componentType" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-800">
+                      @for (comp of componentTypes; track comp) { <option [value]="comp">{{ comp }}</option> }
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Quantity (Units) *</label>
+                    <input type="number" min="1" max="50" formControlName="quantityUnits" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"/>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Urgency Priority</label>
+                  <div class="grid grid-cols-3 gap-3">
+                    <button type="button" (click)="hospitalForm.patchValue({ urgency: 'Normal' })" [ngClass]="hospitalForm.get('urgency')?.value === 'Normal' ? 'bg-slate-800 text-white font-bold' : 'bg-slate-100 text-slate-700'" class="py-2 rounded-xl text-xs font-semibold">Normal (Elective)</button>
+                    <button type="button" (click)="hospitalForm.patchValue({ urgency: 'Urgent' })" [ngClass]="hospitalForm.get('urgency')?.value === 'Urgent' ? 'bg-amber-500 text-white font-bold' : 'bg-slate-100 text-slate-700'" class="py-2 rounded-xl text-xs font-semibold">Urgent (Within 4h)</button>
+                    <button type="button" (click)="hospitalForm.patchValue({ urgency: 'Critical' })" [ngClass]="hospitalForm.get('urgency')?.value === 'Critical' ? 'bg-red-600 text-white font-bold' : 'bg-slate-100 text-slate-700'" class="py-2 rounded-xl text-xs font-semibold">Critical (Immediate)</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Clinical Indication / Diagnosis</label>
+                  <textarea rows="2" formControlName="medicalReason" placeholder="e.g. Acute surgical hemorrhage, severe anemia, etc." class="w-full px-4 py-2 rounded-xl border border-slate-300 text-sm"></textarea>
+                </div>
+
+                <button type="submit" [disabled]="hospitalForm.invalid" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 transition-all text-sm disabled:opacity-50">
+                  Transmit Requisition to Blood Bank A
+                </button>
+              </form>
+            </div>
+          }
+
+          <!-- TAB 2: MY REQUISITIONS TRACKER -->
+          @if (activeHospitalTab === 'my-req') {
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
+                  <tr>
+                    <th class="py-3.5 px-6">Patient Name</th>
+                    <th class="py-3.5 px-6">Item & Quantity</th>
+                    <th class="py-3.5 px-6">Priority</th>
+                    <th class="py-3.5 px-6">Status</th>
+                    <th class="py-3.5 px-6">Requisition Date</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  @for (req of hospitalRequests(); track req.id) {
+                    <tr class="hover:bg-slate-50/80">
+                      <td class="py-4 px-6 font-bold text-slate-900">{{ req.patientName }}</td>
+                      <td class="py-4 px-6">
+                        <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-black border border-rose-200 mr-1.5">{{ req.bloodGroup }}</span>
+                        <span class="font-semibold text-slate-800">{{ req.componentType }} ({{ req.quantityUnits }} units)</span>
+                      </td>
+                      <td class="py-4 px-6 font-bold">{{ req.urgency }}</td>
+                      <td class="py-4 px-6">
+                        <span class="px-2.5 py-1 text-xs font-bold rounded-full"
+                          [ngClass]="{
+                            'bg-amber-100 text-amber-800': req.status === 'Pending',
+                            'bg-blue-100 text-blue-800': req.status === 'Approved',
+                            'bg-emerald-100 text-emerald-800': req.status === 'Fulfilled',
+                            'bg-red-100 text-red-800': req.status === 'Rejected'
+                          }"
+                        >
+                          {{ req.status }}
+                        </span>
+                      </td>
+                      <td class="py-4 px-6 text-xs text-slate-400">{{ req.createdAt | date:'medium' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+
+          <!-- TAB 3: STOCK AVAILABILITY VIEW -->
+          @if (activeHospitalTab === 'stock-view') {
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
+                  <tr>
+                    <th class="py-3.5 px-6">Blood Group</th>
+                    <th class="py-3.5 px-6">Component Type</th>
+                    <th class="py-3.5 px-6">Available Units</th>
+                    <th class="py-3.5 px-6">Depository Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  @for (stock of hospitalStockView(); track stock.id) {
+                    <tr class="hover:bg-slate-50/80">
+                      <td class="py-4 px-6 font-bold">
+                        <span class="px-2.5 py-1 rounded-xl bg-rose-50 text-rose-700 font-black border border-rose-200">{{ stock.bloodGroup }}</span>
+                      </td>
+                      <td class="py-4 px-6 font-semibold text-slate-900">{{ stock.componentType }}</td>
+                      <td class="py-4 px-6 font-extrabold text-slate-900">{{ stock.quantityUnits }} units</td>
+                      <td class="py-4 px-6">
+                        @if (stock.quantityUnits <= 5) {
+                          <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800">Critical Shortage</span>
+                        } @else {
+                          <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800">Available</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ========================================================================= -->
+      <!-- 3. DONOR PORTAL (Request Blood/Components, My Requests, Camps, History)  -->
+      <!-- ========================================================================= -->
+      @if (authService.isDonor()) {
+        <div class="space-y-6">
+          <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+            <button
+              (click)="activeDonorTab = 'request'"
+              [ngClass]="activeDonorTab === 'request' ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>Request Blood or Components</span>
+            </button>
+
+            <button
+              (click)="activeDonorTab = 'my-requests'"
+              [ngClass]="activeDonorTab === 'my-requests' ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              <span>My Requests & Tracking ({{ donorRequests().length }})</span>
+            </button>
+
+            <button
+              (click)="activeDonorTab = 'camps'"
+              [ngClass]="activeDonorTab === 'camps' ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+              class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span>Upcoming Camps to Donate</span>
+            </button>
+          </div>
+
+          <!-- DONOR TAB 1: SUBMIT BLOOD/COMPONENT REQUEST -->
+          @if (activeDonorTab === 'request') {
+            <div class="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm max-w-2xl mx-auto space-y-6">
+              <div class="border-b border-slate-100 pb-4">
+                <h2 class="text-xl font-black text-slate-900">Personal Blood / Component Request</h2>
+                <p class="text-xs text-slate-500 mt-1">Submit an emergency or planned blood request to Blood Bank A for yourself or a loved one</p>
+              </div>
+
+              @if (donorSubmitSuccess) {
+                <div class="p-4 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-sm flex items-center space-x-2">
+                  <svg class="w-5 h-5 text-sky-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                  <span>Request registered! Blood Bank A operators will review and contact you.</span>
+                </div>
+              }
+
+              <form [formGroup]="donorForm" (ngSubmit)="submitDonorRequest()" class="space-y-4">
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Patient Name *</label>
+                  <input type="text" formControlName="patientName" placeholder="Patient Full Name" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Blood Group *</label>
+                    <select formControlName="bloodGroup" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-800">
+                      @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Component Needed *</label>
+                    <select formControlName="componentType" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-800">
+                      @for (comp of componentTypes; track comp) { <option [value]="comp">{{ comp }}</option> }
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Units (Quantity) *</label>
+                    <input type="number" min="1" max="10" formControlName="quantityUnits" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"/>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Hospital / Clinic Admitted To</label>
+                  <input type="text" formControlName="hospitalDepartment" placeholder="e.g. City General Hospital, Room 302" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Urgency</label>
+                  <select formControlName="urgency" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm">
+                    <option value="Normal">Normal</option>
+                    <option value="Urgent">Urgent</option>
+                    <option value="Critical">Critical (Immediate Emergency)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Medical Reason</label>
+                  <textarea rows="2" formControlName="medicalReason" placeholder="Describe patient medical situation..." class="w-full px-4 py-2 rounded-xl border border-slate-300 text-sm"></textarea>
+                </div>
+
+                <button type="submit" [disabled]="donorForm.invalid" class="w-full py-3.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-lg shadow-sky-600/30 transition-all text-sm disabled:opacity-50">
+                  Submit Request to Blood Bank A
+                </button>
+              </form>
+            </div>
+          }
+
+          <!-- DONOR TAB 2: MY REQUESTS TRACKER -->
+          @if (activeDonorTab === 'my-requests') {
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-100">
+                  <tr>
+                    <th class="py-3.5 px-6">Patient Name</th>
+                    <th class="py-3.5 px-6">Item & Quantity</th>
+                    <th class="py-3.5 px-6">Urgency</th>
+                    <th class="py-3.5 px-6">Status</th>
+                    <th class="py-3.5 px-6">Remarks from Blood Bank A</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  @for (req of donorRequests(); track req.id) {
+                    <tr class="hover:bg-slate-50/80">
+                      <td class="py-4 px-6 font-bold text-slate-900">{{ req.patientName }}</td>
+                      <td class="py-4 px-6">
+                        <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-black border border-rose-200 mr-1.5">{{ req.bloodGroup }}</span>
+                        <span class="font-semibold text-slate-800">{{ req.componentType }} ({{ req.quantityUnits }} units)</span>
+                      </td>
+                      <td class="py-4 px-6 font-bold">{{ req.urgency }}</td>
+                      <td class="py-4 px-6">
+                        <span class="px-2.5 py-1 text-xs font-bold rounded-full"
+                          [ngClass]="{
+                            'bg-amber-100 text-amber-800': req.status === 'Pending',
+                            'bg-blue-100 text-blue-800': req.status === 'Approved',
+                            'bg-emerald-100 text-emerald-800': req.status === 'Fulfilled',
+                            'bg-red-100 text-red-800': req.status === 'Rejected'
+                          }"
+                        >
+                          {{ req.status }}
+                        </span>
+                      </td>
+                      <td class="py-4 px-6 text-xs text-slate-500 italic">{{ req.adminComments || 'Processing in progress...' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+
+          <!-- DONOR TAB 3: UPCOMING CAMPS -->
+          @if (activeDonorTab === 'camps') {
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              @for (camp of donorCamps(); track camp.id) {
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+                  <div class="flex items-start justify-between">
+                    <span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-sky-100 text-sky-800">
+                      {{ camp.status }}
+                    </span>
+                    <span class="text-xs font-bold text-slate-400">{{ camp.campDate | date:'mediumDate' }}</span>
+                  </div>
+
+                  <div>
+                    <h3 class="font-extrabold text-slate-900 text-base">{{ camp.campName }}</h3>
+                    <p class="text-xs text-slate-500 mt-1">{{ camp.location }}</p>
+                  </div>
+
+                  <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span class="text-slate-500">Contact Organizer:</span>
+                    <span class="font-bold text-slate-800">{{ camp.contactPhone }}</span>
+                  </div>
+
+                  @if (camp.notes) {
+                    <p class="text-xs text-slate-400 italic bg-slate-50 p-2.5 rounded-xl">"{{ camp.notes }}"</p>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- ADD / REPLENISH STOCK MODAL (Blood Bank A only) -->
+    @if (showAddStockModal) {
+      <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="text-lg font-bold text-slate-900">
+              {{ stockModalMode === 'replenish' ? 'Replenish Blood Bank A Units' : 'Add Blood Bag Barcode' }}
+            </h3>
+            <button type="button" (click)="showAddStockModal = false" class="text-slate-400 hover:text-slate-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          <!-- Mode Toggle -->
+          <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold">
+            <button
+              type="button"
+              (click)="stockModalMode = 'replenish'"
+              [ngClass]="stockModalMode === 'replenish' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+              class="flex-1 py-1.5 rounded-lg transition-all text-center"
+            >
+              Replenish Units
+            </button>
+            <button
+              type="button"
+              (click)="stockModalMode = 'bag'"
+              [ngClass]="stockModalMode === 'bag' ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+              class="flex-1 py-1.5 rounded-lg transition-all text-center"
+            >
+              Add Single Bag
+            </button>
+          </div>
+
+          @if (addStockError) {
+            <div class="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center space-x-2">
+              <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+              <span>{{ addStockError }}</span>
+            </div>
+          }
+
+          @if (stockModalMode === 'replenish') {
+            <!-- REPLENISH FORM -->
+            <form [formGroup]="replenishStockForm" (ngSubmit)="submitReplenishStock()" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Blood Group</label>
+                <select formControlName="bloodGroup" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 bg-white">
+                  @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Component Type</label>
+                <select formControlName="componentType" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-900 bg-white">
+                  @for (comp of componentTypes; track comp) { <option [value]="comp">{{ comp }}</option> }
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Quantity Units</label>
+                <input type="number" min="1" max="10000" formControlName="quantityUnits" placeholder="e.g. 10" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-900"/>
+              </div>
+              <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button type="button" (click)="showAddStockModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100 transition-colors">Cancel</button>
+                <button type="submit" [disabled]="isAddingStock || replenishStockForm.invalid" class="px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md disabled:opacity-50 flex items-center space-x-1.5 transition-all">
+                  @if (isAddingStock) {
+                    <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>Adding to Depository...</span>
+                  } @else {
+                    <span>Add to Depository</span>
+                  }
+                </button>
+              </div>
+            </form>
+          } @else {
+            <!-- SINGLE BAG FORM -->
+            <form [formGroup]="addStockForm" (ngSubmit)="submitAddStock()" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Blood Bag Number</label>
+                <input type="text" formControlName="bagNumber" placeholder="e.g. BAG-2026-0001" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold"/>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Blood Group</label>
+                <select formControlName="bloodGroup" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold">
+                  @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Component Type</label>
+                <select formControlName="componentType" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                  @for (comp of componentTypes; track comp) { <option [value]="comp">{{ comp }}</option> }
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Date Added</label>
+                <input type="date" formControlName="addedDate" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+              <div class="flex items-center justify-end space-x-2 pt-2">
+                <button type="button" (click)="showAddStockModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
+                <button type="submit" [disabled]="isAddingStock || addStockForm.invalid" class="px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md disabled:opacity-50 flex items-center space-x-1.5">
+                  @if (isAddingStock) {
+                    <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>Adding Bag...</span>
+                  } @else {
+                    <span>Add Blood Bag</span>
+                  }
+                </button>
+              </div>
+            </form>
+          }
+        </div>
+      </div>
+    }
+
+    @if (showDonationModal && selectedDonor) {
+      <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">Donation Eligibility Check</h3>
+              <p class="text-xs text-slate-500">{{ selectedDonor.fullName }} Â· {{ selectedDonor.bloodGroup }}</p>
+            </div>
+            <button type="button" (click)="showDonationModal = false" class="text-slate-400 text-xl">Ã—</button>
+          </div>
+          @if (donationStage === 'eligibility') {
+          <form [formGroup]="donationForm" (ngSubmit)="proceedToScreening()" class="space-y-3">
+            <p class="text-xs text-slate-500">Please answer every question honestly. A â€œyesâ€ answer to a deferral or disqualification question prevents donation and requires staff review.</p>
+            <p class="text-xs font-bold uppercase text-slate-500">Basic eligibility</p>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="feelsHealthyToday"/> Do you feel healthy today?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="ateRecently"/> Have you eaten in the last 4 hours?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="sleptWell"/> Did you sleep well last night?</label>
+            <p class="text-xs font-bold uppercase text-slate-500 pt-2">Donation frequency and previous donation</p>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="donatedRecently"/> Have you donated blood within the applicable waiting period?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hadDonationDiscomfort"/> Did you have discomfort or difficulty during a previous donation?</label>
+            <p class="text-xs font-bold uppercase text-slate-500 pt-2">Temporary deferrals</p>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hasInfectionRisk"/> Do you think you may have HIV, hepatitis, malaria, or another blood-borne infection?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hasColdFeverOrSinusitis"/> Cold, cough, sinusitis, fever, or other current infection?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="tookAntibioticsRecently"/> Have you taken antibiotics recently?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="tookAlcoholRecently"/> Have you consumed alcohol in the past 24 hours?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="smokesFrequently"/> Do you smoke more than the permitted frequency?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="tookMedicationRecently"/> Have you taken medicines in the last 72 hours?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hadRecentVaccination"/> Have you received a vaccination in the last 2 weeks?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hasRecentIllness"/> Have you suffered an illness in the last 2 weeks?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hadRecentSurgeryOrTattoo"/> Recent surgery, dental procedure, tattoo, piercing, or needle exposure?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hadRecentMalariaOrEndemicExposure"/> Malaria history or travel to an endemic area recently?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="isPregnantOrBreastfeeding"/> Are you pregnant or breastfeeding?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hadRecentAbortion"/> Have you had an abortion in the last 6 months?</label>
+            <p class="text-xs font-bold uppercase text-slate-500 pt-2">Medical history</p>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hasChronicDisease"/> Do you have a chronic disease or a history of major disease?</label>
+            <p class="text-xs font-bold uppercase text-slate-500 pt-2">Self-exclusion questionnaire</p>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hasUnsafeSexualExposure"/> Have you had an unsafe sexual exposure or sex with an unknown-risk partner?</label>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hasHivOrHepatitisRisk"/> Do you believe you may be HIV positive or have hepatitis risk?</label>
+            <p class="text-xs font-bold uppercase text-slate-500 pt-2">Permanent disqualifications</p>
+            <label class="flex gap-2 text-sm"><input type="checkbox" formControlName="hasPermanentDisqualification"/> Does any permanent disqualification apply?</label>
+            <div class="grid grid-cols-2 gap-3">
+              <input type="number" min="1" max="10" formControlName="unitsDonated" placeholder="Units donated" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              <input formControlName="campName" placeholder="Camp name (optional)" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+            </div>
+            <button type="submit" [disabled]="donationForm.invalid" class="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold disabled:opacity-50">Proceed to Blood Bank Screening</button>
+          </form>
+          }
+          @if (donationStage === 'screening') {
+            <form [formGroup]="donationForm" (ngSubmit)="proceedToConfirmation()" class="space-y-4">
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <input type="number" formControlName="weightKg" placeholder="Weight (kg)" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input type="number" formControlName="pulsePerMinute" placeholder="Pulse / min" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input type="number" step="0.1" formControlName="hemoglobin" placeholder="Hb (g/dL)" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input type="number" step="0.1" formControlName="hematocrit" placeholder="HCT (%)" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input type="number" formControlName="plateletCount" placeholder="Platelets" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input formControlName="bloodPressure" placeholder="BP (mmHg)" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input type="number" step="0.1" formControlName="temperatureCelsius" placeholder="Temperature" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input formControlName="donorNumber" placeholder="Donor No." class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input formControlName="screeningStaffName" placeholder="Screening staff name" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input formControlName="screeningStaffSignature" placeholder="Screening staff signature" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input formControlName="medicalOfficerName" placeholder="Medical officer name" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input formControlName="medicalOfficerSignature" placeholder="Medical officer signature" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <textarea formControlName="deferralReason" placeholder="Reason for deferral (if any)" rows="2" class="px-3 py-2 rounded-xl border border-slate-300 text-sm md:col-span-2"></textarea>
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <input formControlName="bagType" placeholder="Type of bag" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input formControlName="segmentNumber" placeholder="Segment No." class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input formControlName="donationStartTime" type="time" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input formControlName="donationEndTime" type="time" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <select formControlName="venipunctureSite" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"><option>Right arm</option><option>Left arm</option></select>
+                <input formControlName="phlebotomistName" placeholder="Phlebotomist name" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <input formControlName="phlebotomistSignature" placeholder="Phlebotomist signature" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" formControlName="visualInspectionPassed"/> Visual inspection passed</label>
+              </div>
+              <label class="flex items-center gap-2 text-sm"><input type="checkbox" formControlName="medicalExamAccepted"/> Medical examination accepted: donor may proceed</label>
+              <button type="submit" class="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold">Continue to Confirmation</button>
+            </form>
+          }
+          @if (donationStage === 'confirmation') {
+            <div [formGroup]="donationForm" class="space-y-4">
+              @if (donationActionError) {
+                <div class="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{{ donationActionError }}</div>
+              }
+              <div class="donation-print-summary space-y-4 text-sm">
+                <div>
+                  <h4 class="font-bold text-slate-900">Donor Details</h4>
+                  <p>{{ selectedDonor.fullName }} Â· {{ selectedDonor.bloodGroup }} Â· {{ selectedDonor.sex || 'Not specified' }}</p>
+                  <p>{{ selectedDonor.dateOfBirth | date:'mediumDate' }} Â· {{ selectedDonor.phone || 'No phone recorded' }}</p>
+                  <p>{{ selectedDonor.email }} Â· {{ selectedDonor.address || 'No address recorded' }}</p>
+                </div>
+                <div>
+                  <h4 class="font-bold text-slate-900">Pre-Blood-Bank Eligibility</h4>
+                  <p>Healthy today: {{ donationForm.get('feelsHealthyToday')?.value ? 'Yes' : 'No' }} Â· Ate recently: {{ donationForm.get('ateRecently')?.value ? 'Yes' : 'No' }} Â· Slept well: {{ donationForm.get('sleptWell')?.value ? 'Yes' : 'No' }}</p>
+                  <p>Recent donation: {{ donationForm.get('donatedRecently')?.value ? 'Yes' : 'No' }} Â· Deferral/disqualification flags: {{ donationForm.get('hasPermanentDisqualification')?.value ? 'Yes' : 'No' }}</p>
+                </div>
+                <div>
+                  <h4 class="font-bold text-slate-900">Blood-Bank Screening</h4>
+                  <p>Weight: {{ donationForm.get('weightKg')?.value || 'â€”' }} kg Â· Pulse: {{ donationForm.get('pulsePerMinute')?.value || 'â€”' }} Â· Hb: {{ donationForm.get('hemoglobin')?.value || 'â€”' }} Â· HCT: {{ donationForm.get('hematocrit')?.value || 'â€”' }}</p>
+                  <p>BP: {{ donationForm.get('bloodPressure')?.value || 'â€”' }} Â· Temperature: {{ donationForm.get('temperatureCelsius')?.value || 'â€”' }} Â· Platelets: {{ donationForm.get('plateletCount')?.value || 'â€”' }}</p>
+                  <p>Screening staff: {{ donationForm.get('screeningStaffName')?.value || 'â€”' }} Â· Medical officer: {{ donationForm.get('medicalOfficerName')?.value || 'â€”' }}</p>
+                  <p>Medical exam accepted: {{ donationForm.get('medicalExamAccepted')?.value ? 'Yes' : 'No' }} Â· Visual inspection: {{ donationForm.get('visualInspectionPassed')?.value ? 'Passed' : 'Not recorded' }}</p>
+                  <p>Donor no.: {{ donationForm.get('donorNumber')?.value || 'â€”' }} Â· Bag: {{ donationForm.get('bagType')?.value || 'â€”' }} Â· Segment: {{ donationForm.get('segmentNumber')?.value || 'â€”' }}</p>
+                  <p>Phlebotomist: {{ donationForm.get('phlebotomistName')?.value || 'â€”' }} Â· Site: {{ donationForm.get('venipunctureSite')?.value || 'â€”' }}</p>
+                </div>
+              </div>
+              <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm">
+                I confirm that the information I provided is correct, I have understood the donation procedure, and I consent to donate blood voluntarily.
+              </div>
+              <label class="flex items-start gap-2 text-sm"><input type="checkbox" formControlName="donorConfirmed" class="mt-1"/> Donor confirmation received</label>
+              <p class="text-xs text-slate-500">Staff screening status: {{ donationForm.get('medicalExamAccepted')?.value ? 'Medical exam accepted' : 'Medical exam acceptance required' }}</p>
+              <div class="flex gap-2">
+                <button type="button" (click)="printDonationForm()" class="flex-1 py-3 rounded-xl bg-slate-700 text-white font-bold">Print / Save PDF</button>
+                <button type="button" (click)="confirmAndRecordDonation()" class="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold">Confirm & Record Donation</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- CREATE CAMP MODAL (Blood Bank A only) -->
+    @if (showCreateCampModal) {
+      <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100">
+          <h3 class="text-lg font-bold text-slate-900">Schedule Donation Camp</h3>
+          <form [formGroup]="createCampForm" (ngSubmit)="submitCreateCamp()" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Camp Event Name</label>
+              <input type="text" formControlName="campName" placeholder="e.g. City Plaza Blood Camp" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Location Address</label>
+              <input type="text" formControlName="location" placeholder="e.g. City Plaza, Ground Floor" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Date</label>
+                <input type="date" formControlName="campDate" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Target Units</label>
+                <input type="number" min="10" formControlName="targetUnits" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2">
+              <button type="button" (click)="showCreateCampModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
+              <button type="submit" class="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md">Create Camp</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    }
+  </div>
+</div>
