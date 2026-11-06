@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { NavbarComponent } from './components/navbar/navbar.component';
 
 @Component({
@@ -9,4 +9,10 @@ import { NavbarComponent } from './components/navbar/navbar.component';
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
-export class AppComponent {}
+export class AppComponent {
+  constructor(public router: Router) {}
+
+  isDashboard(): boolean {
+    return this.router.url.includes('/dashboard');
+  }
+}

@@ -1,10 +1,11 @@
-    <div class="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
-      <app-navbar></app-navbar>
-      <main class="flex-grow">
-        <router-outlet></router-outlet>
-      </main>
-      <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400">
-        <p>&copy; 2026 LifeStream Blood Bank Management SaaS. Production-ready clinical distribution platform.</p>
-      </footer>
-    </div>
-  
+<div class="flex flex-col font-sans text-slate-800" [class.h-screen]="isDashboard()" [class.overflow-hidden]="isDashboard()" [class.min-h-screen]="!isDashboard()" [class.bg-slate-50]="true">
+  <app-navbar class="flex-shrink-0 z-40"></app-navbar>
+  <main class="flex-grow min-h-0" [class.overflow-hidden]="isDashboard()" [class.overflow-y-auto]="!isDashboard()">
+    <router-outlet></router-outlet>
+  </main>
+  @if (!isDashboard()) {
+    <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 flex-shrink-0">
+      <p>&copy; 2026 LifeStream Blood Bank Management SaaS. Production-ready clinical distribution platform.</p>
+    </footer>
+  }
+</div>

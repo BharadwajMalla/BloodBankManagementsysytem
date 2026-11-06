@@ -101,48 +101,111 @@
     
   </aside>
   <div class="dashboard-main">
-    
-    <div class="dashboard-content max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      <!-- Top Banner -->
-      <div class="dashboard-hero bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div class="space-y-2">
-            <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/10 text-rose-300 text-xs font-semibold backdrop-blur-sm border border-white/10">
-              <span class="w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>
-              <span>Blood Bank A Management System</span>
+    <!-- Fixed Top Header Banner in Each Page with Uniform Measurements -->
+    <header class="dashboard-hero-banner">
+      <div class="hero-container">
+        <div class="hero-left">
+          <div class="hero-category">
+            <span class="hero-dot"></span>
+            @if (authService.isBloodBank()) {
+              <span>Blood Bank A &bull; Central Depository</span>
+            } @else if (authService.isHospital()) {
+              <span>Clinical Requisitions &bull; Hospital Facility</span>
+            } @else {
+              <span>Voluntary Donor Network &bull; LifeStream</span>
+            }
+          </div>
+          <h1 class="hero-title">
+            @if (authService.isBloodBank()) {
+              @switch (activeBankTab) {
+                @case ('stock') { Stock Overview & Real-Time Depository }
+                @case ('requests') { Incoming Blood & Component Requests }
+                @case ('issued') { Issued Components & Patient Distribution }
+                @case ('camps') { Donation Camps & Community Drives }
+                @case ('donors') { Registered Donors Directory }
+                @case ('collection') { Component Collection & Intake Depository }
+                @case ('discard') { Components Discarded & Disposal Log }
+                @case ('return') { Components Return & Quarantine Log }
+                @case ('summary') { Account Summary & Billing Ledger }
+                @default { Blood Bank Management Portal }
+              }
+            } @else if (authService.isHospital()) {
+              @switch (activeHospitalTab) {
+                @case ('new-req') { Submit Blood Requisition }
+                @case ('my-req') { Hospital Blood Requisitions Log }
+                @case ('stock-view') { Blood & Component Inventory Depository }
+                @default { Hospital Requisition Portal }
+              }
+            } @else {
+              @switch (activeDonorTab) {
+                @case ('request') { Blood Request Requisition }
+                @case ('my-requests') { My Blood Requisitions }
+                @case ('camps') { Community Donation Drives & Camps }
+                @default { Donor Community Portal }
+              }
+            }
+          </h1>
+          <p class="hero-subtitle">
+            @if (authService.isBloodBank()) {
+              @switch (activeBankTab) {
+                @case ('stock') { Real-time stock counts across Whole Blood, PRBC, FFP, Platelets, and Cryoprecipitate }
+                @case ('requests') { Review clinical urgency, patient crossmatch details, and fulfill incoming orders }
+                @case ('issued') { Dispensed clinical component log with verification and traceability records }
+                @case ('camps') { Manage blood drive schedules, venue logistics, and mobile collection units }
+                @case ('donors') { Voluntary donor directory, eligibility records, and full donation history }
+                @case ('collection') { Intake collected units, perform component separation, and restock depository }
+                @case ('discard') { Clinical waste and expired unit audit log in compliance with medical standards }
+                @case ('return') { Restock and quality inspection for returned clinical blood components }
+                @case ('summary') { Transaction ledger, hospital processing fees, and financial settlement balance }
+                @default { Centralized Clinical Depository Management System }
+              }
+            } @else if (authService.isHospital()) {
+              @switch (activeHospitalTab) {
+                @case ('new-req') { Order whole blood, red cells, plasma, or platelets for urgent clinical needs }
+                @case ('my-req') { Monitor order statuses, fulfillment confirmations, and dispatch tracking }
+                @case ('stock-view') { View real-time component availability before submitting clinical requests }
+                @default { Hospital clinical blood acquisition portal }
+              }
+            } @else {
+              @switch (activeDonorTab) {
+                @case ('request') { Request emergency blood units for patient transfusion }
+                @case ('my-requests') { Track the status and progress of your blood requests }
+                @case ('camps') { Join upcoming voluntary blood donation camps and save lives }
+                @default { Voluntary donor community portal }
+              }
+            }
+          </p>
+        </div>
+        <div class="hero-right">
+          @if (authService.isBloodBank() && activeBankTab === 'donors') {
+            <button type="button" (click)="showCreateDonorModal = true" class="hero-action-btn">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>+ Add Donor</span>
+            </button>
+          } @else if (authService.isBloodBank() && activeBankTab === 'camps') {
+            <button type="button" (click)="showCreateCampModal = true" class="hero-action-btn">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>Schedule Camp</span>
+            </button>
+          } @else {
+            <div class="hero-status-pill">
+              <span class="hero-status-dot"></span>
+              <span class="hero-status-text">
+                @if (authService.isBloodBank()) {
+                  Active Depository
+                } @else if (authService.isHospital()) {
+                  {{ authService.currentUserSignal()?.hospitalName || 'Clinical Facility' }}
+                } @else {
+                  Community Network
+                }
+              </span>
             </div>
-            <h1 class="text-2xl sm:text-3xl font-black tracking-tight">
-              @if (authService.isBloodBank()) {
-                Blood Bank A Central Command
-              } @else if (authService.isHospital()) {
-                Hospital Blood & Components Requisition Portal
-              } @else {
-                Donor Blood Community & Request Portal
-              }
-            </h1>
-            <p class="text-slate-300 text-sm max-w-xl">
-              Logged in as: <span class="font-semibold text-white">{{ authService.currentUserSignal()?.fullName }}</span> 
-              @if (authService.currentUserSignal()?.hospitalName) {
-                ({{ authService.currentUserSignal()?.hospitalName }})
-              }
-            </p>
-          </div>
-
-          <div class="flex items-center space-x-3">
-            <span
-              [ngClass]="{
-                'bg-rose-500 text-white': authService.isBloodBank(),
-                'bg-emerald-500 text-white': authService.isHospital(),
-                'bg-sky-500 text-white': authService.isDonor()
-              }"
-              class="px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm"
-            >
-              Role: {{ authService.userRoleSignal() }}
-            </span>
-          </div>
+          }
         </div>
       </div>
-
+    </header>
+    
+    <div class="dashboard-content max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <!-- ========================================================================= -->
       <!-- 1. BLOOD BANK A OPERATOR PORTAL (Stock, Camps, Donors, Request Forms)    -->
       <!-- ========================================================================= -->
