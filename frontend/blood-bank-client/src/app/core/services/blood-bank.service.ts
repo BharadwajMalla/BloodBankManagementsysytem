@@ -28,6 +28,10 @@ export class BloodBankService {
     return this.http.post<BloodStock>(`${this.baseUrl}/replenish`, payload);
   }
 
+  public updateStock(id: string, payload: { quantityUnits: number }): Observable<BloodStock> {
+    return this.http.put<BloodStock>(`${this.baseUrl}/stock/${id}`, payload);
+  }
+
   public seedLiveData(): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.baseUrl}/seed-live-data`, {});
   }
@@ -68,6 +72,10 @@ export class BloodBankService {
     return this.http.post<CreateDonorResponse>(`${this.baseUrl}/donors`, payload);
   }
 
+  public updateDonor(id: string, payload: Partial<CreateDonorPayload>): Observable<DonorDetails> {
+    return this.http.put<DonorDetails>(`${this.baseUrl}/donors/${id}`, payload);
+  }
+
   public completeDonation(id: string, payload: CompleteDonationPayload): Observable<DonationCompletionResult> {
     return this.http.post<DonationCompletionResult>(`${this.baseUrl}/donors/${id}/donation`, payload);
   }
@@ -87,6 +95,10 @@ export class BloodBankService {
     return this.http.post<BloodRequest>(`${this.baseUrl}/requests`, payload);
   }
 
+  public updateRequest(id: string, payload: Partial<CreateBloodRequestPayload> & { status?: string; adminComments?: string }): Observable<BloodRequest> {
+    return this.http.put<BloodRequest>(`${this.baseUrl}/requests/${id}`, payload);
+  }
+
   public processRequest(id: string, status: 'Approved' | 'Fulfilled' | 'Rejected', adminComments?: string, paymentMode?: 'Cash' | 'UPI', transactionId?: string, amountPaid?: number): Observable<BloodRequest> {
     return this.http.put<BloodRequest>(`${this.baseUrl}/requests/${id}/process`, { status, adminComments, paymentMode, transactionId, amountPaid });
   }
@@ -97,9 +109,11 @@ export class BloodBankService {
   public deleteComponentCollection(id: string): Observable<void> { return this.http.delete<void>(`${this.baseUrl}/components/collections/${id}`); }
   public getComponentDiscards(): Observable<ComponentDiscard[]> { return this.http.get<ComponentDiscard[]>(`${this.baseUrl}/components/discards`); }
   public createComponentDiscard(payload: CreateComponentDiscardPayload): Observable<ComponentDiscard> { return this.http.post<ComponentDiscard>(`${this.baseUrl}/components/discards`, payload); }
+  public updateComponentDiscard(id: string, payload: CreateComponentDiscardPayload & { approvalStatus?: string }): Observable<ComponentDiscard> { return this.http.put<ComponentDiscard>(`${this.baseUrl}/components/discards/${id}`, payload); }
   public reviewComponentDiscard(id: string, approve: boolean): Observable<ComponentDiscard> { return this.http.put<ComponentDiscard>(`${this.baseUrl}/components/discards/${id}/review`, null, { params: { approve } }); }
   public deleteComponentDiscard(id: string): Observable<void> { return this.http.delete<void>(`${this.baseUrl}/components/discards/${id}`); }
   public getComponentReturns(): Observable<ComponentReturn[]> { return this.http.get<ComponentReturn[]>(`${this.baseUrl}/components/returns`); }
   public createComponentReturn(payload: CreateComponentReturnPayload): Observable<ComponentReturn> { return this.http.post<ComponentReturn>(`${this.baseUrl}/components/returns`, payload); }
+  public updateComponentReturn(id: string, payload: CreateComponentReturnPayload): Observable<ComponentReturn> { return this.http.put<ComponentReturn>(`${this.baseUrl}/components/returns/${id}`, payload); }
   public deleteComponentReturn(id: string): Observable<void> { return this.http.delete<void>(`${this.baseUrl}/components/returns/${id}`); }
 }

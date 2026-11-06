@@ -178,12 +178,12 @@
         </div>
         <div class="hero-right">
           @if (authService.isBloodBank() && activeBankTab === 'donors') {
-            <button type="button" (click)="showCreateDonorModal = true" class="hero-action-btn">
+            <button type="button" (click)="openCreateDonorModal()" class="hero-action-btn">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               <span>+ Add Donor</span>
             </button>
           } @else if (authService.isBloodBank() && activeBankTab === 'camps') {
-            <button type="button" (click)="showCreateCampModal = true" class="hero-action-btn">
+            <button type="button" (click)="openCreateCampModal()" class="hero-action-btn">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               <span>Schedule Camp</span>
             </button>
@@ -796,7 +796,7 @@
           <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 class="text-lg font-black text-slate-900">Create Donor Details</h3>
+                <h3 class="text-lg font-black text-slate-900">{{ editingDonor ? 'Edit Donor Details' : 'Create Donor Details' }}</h3>
                 <p class="text-xs text-slate-500">The donor can use these credentials to sign in.</p>
               </div>
               <button type="button" (click)="showCreateDonorModal = false" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm">✕</button>
@@ -824,7 +824,7 @@
               <div class="md:col-span-2 flex justify-end gap-3 pt-2">
                 <button type="button" (click)="showCreateDonorModal = false" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm">Cancel</button>
                 <button type="submit" [disabled]="createDonorForm.invalid || isCreatingDonor" class="px-4 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm disabled:opacity-50">
-                  {{ isCreatingDonor ? 'Saving...' : 'Create Donor' }}
+                  {{ isCreatingDonor ? 'Saving...' : (editingDonor ? 'Update Donor' : 'Create Donor') }}
                 </button>
               </div>
             </form>
@@ -1059,10 +1059,10 @@
           @if (activeBankTab === 'discard') {
             <section class="space-y-4"><form [formGroup]="componentDiscardForm" (ngSubmit)="createComponentDiscard()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm">
               <input formControlName="bagBarcode" placeholder="Issued bag barcode" class="input"><input formControlName="reason" placeholder="Reason for discard" class="input"><input formControlName="discardedBy" placeholder="Discarded by" class="input"><button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Submit for approval</button>
-            </form><div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Bag</th><th>Reason</th><th>Discarded by</th><th>Status</th><th>Action</th></tr><tr *ngFor="let item of componentDiscards()" class="border-b"><td class="p-3">{{item.bagBarcode}}</td><td>{{item.reason}}</td><td>{{item.discardedBy}}</td><td>{{item.approvalStatus}}</td><td><button *ngIf="item.approvalStatus === 'Pending' && (authService.isAdmin() || authService.isBloodBank())" (click)="reviewComponentDiscard(item.id, true)" class="text-emerald-700 font-bold mr-2">Approve</button><button *ngIf="item.approvalStatus === 'Pending' && (authService.isAdmin() || authService.isBloodBank())" (click)="reviewComponentDiscard(item.id, false)" class="text-rose-700 font-bold mr-2">Reject</button><button (click)="deleteComponentDiscard(item.id)" class="text-slate-700 font-bold">Delete</button></td></tr></table></div></section>
+            </form><div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Bag</th><th>Reason</th><th>Discarded by</th><th>Status</th><th>Action</th></tr><tr *ngFor="let item of componentDiscards()" class="border-b"><td class="p-3">{{item.bagBarcode}}</td><td>{{item.reason}}</td><td>{{item.discardedBy}}</td><td>{{item.approvalStatus}}</td><td><button *ngIf="item.approvalStatus === 'Pending' && (authService.isAdmin() || authService.isBloodBank())" (click)="reviewComponentDiscard(item.id, true)" class="text-emerald-700 font-bold mr-2">Approve</button><button *ngIf="item.approvalStatus === 'Pending' && (authService.isAdmin() || authService.isBloodBank())" (click)="reviewComponentDiscard(item.id, false)" class="text-rose-700 font-bold mr-2">Reject</button><button (click)="openEditDiscardModal(item)" class="text-blue-600 font-bold mr-2">Edit</button><button (click)="deleteComponentDiscard(item.id)" class="text-slate-700 font-bold">Delete</button></td></tr></table></div></section>
           }
           @if (activeBankTab === 'return') {
-            <section class="space-y-4"><form [formGroup]="componentReturnForm" (ngSubmit)="createComponentReturn()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm"><input formControlName="bagBarcode" placeholder="Issued bag barcode" class="input"><input formControlName="reason" placeholder="Reason for return" class="input"><input formControlName="returnedBy" placeholder="Returned by" class="input"><button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Record return</button></form><div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Bag</th><th>Reason</th><th>Returned by</th><th>Date</th><th>Action</th></tr><tr *ngFor="let item of componentReturns()" class="border-b"><td class="p-3">{{item.bagBarcode}}</td><td>{{item.reason}}</td><td>{{item.returnedBy}}</td><td>{{item.returnDate | date}}</td><td><button (click)="deleteComponentReturn(item.id)" class="text-rose-700 font-bold">Delete</button></td></tr></table></div></section>
+            <section class="space-y-4"><form [formGroup]="componentReturnForm" (ngSubmit)="createComponentReturn()" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm"><input formControlName="bagBarcode" placeholder="Issued bag barcode" class="input"><input formControlName="reason" placeholder="Reason for return" class="input"><input formControlName="returnedBy" placeholder="Returned by" class="input"><button class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold" type="submit">Record return</button></form><div class="overflow-auto bg-white rounded-2xl"><table class="w-full text-sm"><tr class="text-left border-b"><th class="p-3">Bag</th><th>Reason</th><th>Returned by</th><th>Date</th><th>Action</th></tr><tr *ngFor="let item of componentReturns()" class="border-b"><td class="p-3">{{item.bagBarcode}}</td><td>{{item.reason}}</td><td>{{item.returnedBy}}</td><td>{{item.returnDate | date}}</td><td><button (click)="openEditReturnModal(item)" class="text-blue-600 font-bold mr-2">Edit</button><button (click)="deleteComponentReturn(item.id)" class="text-rose-700 font-bold">Delete</button></td></tr></table></div></section>
           }
 
           <!-- TAB: ACCOUNT SUMMARY -->
@@ -2057,7 +2057,7 @@
     @if (showCreateCampModal) {
       <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100">
-          <h3 class="text-lg font-bold text-slate-900">Schedule Donation Camp</h3>
+          <h3 class="text-lg font-bold text-slate-900">{{ editingCamp ? 'Edit Donation Camp' : 'Schedule Donation Camp' }}</h3>
           <form [formGroup]="createCampForm" (ngSubmit)="submitCreateCamp()" class="space-y-4">
             <div>
               <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Camp Event Name</label>
@@ -2079,7 +2079,196 @@
             </div>
             <div class="flex items-center justify-end space-x-2 pt-2">
               <button type="button" (click)="showCreateCampModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
-              <button type="submit" class="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md">Create Camp</button>
+              <button type="submit" class="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md">{{ editingCamp ? 'Update Camp' : 'Create Camp' }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    }
+    <!-- EDIT BLOOD REQUEST MODAL -->
+    @if (showEditRequestModal && editingRequest) {
+      <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-lg font-black text-slate-900">Edit Blood Request</h3>
+              <p class="text-xs text-slate-500">Update patient details, required items, or clinical priority</p>
+            </div>
+            <button type="button" (click)="showEditRequestModal = false" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm">✕</button>
+          </div>
+          <form [formGroup]="editRequestForm" (ngSubmit)="submitEditRequest()" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Hospital / Clinic Name</label>
+              <input formControlName="hospitalName" placeholder="Hospital Name" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Patient Name</label>
+              <input formControlName="patientName" placeholder="Patient Name" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Blood Group</label>
+                <select formControlName="bloodGroup" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                  @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Units Required</label>
+                <input type="number" min="1" formControlName="quantityUnits" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Component Type</label>
+              <select formControlName="componentType" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                @for (c of componentTypes; track c) { <option [value]="c">{{ c }}</option> }
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Clinical Urgency</label>
+                <select formControlName="urgency" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                  <option value="Normal">Normal</option>
+                  <option value="Urgent">Urgent</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Department</label>
+                <input formControlName="hospitalDepartment" placeholder="e.g. ICU, ER, Surgery" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Medical Reason / Diagnostic Notes</label>
+              <input formControlName="medicalReason" placeholder="Clinical notes" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2">
+              <button type="button" (click)="showEditRequestModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
+              <button type="submit" [disabled]="editRequestForm.invalid" class="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md disabled:opacity-50">Update Request</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    }
+
+    <!-- EDIT COMPONENT COLLECTION MODAL -->
+    @if (showEditCollectionModal && editingCollection) {
+      <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-lg font-black text-slate-900">Edit Collected Bag</h3>
+              <p class="text-xs text-slate-500">Update barcode, component specifications, or dates</p>
+            </div>
+            <button type="button" (click)="showEditCollectionModal = false" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm">✕</button>
+          </div>
+          <form [formGroup]="editCollectionForm" (ngSubmit)="submitEditCollection()" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Bag Barcode</label>
+              <input formControlName="bagBarcode" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-mono"/>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Component Type</label>
+                <select formControlName="componentType" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                  @for (c of componentTypes; track c) { <option [value]="c">{{ c }}</option> }
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Blood Group</label>
+                <select formControlName="bloodGroup" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                  @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Bag Type</label>
+                <input formControlName="bagType" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Volume (ml)</label>
+                <input type="number" formControlName="volumeMl" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Collection Date</label>
+                <input type="date" formControlName="collectionDate" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Expiry Date</label>
+                <input type="date" formControlName="expiryDate" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2">
+              <button type="button" (click)="showEditCollectionModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
+              <button type="submit" [disabled]="editCollectionForm.invalid" class="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md disabled:opacity-50">Update Bag</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    }
+
+    <!-- EDIT COMPONENT DISCARD MODAL -->
+    @if (showEditDiscardModal && editingDiscard) {
+      <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-lg font-black text-slate-900">Edit Discard Record</h3>
+              <p class="text-xs text-slate-500">Update discard reason or audit personnel</p>
+            </div>
+            <button type="button" (click)="showEditDiscardModal = false" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm">✕</button>
+          </div>
+          <form [formGroup]="editDiscardForm" (ngSubmit)="submitEditDiscard()" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Bag Barcode</label>
+              <input formControlName="bagBarcode" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-mono"/>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Reason for Discard</label>
+              <textarea formControlName="reason" rows="3" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Discarded By (Staff / Officer)</label>
+              <input formControlName="discardedBy" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2">
+              <button type="button" (click)="showEditDiscardModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
+              <button type="submit" [disabled]="editDiscardForm.invalid" class="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md disabled:opacity-50">Update Discard</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    }
+
+    <!-- EDIT COMPONENT RETURN MODAL -->
+    @if (showEditReturnModal && editingReturn) {
+      <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-lg font-black text-slate-900">Edit Return Record</h3>
+              <p class="text-xs text-slate-500">Update return justification or delivery source</p>
+            </div>
+            <button type="button" (click)="showEditReturnModal = false" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm">✕</button>
+          </div>
+          <form [formGroup]="editReturnForm" (ngSubmit)="submitEditReturn()" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Bag Barcode</label>
+              <input formControlName="bagBarcode" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-mono"/>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Reason for Return</label>
+              <textarea formControlName="reason" rows="3" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Returned By (Hospital / Transporter)</label>
+              <input formControlName="returnedBy" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2">
+              <button type="button" (click)="showEditReturnModal = false" class="px-4 py-2 text-xs font-bold text-slate-600 rounded-xl hover:bg-slate-100">Cancel</button>
+              <button type="submit" [disabled]="editReturnForm.invalid" class="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md disabled:opacity-50">Update Return</button>
             </div>
           </form>
         </div>

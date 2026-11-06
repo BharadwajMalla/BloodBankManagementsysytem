@@ -348,4 +348,94 @@ public sealed class BloodBankService : IBloodBankService
         var returned=new ComponentReturn{BagBarcode=barcode,Reason=d.Reason.Trim(),ReturnedBy=d.ReturnedBy.Trim()}; await _repo.AddComponentReturnAsync(returned); await _repo.SaveChangesAsync(); return(MapReturn(returned),null);
     }
     public async Task<bool> DeleteComponentReturnAsync(Guid id) { var item=await _repo.FindComponentReturnAsync(id); if(item==null)return false; _repo.RemoveComponentReturn(item); await _repo.SaveChangesAsync(); return true; }
+
+    public async Task<BloodStockDto?> UpdateStockAsync(Guid id, UpdateStockDto d)
+    {
+        var s = await _repo.FindStockByIdAsync(id);
+        if (s == null) return null;
+        s.QuantityUnits = d.QuantityUnits;
+        s.LastUpdated = DateTime.UtcNow;
+        await _repo.SaveChangesAsync();
+        return new BloodStockDto { Id = s.Id, BloodGroup = s.BloodGroup, ComponentType = s.ComponentType, QuantityUnits = s.QuantityUnits, BloodBankName = s.BloodBankName, LastUpdated = s.LastUpdated };
+    }
+
+    public async Task<DonorDetailsDto?> UpdateDonorAsync(Guid id, UpdateDonorDto d)
+    {
+        var donor = await _repo.FindUserAsync(id);
+        if (donor == null || donor.Role != "Donor") return null;
+
+        var email = d.Email.Trim().ToLowerInvariant();
+        var existing = await _repo.FindUserByEmailAsync(email);
+        if (existing != null && existing.Id != id)
+            return null;
+
+        donor.FullName = $"{d.FirstName.Trim()} {d.LastName.Trim()}";
+        donor.Email = email;
+        donor.Phone = d.Phone.Trim();
+        donor.DateOfBirth = d.DateOfBirth;
+        donor.Sex = d.Sex?.Trim();
+        donor.Address = d.Address?.Trim();
+        donor.BloodGroup = d.BloodGroup.Trim().ToUpperInvariant();
+
+        await _repo.SaveChangesAsync();
+
+        var donations = (await _repo.GetDonationsAsync(new[] { donor.Id })).ToList();
+        return new DonorDetailsDto
+        {
+            Id = donor.Id,
+            FullName = donor.FullName,
+            Email = donor.Email,
+            Phone = donor.Phone,
+            DateOfBirth = donor.DateOfBirth,
+            Sex = donor.Sex,
+            Address = donor.Address,
+            BloodGroup = donor.BloodGroup,
+            RegisteredDate = donor.CreatedAt,
+            TotalDonations = donations.Count,
+            LastDonationDate = donations.OrderByDescending(r => r.DonationDate).FirstOrDefault()?.DonationDate
+        };
+    }
+
+    public async Task<BloodRequestResponseDto?> UpdateRequestAsync(Guid id, UpdateBloodRequestDto d)
+    {
+        var req = await _repo.FindRequestAsync(id);
+        if (req == null) return null;
+
+        if (!string.IsNullOrWhiteSpace(d.HospitalName)) req.HospitalName = d.HospitalName.Trim();
+        if (!string.IsNullOrWhiteSpace(d.PatientName)) req.PatientName = d.PatientName.Trim();
+        if (!string.IsNullOrWhiteSpace(d.BloodGroup)) req.BloodGroup = d.BloodGroup.Trim().ToUpperInvariant();
+        if (!string.IsNullOrWhiteSpace(d.ComponentType)) req.ComponentType = d.ComponentType.Trim();
+        if (d.QuantityUnits > 0) req.QuantityUnits = d.QuantityUnits;
+        if (!string.IsNullOrWhiteSpace(d.Urgency)) req.Urgency = d.Urgency.Trim();
+        if (d.HospitalDepartment != null) req.HospitalDepartment = d.HospitalDepartment.Trim();
+        if (d.MedicalReason != null) req.MedicalReason = d.MedicalReason.Trim();
+        if (!string.IsNullOrWhiteSpace(d.Status) && req.Status != "Fulfilled") req.Status = d.Status.Trim();
+        if (!string.IsNullOrWhiteSpace(d.AdminComments)) req.AdminComments = d.AdminComments.Trim();
+
+        await _repo.SaveChangesAsync();
+        return Mapping.Request(req);
+    }
+
+    public async Task<(ComponentDiscardDto? Result, string? Error)> UpdateComponentDiscardAsync(Guid id, UpdateComponentDiscardDto d)
+    {
+        var item = await _repo.FindComponentDiscardAsync(id);
+        if (item == null) return (null, "Discard record not found.");
+        if (!string.IsNullOrWhiteSpace(d.BagBarcode)) item.BagBarcode = d.BagBarcode.Trim();
+        if (!string.IsNullOrWhiteSpace(d.Reason)) item.Reason = d.Reason.Trim();
+        if (!string.IsNullOrWhiteSpace(d.DiscardedBy)) item.DiscardedBy = d.DiscardedBy.Trim();
+        if (!string.IsNullOrWhiteSpace(d.ApprovalStatus)) item.ApprovalStatus = d.ApprovalStatus.Trim();
+        await _repo.SaveChangesAsync();
+        return (MapDiscard(item), null);
+    }
+
+    public async Task<(ComponentReturnDto? Result, string? Error)> UpdateComponentReturnAsync(Guid id, UpdateComponentReturnDto d)
+    {
+        var item = await _repo.FindComponentReturnAsync(id);
+        if (item == null) return (null, "Return record not found.");
+        if (!string.IsNullOrWhiteSpace(d.BagBarcode)) item.BagBarcode = d.BagBarcode.Trim();
+        if (!string.IsNullOrWhiteSpace(d.Reason)) item.Reason = d.Reason.Trim();
+        if (!string.IsNullOrWhiteSpace(d.ReturnedBy)) item.ReturnedBy = d.ReturnedBy.Trim();
+        await _repo.SaveChangesAsync();
+        return (MapReturn(item), null);
+    }
 }

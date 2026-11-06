@@ -9,6 +9,7 @@ public interface IBloodBankRepository
     Task AddUserAsync(User user);
     Task<List<BloodStock>> GetStocksAsync(string? bloodGroup, string? componentType);
     Task<BloodStock?> FindStockAsync(string bloodGroup, string componentType);
+    Task<BloodStock?> FindStockByIdAsync(Guid id);
     Task AddStockAsync(BloodStock stock);
     Task<List<BloodBag>> GetBagsAsync(string? componentType);
     Task<bool> BagNumberExistsAsync(string bagNumber);

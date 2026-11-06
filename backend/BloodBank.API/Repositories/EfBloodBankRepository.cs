@@ -16,6 +16,7 @@ public sealed class EfBloodBankRepository : IBloodBankRepository
         _db.BloodStocks.AsNoTracking().Where(s => string.IsNullOrWhiteSpace(group) || s.BloodGroup == group)
             .Where(s => string.IsNullOrWhiteSpace(component) || s.ComponentType == component).OrderBy(s => s.BloodGroup).ThenBy(s => s.ComponentType).ToListAsync();
     public Task<BloodStock?> FindStockAsync(string group, string component) => _db.BloodStocks.FirstOrDefaultAsync(s => s.BloodGroup == group && s.ComponentType == component);
+    public Task<BloodStock?> FindStockByIdAsync(Guid id) => _db.BloodStocks.FindAsync(id).AsTask();
     public Task AddStockAsync(BloodStock stock) => _db.BloodStocks.AddAsync(stock).AsTask();
     public Task<List<BloodBag>> GetBagsAsync(string? component) => _db.BloodBags.AsNoTracking().Where(b => string.IsNullOrWhiteSpace(component) || b.ComponentType == component).OrderByDescending(b => b.AddedDate).ToListAsync();
     public Task<bool> BagNumberExistsAsync(string number) => _db.BloodBags.AnyAsync(b => b.BagNumber == number);

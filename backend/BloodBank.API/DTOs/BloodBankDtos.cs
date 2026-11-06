@@ -323,3 +323,22 @@ public class DonationHistoryDto
     public bool HasHivOrHepatitisRisk { get; set; }
     public bool HasPermanentDisqualification { get; set; }
 }
+
+public class UpdateDonorDto : CreateDonorDto
+{
+}
+
+public class UpdateComponentDiscardDto : CreateComponentDiscardDto
+{
+    public string? ApprovalStatus { get; set; }
+}
+
+public class UpdateComponentReturnDto : CreateComponentReturnDto
+{
+}
+
+public class UpdateStockDto
+{
+    [Range(0, 100000)]
+    public int QuantityUnits { get; set; }
+}

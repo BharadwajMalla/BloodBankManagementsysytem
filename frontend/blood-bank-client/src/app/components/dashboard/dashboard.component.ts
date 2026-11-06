@@ -342,7 +342,62 @@ export class DashboardComponent implements OnInit {
   });
   public isSubmittingBloodBankRequest = false;
   public bloodBankRequestError: string | null = null;
+  
   public isCreatingDonor = false;
+
+  // Edit action states
+  public editingCamp: DonationCamp | null = null;
+  public editingDonor: DonorDetails | null = null;
+  public editingRequest: BloodRequest | null = null;
+  public showEditRequestModal = false;
+  public editingCollection: ComponentCollection | null = null;
+  public showEditCollectionModal = false;
+  public editingDiscard: ComponentDiscard | null = null;
+  public showEditDiscardModal = false;
+  public editingReturn: ComponentReturn | null = null;
+  public showEditReturnModal = false;
+  public editingStock: BloodStock | null = null;
+  public showEditStockModal = false;
+
+  public editRequestForm: FormGroup = this.fb.group({
+    hospitalName: ['', [Validators.required]],
+    patientName: ['', [Validators.required]],
+    bloodGroup: ['O-', [Validators.required]],
+    componentType: ['Whole Blood', [Validators.required]],
+    quantityUnits: [1, [Validators.required, Validators.min(1)]],
+    urgency: ['Normal', [Validators.required]],
+    hospitalDepartment: [''],
+    medicalReason: [''],
+    status: ['Pending']
+  });
+
+  public editCollectionForm = this.fb.group({
+    componentType: ['Whole Blood', Validators.required],
+    bloodGroup: ['O-', Validators.required],
+    bagType: ['Single (350ml)', Validators.required],
+    volumeMl: [350, [Validators.required, Validators.min(1)]],
+    bagBarcode: ['', Validators.required],
+    collectionDate: ['', Validators.required],
+    expiryDate: ['', Validators.required]
+  });
+
+  public editDiscardForm = this.fb.group({
+    bagBarcode: ['', Validators.required],
+    reason: ['', Validators.required],
+    discardedBy: ['', Validators.required],
+    approvalStatus: ['Pending']
+  });
+
+  public editReturnForm = this.fb.group({
+    bagBarcode: ['', Validators.required],
+    reason: ['', Validators.required],
+    returnedBy: ['', Validators.required]
+  });
+
+  public editStockForm = this.fb.group({
+    quantityUnits: [0, [Validators.required, Validators.min(0)]]
+  });
+
   public createDonorError: string | null = null;
 
   ngOnInit(): void {
@@ -936,4 +991,171 @@ export class DashboardComponent implements OnInit {
       }
     });
   }
+
+  public openCreateCampModal(): void {
+    this.editingCamp = null;
+    this.createCampForm.reset({
+      campName: '',
+      location: '',
+      campDate: new Date().toISOString().substring(0, 10),
+      targetUnits: 50
+    });
+    this.showCreateCampModal = true;
+  }
+
+  public openEditCampModal(camp: DonationCamp): void {
+    this.editingCamp = camp;
+    this.createCampForm.patchValue({
+      campName: camp.campName,
+      location: camp.location,
+      campDate: camp.campDate ? new Date(camp.campDate).toISOString().substring(0, 10) : new Date().toISOString().substring(0, 10),
+      targetUnits: camp.targetUnits,
+      contactPhone: camp.contactPhone || '',
+      notes: camp.notes || ''
+    });
+    this.showCreateCampModal = true;
+  }
+
+  public openCreateDonorModal(): void {
+    this.editingDonor = null;
+    this.generatedPassword = null;
+    this.createDonorError = null;
+    this.createDonorForm.reset({ bloodGroup: 'O+' });
+    this.showCreateDonorModal = true;
+  }
+
+  public openEditDonorModal(donor: DonorDetails): void {
+    this.editingDonor = donor;
+    this.generatedPassword = null;
+    this.createDonorError = null;
+    const parts = (donor.fullName || '').trim().split(' ');
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ') || parts[0] || '';
+    this.createDonorForm.patchValue({
+      firstName,
+      lastName,
+      email: donor.email,
+      phone: donor.phone || '',
+      dateOfBirth: donor.dateOfBirth ? new Date(donor.dateOfBirth).toISOString().substring(0, 10) : '',
+      sex: donor.sex || 'Male',
+      address: donor.address || '',
+      bloodGroup: donor.bloodGroup || 'O+'
+    });
+    this.showCreateDonorModal = true;
+  }
+
+  public openEditRequestModal(req: BloodRequest): void {
+    this.editingRequest = req;
+    this.editRequestForm.patchValue({
+      hospitalName: req.hospitalName || '',
+      patientName: req.patientName || '',
+      bloodGroup: req.bloodGroup || 'O-',
+      componentType: req.componentType || 'Whole Blood',
+      quantityUnits: req.quantityUnits || 1,
+      urgency: req.urgency || 'Normal',
+      hospitalDepartment: req.hospitalDepartment || '',
+      medicalReason: req.medicalReason || '',
+      status: req.status || 'Pending'
+    });
+    this.showEditRequestModal = true;
+  }
+
+  public submitEditRequest(): void {
+    if (!this.editingRequest || this.editRequestForm.invalid) return;
+    this.bloodBankService.updateRequest(this.editingRequest.id, this.editRequestForm.value).subscribe({
+      next: () => {
+        this.showEditRequestModal = false;
+        this.editingRequest = null;
+        this.loadBankData();
+      }
+    });
+  }
+
+  public openEditCollectionModal(item: ComponentCollection): void {
+    this.editingCollection = item;
+    this.editCollectionForm.patchValue({
+      componentType: item.componentType,
+      bloodGroup: item.bloodGroup,
+      bagType: item.bagType,
+      volumeMl: item.volumeMl,
+      bagBarcode: item.bagBarcode,
+      collectionDate: item.collectionDate ? new Date(item.collectionDate).toISOString().substring(0, 10) : '',
+      expiryDate: item.expiryDate ? new Date(item.expiryDate).toISOString().substring(0, 10) : ''
+    });
+    this.showEditCollectionModal = true;
+  }
+
+  public submitEditCollection(): void {
+    if (!this.editingCollection || this.editCollectionForm.invalid) return;
+    this.bloodBankService.updateComponentCollection(this.editingCollection.id, this.editCollectionForm.value as any).subscribe({
+      next: () => {
+        this.showEditCollectionModal = false;
+        this.editingCollection = null;
+        this.loadBankData();
+      }
+    });
+  }
+
+  public openEditDiscardModal(item: ComponentDiscard): void {
+    this.editingDiscard = item;
+    this.editDiscardForm.patchValue({
+      bagBarcode: item.bagBarcode,
+      reason: item.reason,
+      discardedBy: item.discardedBy,
+      approvalStatus: item.approvalStatus
+    });
+    this.showEditDiscardModal = true;
+  }
+
+  public submitEditDiscard(): void {
+    if (!this.editingDiscard || this.editDiscardForm.invalid) return;
+    this.bloodBankService.updateComponentDiscard(this.editingDiscard.id, this.editDiscardForm.value as any).subscribe({
+      next: () => {
+        this.showEditDiscardModal = false;
+        this.editingDiscard = null;
+        this.loadBankData();
+      }
+    });
+  }
+
+  public openEditReturnModal(item: ComponentReturn): void {
+    this.editingReturn = item;
+    this.editReturnForm.patchValue({
+      bagBarcode: item.bagBarcode,
+      reason: item.reason,
+      returnedBy: item.returnedBy
+    });
+    this.showEditReturnModal = true;
+  }
+
+  public submitEditReturn(): void {
+    if (!this.editingReturn || this.editReturnForm.invalid) return;
+    this.bloodBankService.updateComponentReturn(this.editingReturn.id, this.editReturnForm.value as any).subscribe({
+      next: () => {
+        this.showEditReturnModal = false;
+        this.editingReturn = null;
+        this.loadBankData();
+      }
+    });
+  }
+
+  public openEditStockModal(stock: BloodStock): void {
+    this.editingStock = stock;
+    this.editStockForm.patchValue({
+      quantityUnits: stock.quantityUnits
+    });
+    this.showEditStockModal = true;
+  }
+
+  public submitEditStock(): void {
+    if (!this.editingStock || this.editStockForm.invalid) return;
+    this.bloodBankService.updateStock(this.editingStock.id, { quantityUnits: Number(this.editStockForm.value.quantityUnits) }).subscribe({
+      next: () => {
+        this.showEditStockModal = false;
+        this.editingStock = null;
+        this.loadBankData();
+      }
+    });
+  }
+
 }

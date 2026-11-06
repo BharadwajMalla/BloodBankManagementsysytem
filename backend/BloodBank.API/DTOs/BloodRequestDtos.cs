@@ -29,6 +29,12 @@ public class CreateBloodRequestDto
     public string? MedicalReason { get; set; }
 }
 
+public class UpdateBloodRequestDto : CreateBloodRequestDto
+{
+    public string? Status { get; set; }
+    public string? AdminComments { get; set; }
+}
+
 public class BloodRequestResponseDto
 {
     public Guid Id { get; set; }
