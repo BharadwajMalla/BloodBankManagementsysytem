@@ -2,7 +2,19 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AddStockPayload, BloodBag, BloodRequest, BloodStock, CompleteDonationPayload, ComponentCollection, ComponentDiscard, ComponentReturn, CreateBloodRequestPayload, CreateCampPayload, CreateComponentCollectionPayload, CreateComponentDiscardPayload, CreateComponentReturnPayload, CreateDonorPayload, CreateDonorResponse, DonationCamp, DonationCompletionResult, DonationHistory, DonorDetails } from '../models/blood-bank.model';
+import {
+  AddStockPayload, BloodBag, BloodRequest, BloodStock, CompleteDonationPayload,
+  ComponentCollection, ComponentDiscard, ComponentReturn, CreateBloodRequestPayload,
+  CreateCampPayload, CreateComponentCollectionPayload, CreateComponentDiscardPayload,
+  CreateComponentReturnPayload, CreateDonorPayload, CreateDonorResponse, DonationCamp,
+  DonationCompletionResult, DonationHistory, DonorDetails,
+  TtiScreeningRecord, CreateTtiScreeningPayload,
+  PatientGroupingRecord, CreatePatientGroupingPayload,
+  BloodBagStockRegister, CreateBloodBagStockRegisterPayload,
+  DiagnosticKitRegister, CreateDiagnosticKitRegisterPayload,
+  ApheresisRecord, CreateApheresisRecordPayload,
+  MasterRecordItem
+} from '../models/blood-bank.model';
 
 @Injectable({
   providedIn: 'root'
@@ -116,4 +128,75 @@ export class BloodBankService {
   public createComponentReturn(payload: CreateComponentReturnPayload): Observable<ComponentReturn> { return this.http.post<ComponentReturn>(`${this.baseUrl}/components/returns`, payload); }
   public updateComponentReturn(id: string, payload: CreateComponentReturnPayload): Observable<ComponentReturn> { return this.http.put<ComponentReturn>(`${this.baseUrl}/components/returns/${id}`, payload); }
   public deleteComponentReturn(id: string): Observable<void> { return this.http.delete<void>(`${this.baseUrl}/components/returns/${id}`); }
+
+  // Uddanam Clinical Registers & Master Audit Methods
+  public getTtiScreenings(): Observable<TtiScreeningRecord[]> {
+    return this.http.get<TtiScreeningRecord[]>(`${this.baseUrl}/registers/tti`);
+  }
+  public createTtiScreening(payload: CreateTtiScreeningPayload): Observable<TtiScreeningRecord> {
+    return this.http.post<TtiScreeningRecord>(`${this.baseUrl}/registers/tti`, payload);
+  }
+  public updateTtiScreening(id: string, payload: CreateTtiScreeningPayload): Observable<TtiScreeningRecord> {
+    return this.http.put<TtiScreeningRecord>(`${this.baseUrl}/registers/tti/${id}`, payload);
+  }
+  public deleteTtiScreening(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/registers/tti/${id}`);
+  }
+
+  public getPatientGroupings(): Observable<PatientGroupingRecord[]> {
+    return this.http.get<PatientGroupingRecord[]>(`${this.baseUrl}/registers/grouping`);
+  }
+  public createPatientGrouping(payload: CreatePatientGroupingPayload): Observable<PatientGroupingRecord> {
+    return this.http.post<PatientGroupingRecord>(`${this.baseUrl}/registers/grouping`, payload);
+  }
+  public updatePatientGrouping(id: string, payload: CreatePatientGroupingPayload): Observable<PatientGroupingRecord> {
+    return this.http.put<PatientGroupingRecord>(`${this.baseUrl}/registers/grouping/${id}`, payload);
+  }
+  public deletePatientGrouping(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/registers/grouping/${id}`);
+  }
+
+  public getBloodBagStockRegisters(): Observable<BloodBagStockRegister[]> {
+    return this.http.get<BloodBagStockRegister[]>(`${this.baseUrl}/registers/bag-stock`);
+  }
+  public createBloodBagStockRegister(payload: CreateBloodBagStockRegisterPayload): Observable<BloodBagStockRegister> {
+    return this.http.post<BloodBagStockRegister>(`${this.baseUrl}/registers/bag-stock`, payload);
+  }
+  public updateBloodBagStockRegister(id: string, payload: CreateBloodBagStockRegisterPayload): Observable<BloodBagStockRegister> {
+    return this.http.put<BloodBagStockRegister>(`${this.baseUrl}/registers/bag-stock/${id}`, payload);
+  }
+  public deleteBloodBagStockRegister(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/registers/bag-stock/${id}`);
+  }
+
+  public getDiagnosticKitRegisters(): Observable<DiagnosticKitRegister[]> {
+    return this.http.get<DiagnosticKitRegister[]>(`${this.baseUrl}/registers/diagnostic-kits`);
+  }
+  public createDiagnosticKitRegister(payload: CreateDiagnosticKitRegisterPayload): Observable<DiagnosticKitRegister> {
+    return this.http.post<DiagnosticKitRegister>(`${this.baseUrl}/registers/diagnostic-kits`, payload);
+  }
+  public updateDiagnosticKitRegister(id: string, payload: CreateDiagnosticKitRegisterPayload): Observable<DiagnosticKitRegister> {
+    return this.http.put<DiagnosticKitRegister>(`${this.baseUrl}/registers/diagnostic-kits/${id}`, payload);
+  }
+  public deleteDiagnosticKitRegister(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/registers/diagnostic-kits/${id}`);
+  }
+
+  public getApheresisRecords(): Observable<ApheresisRecord[]> {
+    return this.http.get<ApheresisRecord[]>(`${this.baseUrl}/registers/apheresis`);
+  }
+  public createApheresisRecord(payload: CreateApheresisRecordPayload): Observable<ApheresisRecord> {
+    return this.http.post<ApheresisRecord>(`${this.baseUrl}/registers/apheresis`, payload);
+  }
+  public updateApheresisRecord(id: string, payload: CreateApheresisRecordPayload): Observable<ApheresisRecord> {
+    return this.http.put<ApheresisRecord>(`${this.baseUrl}/registers/apheresis/${id}`, payload);
+  }
+  public deleteApheresisRecord(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/registers/apheresis/${id}`);
+  }
+
+  public getMasterRecords(): Observable<MasterRecordItem[]> {
+    return this.http.get<MasterRecordItem[]>(`${this.baseUrl}/registers/master-record`);
+  }
+
 }

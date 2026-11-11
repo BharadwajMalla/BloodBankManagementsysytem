@@ -33,7 +33,7 @@ public class BloodRequest
 
     [Required]
     [MaxLength(50)]
-    public string ComponentType { get; set; } = "Whole Blood"; // "Whole Blood", "Red Blood Cells (PRBC)", "Platelets", "Fresh Frozen Plasma (FFP)", "Cryoprecipitate"
+    public string ComponentType { get; set; } = "Whole Blood"; // "Whole Blood", "Red Blood Cells (PRBC)", "Platelets", "Fresh Frozen Plasma (FFP)", "Cryoprecipitate", "Single Donor Platelet (SDP)"
 
     [Range(1, 100)]
     public int QuantityUnits { get; set; } = 1;
@@ -70,4 +70,17 @@ public class BloodRequest
     public string? TransactionId { get; set; }
 
     public decimal? AmountPaid { get; set; }
+
+    // Uddanam Register Fields
+    [MaxLength(100)] public string? Indication { get; set; } // "Surgery", "Therapeutic"
+    [MaxLength(100)] public string? EmergencyUrgency { get; set; } // "5 Min: Grouping", "30 Min: Saline X-Match", "2 Hour: Complete X-Match", "Routine"
+    [MaxLength(150)] public string? RefDoctor { get; set; }
+    [MaxLength(50)] public string? IpNumber { get; set; }
+    [MaxLength(50)] public string? RoomNumber { get; set; }
+    public bool? PreviousTransfusion { get; set; }
+    public bool? TransfusionReactionHistory { get; set; }
+    [MaxLength(200)] public string? CrossMatchingReport { get; set; } // "Saline / ALB / AHG Compatible"
+    [MaxLength(50)] public string? BillNumber { get; set; }
+    public int? YearlySlNo { get; set; }
+    public int? MonthlySlNo { get; set; }
 }

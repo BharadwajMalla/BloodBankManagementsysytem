@@ -22,6 +22,13 @@ public class ApplicationDbContext : DbContext
     public DbSet<ComponentDiscard> ComponentDiscards => Set<ComponentDiscard>();
     public DbSet<ComponentReturn> ComponentReturns => Set<ComponentReturn>();
 
+    // Uddanam Blood Centre Registers
+    public DbSet<TtiScreeningRecord> TtiScreeningRecords => Set<TtiScreeningRecord>();
+    public DbSet<PatientGroupingRecord> PatientGroupingRecords => Set<PatientGroupingRecord>();
+    public DbSet<BloodBagStockRegister> BloodBagStockRegisters => Set<BloodBagStockRegister>();
+    public DbSet<DiagnosticKitRegister> DiagnosticKitRegisters => Set<DiagnosticKitRegister>();
+    public DbSet<ApheresisRecord> ApheresisRecords => Set<ApheresisRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -110,6 +117,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
             entity.Property(e => e.VolumeMl).HasPrecision(18, 2);
         });
+
         modelBuilder.Entity<ComponentDiscard>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -119,6 +127,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ApprovalStatus).IsRequired().HasMaxLength(50);
             entity.Property(e => e.ApprovedBy).HasMaxLength(150);
         });
+
         modelBuilder.Entity<ComponentReturn>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -134,20 +143,6 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.DonorName).IsRequired().HasMaxLength(150);
             entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
             entity.Property(e => e.DonationDate).HasDefaultValueSql(utcNowSql);
-            entity.Property(e => e.BloodPressure).HasMaxLength(30);
-            entity.Property(e => e.ScreeningStaffName).HasMaxLength(150);
-            entity.Property(e => e.ScreeningStaffSignature).HasMaxLength(200);
-            entity.Property(e => e.DeferralReason).HasMaxLength(500);
-            entity.Property(e => e.MedicalOfficerName).HasMaxLength(150);
-            entity.Property(e => e.MedicalOfficerSignature).HasMaxLength(200);
-            entity.Property(e => e.DonorNumber).HasMaxLength(100);
-            entity.Property(e => e.BagType).HasMaxLength(50);
-            entity.Property(e => e.SegmentNumber).HasMaxLength(100);
-            entity.Property(e => e.DonationStartTime).HasMaxLength(20);
-            entity.Property(e => e.DonationEndTime).HasMaxLength(20);
-            entity.Property(e => e.VenipunctureSite).HasMaxLength(50);
-            entity.Property(e => e.PhlebotomistName).HasMaxLength(150);
-            entity.Property(e => e.PhlebotomistSignature).HasMaxLength(200);
         });
 
         // EmailOtp Configuration
@@ -159,6 +154,43 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Purpose).IsRequired().HasMaxLength(50);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql(utcNowSql);
             entity.HasIndex(e => new { e.Email, e.OtpCode, e.Purpose });
+        });
+
+        // Uddanam Register Entities
+        modelBuilder.Entity<TtiScreeningRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.BagBarcode);
+            entity.Property(e => e.BagBarcode).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
+        });
+
+        modelBuilder.Entity<PatientGroupingRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PatientName).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
+        });
+
+        modelBuilder.Entity<BloodBagStockRegister>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SupplierName).IsRequired().HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<DiagnosticKitRegister>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.KitName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<ApheresisRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RegistrationNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DonorName).IsRequired().HasMaxLength(150);
         });
     }
 }

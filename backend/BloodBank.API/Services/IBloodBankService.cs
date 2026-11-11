@@ -38,4 +38,32 @@ public interface IBloodBankService
     Task<(ComponentReturnDto? Result, string? Error)> CreateComponentReturnAsync(CreateComponentReturnDto dto);
     Task<(ComponentReturnDto? Result, string? Error)> UpdateComponentReturnAsync(Guid id, UpdateComponentReturnDto dto);
     Task<bool> DeleteComponentReturnAsync(Guid id);
+
+    // Uddanam Blood Centre Register Services
+    Task<IEnumerable<TtiScreeningDto>> GetTtiScreeningsAsync(string? status = null);
+    Task<TtiScreeningDto> CreateTtiScreeningAsync(CreateTtiScreeningDto dto);
+    Task<TtiScreeningDto?> UpdateTtiScreeningAsync(Guid id, UpdateTtiScreeningDto dto);
+    Task<bool> DeleteTtiScreeningAsync(Guid id);
+
+    Task<IEnumerable<PatientGroupingDto>> GetPatientGroupingsAsync();
+    Task<PatientGroupingDto> CreatePatientGroupingAsync(CreatePatientGroupingDto dto);
+    Task<PatientGroupingDto?> UpdatePatientGroupingAsync(Guid id, UpdatePatientGroupingDto dto);
+    Task<bool> DeletePatientGroupingAsync(Guid id);
+
+    Task<IEnumerable<BloodBagStockRegisterDto>> GetBloodBagStockRegistersAsync();
+    Task<BloodBagStockRegisterDto> CreateBloodBagStockRegisterAsync(CreateBloodBagStockRegisterDto dto);
+    Task<BloodBagStockRegisterDto?> UpdateBloodBagStockRegisterAsync(Guid id, UpdateBloodBagStockRegisterDto dto);
+    Task<bool> DeleteBloodBagStockRegisterAsync(Guid id);
+
+    Task<IEnumerable<DiagnosticKitRegisterDto>> GetDiagnosticKitRegistersAsync();
+    Task<DiagnosticKitRegisterDto> CreateDiagnosticKitRegisterAsync(CreateDiagnosticKitRegisterDto dto);
+    Task<DiagnosticKitRegisterDto?> UpdateDiagnosticKitRegisterAsync(Guid id, UpdateDiagnosticKitRegisterDto dto);
+    Task<bool> DeleteDiagnosticKitRegisterAsync(Guid id);
+
+    Task<IEnumerable<ApheresisRecordDto>> GetApheresisRecordsAsync();
+    Task<ApheresisRecordDto> CreateApheresisRecordAsync(CreateApheresisRecordDto dto);
+    Task<ApheresisRecordDto?> UpdateApheresisRecordAsync(Guid id, UpdateApheresisRecordDto dto);
+    Task<bool> DeleteApheresisRecordAsync(Guid id);
+
+    Task<IEnumerable<MasterRecordItemDto>> GetMasterRecordsAsync();
 }

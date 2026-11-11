@@ -27,6 +27,18 @@ public class DonationRecord
     [MaxLength(50)]
     public string BloodBankName { get; set; } = "Blood Bank A";
 
+    // Uddanam Register Numbering & Categorization
+    public int? YearlySlNo { get; set; }
+    public int? MonthlySlNo { get; set; }
+    [MaxLength(30)] public string DonationCategory { get; set; } = "Voluntary"; // Voluntary / Replacement
+    [MaxLength(150)] public string? ReplacementPatientName { get; set; }
+    [MaxLength(150)] public string? ReplacementPatientHospital { get; set; }
+    [MaxLength(50)] public string? ReplacementPatientIpNo { get; set; }
+    [MaxLength(50)] public string? BagNumber { get; set; }
+    [MaxLength(50)] public string? HbTestMethod { get; set; } = "Hemocue"; // Copper Sulphate, Hemocue, Automated Cell Counter
+    [MaxLength(30)] public string? HbEligibilityStatus { get; set; } = "Fit"; // Fit / Unfit
+    [MaxLength(500)] public string? DeferralRecords { get; set; }
+
     public decimal? WeightKg { get; set; }
     public int? PulsePerMinute { get; set; }
     public decimal? Hemoglobin { get; set; }
@@ -38,7 +50,7 @@ public class DonationRecord
     [MaxLength(200)] public string? ScreeningStaffSignature { get; set; }
     public DateTime? ScreeningDate { get; set; }
     [MaxLength(20)] public string? ScreeningTime { get; set; }
-    public bool MedicalExamAccepted { get; set; }
+    public bool MedicalExamAccepted { get; set; } = true;
     [MaxLength(500)] public string? DeferralReason { get; set; }
     [MaxLength(150)] public string? MedicalOfficerName { get; set; }
     [MaxLength(200)] public string? MedicalOfficerSignature { get; set; }
@@ -51,13 +63,13 @@ public class DonationRecord
     [MaxLength(50)] public string? VenipunctureSite { get; set; }
     [MaxLength(150)] public string? PhlebotomistName { get; set; }
     [MaxLength(200)] public string? PhlebotomistSignature { get; set; }
-    public bool VisualInspectionPassed { get; set; }
-    public bool DonorConfirmed { get; set; }
-    public bool FeelsHealthyToday { get; set; }
+    public bool VisualInspectionPassed { get; set; } = true;
+    public bool DonorConfirmed { get; set; } = true;
+    public bool FeelsHealthyToday { get; set; } = true;
     public bool DonatedRecently { get; set; }
     public bool HadDonationDiscomfort { get; set; }
-    public bool AteRecently { get; set; }
-    public bool SleptWell { get; set; }
+    public bool AteRecently { get; set; } = true;
+    public bool SleptWell { get; set; } = true;
     public bool HasInfectionRisk { get; set; }
     public bool HasColdFeverOrSinusitis { get; set; }
     public bool TookAntibioticsRecently { get; set; }

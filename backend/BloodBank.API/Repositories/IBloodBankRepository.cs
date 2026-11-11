@@ -73,6 +73,42 @@ public interface IBloodBankRepository
     Task UpdateComponentReturnAsync(ComponentReturn item);
     void RemoveComponentReturn(ComponentReturn item);
 
+    // Uddanam Register 1: TTI Screening
+    Task<List<TtiScreeningRecord>> GetTtiScreeningsAsync(string? status = null);
+    Task<TtiScreeningRecord?> FindTtiScreeningAsync(Guid id);
+    Task<TtiScreeningRecord?> FindTtiScreeningByBarcodeAsync(string barcode);
+    Task AddTtiScreeningAsync(TtiScreeningRecord item);
+    Task UpdateTtiScreeningAsync(TtiScreeningRecord item);
+    void RemoveTtiScreening(TtiScreeningRecord item);
+
+    // Uddanam Register 2: Patient Grouping & Crossmatch
+    Task<List<PatientGroupingRecord>> GetPatientGroupingsAsync();
+    Task<PatientGroupingRecord?> FindPatientGroupingAsync(Guid id);
+    Task AddPatientGroupingAsync(PatientGroupingRecord item);
+    Task UpdatePatientGroupingAsync(PatientGroupingRecord item);
+    void RemovePatientGrouping(PatientGroupingRecord item);
+
+    // Uddanam Register 3: Blood Bag Stock Register (CPDA Bags)
+    Task<List<BloodBagStockRegister>> GetBloodBagStockRegistersAsync();
+    Task<BloodBagStockRegister?> FindBloodBagStockRegisterAsync(Guid id);
+    Task AddBloodBagStockRegisterAsync(BloodBagStockRegister item);
+    Task UpdateBloodBagStockRegisterAsync(BloodBagStockRegister item);
+    void RemoveBloodBagStockRegister(BloodBagStockRegister item);
+
+    // Uddanam Register 4: Diagnostic Kits & Reagents (ELISA Record)
+    Task<List<DiagnosticKitRegister>> GetDiagnosticKitRegistersAsync();
+    Task<DiagnosticKitRegister?> FindDiagnosticKitRegisterAsync(Guid id);
+    Task AddDiagnosticKitRegisterAsync(DiagnosticKitRegister item);
+    Task UpdateDiagnosticKitRegisterAsync(DiagnosticKitRegister item);
+    void RemoveDiagnosticKitRegister(DiagnosticKitRegister item);
+
+    // Uddanam Register 5: Apheresis / SDP Records
+    Task<List<ApheresisRecord>> GetApheresisRecordsAsync();
+    Task<ApheresisRecord?> FindApheresisRecordAsync(Guid id);
+    Task AddApheresisRecordAsync(ApheresisRecord item);
+    Task UpdateApheresisRecordAsync(ApheresisRecord item);
+    void RemoveApheresisRecord(ApheresisRecord item);
+
     // Bulk & Transactional operations
     Task ClearOperationalDataAsync();
     Task SaveChangesAsync();

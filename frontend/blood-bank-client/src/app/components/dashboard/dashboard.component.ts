@@ -6,7 +6,16 @@ import { BloodBankService } from '../../core/services/blood-bank.service';
 import { DonorService } from '../../core/services/donor.service';
 import { HospitalService } from '../../core/services/hospital.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { BloodBag, BloodGroup, BloodRequest, BloodStock, ComponentCollection, ComponentDiscard, ComponentReturn, ComponentType, DonationCamp, DonationHistory, DonorDetails } from '../../core/models/blood-bank.model';
+import {
+  BloodBag, BloodGroup, BloodRequest, BloodStock, ComponentCollection, ComponentDiscard,
+  ComponentReturn, ComponentType, DonationCamp, DonationHistory, DonorDetails,
+  TtiScreeningRecord, CreateTtiScreeningPayload,
+  PatientGroupingRecord, CreatePatientGroupingPayload,
+  BloodBagStockRegister, CreateBloodBagStockRegisterPayload,
+  DiagnosticKitRegister, CreateDiagnosticKitRegisterPayload,
+  ApheresisRecord, CreateApheresisRecordPayload,
+  MasterRecordItem
+} from '../../core/models/blood-bank.model';
 
 @Component({
   selector: 'app-dashboard',
@@ -34,7 +43,7 @@ export class DashboardComponent implements OnInit {
   }
 
   // Tabs
-  public activeBankTab: 'stock' | 'camps' | 'donors' | 'requests' | 'issued' | 'summary' | 'collection' | 'discard' | 'return' = 'stock';
+  public activeBankTab: 'stock' | 'camps' | 'donors' | 'requests' | 'issued' | 'summary' | 'collection' | 'discard' | 'return' | 'tti' | 'grouping' | 'bag-stock' | 'diagnostic-kits' | 'apheresis' | 'master-record' = 'stock';
   public activeHospitalTab: 'new-req' | 'my-req' | 'stock-view' = 'new-req';
   public activeDonorTab: 'request' | 'my-requests' | 'camps' = 'request';
 
@@ -580,6 +589,12 @@ export class DashboardComponent implements OnInit {
     });
     this.bloodBankService.getComponentCollections().subscribe(items => this.componentCollections.set(items));
     this.bloodBankService.getComponentDiscards().subscribe(items => this.componentDiscards.set(items));
+        this.bloodBankService.getTtiScreenings().subscribe(items => this.ttiRecords.set(items));
+    this.bloodBankService.getPatientGroupings().subscribe(items => this.patientGroupingRecords.set(items));
+    this.bloodBankService.getBloodBagStockRegisters().subscribe(items => this.bloodBagStockRecords.set(items));
+    this.bloodBankService.getDiagnosticKitRegisters().subscribe(items => this.diagnosticKitRecords.set(items));
+    this.bloodBankService.getApheresisRecords().subscribe(items => this.apheresisRecords.set(items));
+    this.bloodBankService.getMasterRecords().subscribe(items => this.masterRecords.set(items));
     this.bloodBankService.getComponentReturns().subscribe(items => {
       this.componentReturns.set(items);
       this.notificationService.refresh();
@@ -1164,6 +1179,693 @@ export class DashboardComponent implements OnInit {
         this.editingStock = null;
         this.loadBankData();
       }
+    });
+  }
+
+
+  // ================= Uddanam Clinical Registers State & Signals =================
+  public ttiRecords = signal<TtiScreeningRecord[]>([]);
+  public ttiSearchQuery = signal<string>('');
+  public filteredTtiRecords = computed<TtiScreeningRecord[]>(() => {
+    const q = this.ttiSearchQuery().trim().toLowerCase();
+    if (!q) return this.ttiRecords();
+    return this.ttiRecords().filter(r =>
+      r.bagBarcode.toLowerCase().includes(q) ||
+      r.bloodGroup.toLowerCase().includes(q) ||
+      r.overallStatus.toLowerCase().includes(q) ||
+      r.testedBy.toLowerCase().includes(q)
+    );
+  });
+
+  public patientGroupingRecords = signal<PatientGroupingRecord[]>([]);
+  public groupingSearchQuery = signal<string>('');
+  public filteredPatientGroupings = computed<PatientGroupingRecord[]>(() => {
+    const q = this.groupingSearchQuery().trim().toLowerCase();
+    if (!q) return this.patientGroupingRecords();
+    return this.patientGroupingRecords().filter(g =>
+      g.patientName.toLowerCase().includes(q) ||
+      g.bloodGroup.toLowerCase().includes(q) ||
+      (g.bagNumber && g.bagNumber.toLowerCase().includes(q)) ||
+      (g.hospitalName && g.hospitalName.toLowerCase().includes(q))
+    );
+  });
+
+  public bloodBagStockRecords = signal<BloodBagStockRegister[]>([]);
+  public bagStockSearchQuery = signal<string>('');
+  public filteredBagStocks = computed<BloodBagStockRegister[]>(() => {
+    const q = this.bagStockSearchQuery().trim().toLowerCase();
+    if (!q) return this.bloodBagStockRecords();
+    return this.bloodBagStockRecords().filter(b =>
+      b.supplierName.toLowerCase().includes(q) ||
+      b.batchNo.toLowerCase().includes(q) ||
+      b.invoiceNo.toLowerCase().includes(q) ||
+      b.codeSpecification.toLowerCase().includes(q)
+    );
+  });
+
+  public diagnosticKitRecords = signal<DiagnosticKitRegister[]>([]);
+  public diagnosticKitSearchQuery = signal<string>('');
+  public filteredDiagnosticKits = computed<DiagnosticKitRegister[]>(() => {
+    const q = this.diagnosticKitSearchQuery().trim().toLowerCase();
+    if (!q) return this.diagnosticKitRecords();
+    return this.diagnosticKitRecords().filter(k =>
+      k.kitName.toLowerCase().includes(q) ||
+      k.supplierName.toLowerCase().includes(q) ||
+      k.batchNo.toLowerCase().includes(q)
+    );
+  });
+
+  public apheresisRecords = signal<ApheresisRecord[]>([]);
+  public apheresisSearchQuery = signal<string>('');
+  public filteredApheresisRecords = computed<ApheresisRecord[]>(() => {
+    const q = this.apheresisSearchQuery().trim().toLowerCase();
+    if (!q) return this.apheresisRecords();
+    return this.apheresisRecords().filter(a =>
+      a.donorName.toLowerCase().includes(q) ||
+      a.registrationNo.toLowerCase().includes(q) ||
+      (a.patientName && a.patientName.toLowerCase().includes(q)) ||
+      a.bloodGroup.toLowerCase().includes(q)
+    );
+  });
+
+  public masterRecords = signal<MasterRecordItem[]>([]);
+  public masterRecordSearchQuery = signal<string>('');
+  public filteredMasterRecords = computed<MasterRecordItem[]>(() => {
+    const q = this.masterRecordSearchQuery().trim().toLowerCase();
+    if (!q) return this.masterRecords();
+    return this.masterRecords().filter(m =>
+      m.bagNumber.toLowerCase().includes(q) ||
+      m.donorName.toLowerCase().includes(q) ||
+      m.bloodGroup.toLowerCase().includes(q) ||
+      m.componentType.toLowerCase().includes(q) ||
+      m.status.toLowerCase().includes(q) ||
+      m.ttiOverallStatus.toLowerCase().includes(q)
+    );
+  });
+
+  // Modal & Form States
+  public showTtiModal = false;
+  public editingTti: TtiScreeningRecord | null = null;
+  public ttiForm = this.fb.group({
+    bagBarcode: ['', Validators.required],
+    bloodGroup: ['O-', Validators.required],
+    testingDate: [new Date().toISOString().substring(0, 10)],
+    hivResult: ['Non-Reactive', Validators.required],
+    hbsAgResult: ['Non-Reactive', Validators.required],
+    hcvResult: ['Non-Reactive', Validators.required],
+    vdrlResult: ['Non-Reactive', Validators.required],
+    malariaResult: ['Negative', Validators.required],
+    atypicalAntibodies: ['Negative', Validators.required],
+    overallStatus: ['Passed', Validators.required],
+    testedBy: ['Lab Technician', Validators.required],
+    approvedBy: ['Dr. Uddanam, M.O.'],
+    remarks: ['']
+  });
+
+  public showGroupingModal = false;
+  public editingGrouping: PatientGroupingRecord | null = null;
+  public groupingForm = this.fb.group({
+    slNo: [1],
+    date: [new Date().toISOString().substring(0, 10)],
+    patientName: ['', Validators.required],
+    ageSex: ['35 / M'],
+    hospitalName: [''],
+    ipNumber: [''],
+    bagNumber: [''],
+    bagType: ['Single (350ml)'],
+    bloodGroup: ['O', Validators.required],
+    rhType: ['Positive', Validators.required],
+    antiA: ['-'],
+    antiB: ['-'],
+    antiAb: ['-'],
+    antiD: ['+'],
+    lectinA1: ['-'],
+    lectinH: ['+'],
+    aCells: ['+'],
+    bCells: ['+'],
+    oCells: ['-'],
+    duTest: ['Negative'],
+    irregularAntibodies: ['Negative'],
+    autoAntibodies: ['Negative'],
+    crossmatchSaline: ['Compatible'],
+    crossmatchAlbumin: ['Compatible'],
+    crossmatchAhg: ['Compatible'],
+    technicianSignature: ['Lab Tech'],
+    medicalOfficerSignature: ['M.O.']
+  });
+
+  public showBagStockModal = false;
+  public editingBagStock: BloodBagStockRegister | null = null;
+  public bagStockForm = this.fb.group({
+    slNo: [1],
+    date: [new Date().toISOString().substring(0, 10)],
+    supplierName: ['', Validators.required],
+    invoiceNo: ['', Validators.required],
+    invoiceDate: [new Date().toISOString().substring(0, 10)],
+    manufacturer: ['', Validators.required],
+    batchNo: ['', Validators.required],
+    dateOfSupply: [new Date().toISOString().substring(0, 10)],
+    dateOfManufacture: [new Date().toISOString().substring(0, 10)],
+    dateOfExpiry: [new Date().toISOString().substring(0, 10)],
+    codeSpecification: ['CPDA-1 Triple (450ml)', Validators.required],
+    resultCoa: ['Satisfactory', Validators.required],
+    openingStock: [0, [Validators.required, Validators.min(0)]],
+    quantityReceived: [0, [Validators.required, Validators.min(0)]],
+    quantityUsed: [0, [Validators.required, Validators.min(0)]],
+    wastage: [0, [Validators.required, Validators.min(0)]],
+    balance: [0, [Validators.required, Validators.min(0)]],
+    techSign: ['Store Incharge'],
+    medicalOfficerSign: ['M.O.'],
+    remarks: ['']
+  });
+
+  public showDiagnosticKitModal = false;
+  public editingDiagnosticKit: DiagnosticKitRegister | null = null;
+  public diagnosticKitForm = this.fb.group({
+    slNo: [1],
+    date: [new Date().toISOString().substring(0, 10)],
+    supplierName: ['', Validators.required],
+    kitName: ['', Validators.required],
+    manufacturer: ['', Validators.required],
+    invoiceNo: ['', Validators.required],
+    batchNo: ['', Validators.required],
+    dateOfManufacture: [new Date().toISOString().substring(0, 10)],
+    dateOfExpiry: [new Date().toISOString().substring(0, 10)],
+    quantityReceived: [0, [Validators.required, Validators.min(0)]],
+    openingBalance: [0, [Validators.required, Validators.min(0)]],
+    noOfTests: [0, [Validators.required, Validators.min(0)]],
+    controlsUsed: [0, [Validators.required, Validators.min(0)]],
+    wastage: [0, [Validators.required, Validators.min(0)]],
+    closingBalance: [0, [Validators.required, Validators.min(0)]],
+    techSign: ['Lab Tech'],
+    medicalOfficerSign: ['M.O.'],
+    remarks: ['']
+  });
+
+  public showApheresisModal = false;
+  public editingApheresis: ApheresisRecord | null = null;
+  public apheresisForm = this.fb.group({
+    registrationNo: ['', Validators.required],
+    date: [new Date().toISOString().substring(0, 10)],
+    donorName: ['', Validators.required],
+    ageSex: ['28 / M'],
+    weightKg: [68, [Validators.required, Validators.min(45)]],
+    bloodGroup: ['O+', Validators.required],
+    phone: [''],
+    email: [''],
+    timeOfMeal: ['8:30 AM'],
+    patientName: [''],
+    patientIpNo: [''],
+    patientBedNo: [''],
+    patientBloodGroup: [''],
+    takenAspirinLast3Days: [false],
+    haemoglobinGms: [14.0, [Validators.required, Validators.min(12)]],
+    plateletCountLakhs: [2.5, [Validators.required, Validators.min(1.5)]],
+    wbcCount: [6500],
+    bloodPressure: ['120/80'],
+    pulse: [72],
+    temperatureCelsius: [36.8],
+    totalProteinsGms: [6.8],
+    procedureStartTime: ['10:00 AM'],
+    procedureEndTime: ['11:15 AM'],
+    durationMinutes: [75],
+    venipunctureSite: ['Right antecubital'],
+    wholeBloodPumpRateMlMin: [65],
+    acdRatio: ['1:9'],
+    totalBloodVolumeProcessedMl: [3200],
+    totalProductCollectedMl: [300],
+    totalVolumeAcdUsedMl: [310],
+    adverseReaction: ['None'],
+    qualityControlPassed: [true],
+    phlebotomistSignature: ['Phleb Tech'],
+    medicalOfficerSignature: ['Dr. Uddanam M.O.'],
+    remarks: ['']
+  });
+
+  // Action Methods for TTI
+  public openCreateTtiModal(): void {
+    this.editingTti = null;
+    this.ttiForm.reset({
+      bagBarcode: '',
+      bloodGroup: 'O-',
+      testingDate: new Date().toISOString().substring(0, 10),
+      hivResult: 'Non-Reactive',
+      hbsAgResult: 'Non-Reactive',
+      hcvResult: 'Non-Reactive',
+      vdrlResult: 'Non-Reactive',
+      malariaResult: 'Negative',
+      atypicalAntibodies: 'Negative',
+      overallStatus: 'Passed',
+      testedBy: 'Lab Technician',
+      approvedBy: 'Dr. Uddanam, M.O.',
+      remarks: ''
+    });
+    this.showTtiModal = true;
+  }
+
+  public openEditTtiModal(record: TtiScreeningRecord): void {
+    this.editingTti = record;
+    this.ttiForm.patchValue({
+      bagBarcode: record.bagBarcode,
+      bloodGroup: record.bloodGroup,
+      testingDate: record.testingDate ? new Date(record.testingDate).toISOString().substring(0, 10) : '',
+      hivResult: record.hivResult,
+      hbsAgResult: record.hbsAgResult,
+      hcvResult: record.hcvResult,
+      vdrlResult: record.vdrlResult,
+      malariaResult: record.malariaResult,
+      atypicalAntibodies: record.atypicalAntibodies,
+      overallStatus: record.overallStatus,
+      testedBy: record.testedBy,
+      approvedBy: record.approvedBy || '',
+      remarks: record.remarks || ''
+    });
+    this.showTtiModal = true;
+  }
+
+  public submitTtiForm(): void {
+    if (this.ttiForm.invalid) return;
+    const val = this.ttiForm.value as any;
+    if (this.editingTti) {
+      this.bloodBankService.updateTtiScreening(this.editingTti.id, val).subscribe({
+        next: () => {
+          this.showTtiModal = false;
+          this.editingTti = null;
+          this.loadBankData();
+        }
+      });
+    } else {
+      this.bloodBankService.createTtiScreening(val).subscribe({
+        next: () => {
+          this.showTtiModal = false;
+          this.loadBankData();
+        }
+      });
+    }
+  }
+
+  public deleteTti(id: string): void {
+    if (!confirm('Are you sure you want to delete this TTI screening record?')) return;
+    this.bloodBankService.deleteTtiScreening(id).subscribe({
+      next: () => this.loadBankData()
+    });
+  }
+
+  // Action Methods for Patient Grouping
+  public openCreateGroupingModal(): void {
+    this.editingGrouping = null;
+    this.groupingForm.reset({
+      slNo: this.patientGroupingRecords().length + 1,
+      date: new Date().toISOString().substring(0, 10),
+      patientName: '',
+      ageSex: '35 / M',
+      hospitalName: '',
+      ipNumber: '',
+      bagNumber: '',
+      bagType: 'Single (350ml)',
+      bloodGroup: 'O',
+      rhType: 'Positive',
+      antiA: '-',
+      antiB: '-',
+      antiAb: '-',
+      antiD: '+',
+      lectinA1: '-',
+      lectinH: '+',
+      aCells: '+',
+      bCells: '+',
+      oCells: '-',
+      duTest: 'Negative',
+      irregularAntibodies: 'Negative',
+      autoAntibodies: 'Negative',
+      crossmatchSaline: 'Compatible',
+      crossmatchAlbumin: 'Compatible',
+      crossmatchAhg: 'Compatible',
+      technicianSignature: 'Lab Tech',
+      medicalOfficerSignature: 'M.O.'
+    });
+    this.showGroupingModal = true;
+  }
+
+  public openEditGroupingModal(record: PatientGroupingRecord): void {
+    this.editingGrouping = record;
+    this.groupingForm.patchValue({
+      slNo: record.slNo,
+      date: record.date ? new Date(record.date).toISOString().substring(0, 10) : '',
+      patientName: record.patientName,
+      ageSex: record.ageSex || '',
+      hospitalName: record.hospitalName || '',
+      ipNumber: record.ipNumber || '',
+      bagNumber: record.bagNumber || '',
+      bagType: record.bagType || 'Single (350ml)',
+      bloodGroup: record.bloodGroup,
+      rhType: record.rhType,
+      antiA: record.antiA,
+      antiB: record.antiB,
+      antiAb: record.antiAb,
+      antiD: record.antiD,
+      lectinA1: record.lectinA1,
+      lectinH: record.lectinH,
+      aCells: record.aCells,
+      bCells: record.bCells,
+      oCells: record.oCells,
+      duTest: record.duTest,
+      irregularAntibodies: record.irregularAntibodies,
+      autoAntibodies: record.autoAntibodies,
+      crossmatchSaline: record.crossmatchSaline,
+      crossmatchAlbumin: record.crossmatchAlbumin,
+      crossmatchAhg: record.crossmatchAhg,
+      technicianSignature: record.technicianSignature || '',
+      medicalOfficerSignature: record.medicalOfficerSignature || ''
+    });
+    this.showGroupingModal = true;
+  }
+
+  public submitGroupingForm(): void {
+    if (this.groupingForm.invalid) return;
+    const val = this.groupingForm.value as any;
+    if (this.editingGrouping) {
+      this.bloodBankService.updatePatientGrouping(this.editingGrouping.id, val).subscribe({
+        next: () => {
+          this.showGroupingModal = false;
+          this.editingGrouping = null;
+          this.loadBankData();
+        }
+      });
+    } else {
+      this.bloodBankService.createPatientGrouping(val).subscribe({
+        next: () => {
+          this.showGroupingModal = false;
+          this.loadBankData();
+        }
+      });
+    }
+  }
+
+  public deleteGrouping(id: string): void {
+    if (!confirm('Are you sure you want to delete this patient grouping record?')) return;
+    this.bloodBankService.deletePatientGrouping(id).subscribe({
+      next: () => this.loadBankData()
+    });
+  }
+
+  // Action Methods for Bag Stock Register
+  public openCreateBagStockModal(): void {
+    this.editingBagStock = null;
+    this.bagStockForm.reset({
+      slNo: this.bloodBagStockRecords().length + 1,
+      date: new Date().toISOString().substring(0, 10),
+      supplierName: '',
+      invoiceNo: '',
+      invoiceDate: new Date().toISOString().substring(0, 10),
+      manufacturer: 'Terumo Penpol',
+      batchNo: '',
+      dateOfSupply: new Date().toISOString().substring(0, 10),
+      dateOfManufacture: new Date().toISOString().substring(0, 10),
+      dateOfExpiry: new Date().toISOString().substring(0, 10),
+      codeSpecification: 'CPDA-1 Triple (450ml)',
+      resultCoa: 'Satisfactory',
+      openingStock: 0,
+      quantityReceived: 50,
+      quantityUsed: 0,
+      wastage: 0,
+      balance: 50,
+      techSign: 'Store Incharge',
+      medicalOfficerSign: 'M.O.',
+      remarks: ''
+    });
+    this.showBagStockModal = true;
+  }
+
+  public openEditBagStockModal(record: BloodBagStockRegister): void {
+    this.editingBagStock = record;
+    this.bagStockForm.patchValue({
+      slNo: record.slNo,
+      date: record.date ? new Date(record.date).toISOString().substring(0, 10) : '',
+      supplierName: record.supplierName,
+      invoiceNo: record.invoiceNo,
+      invoiceDate: record.invoiceDate ? new Date(record.invoiceDate).toISOString().substring(0, 10) : '',
+      manufacturer: record.manufacturer,
+      batchNo: record.batchNo,
+      dateOfSupply: record.dateOfSupply ? new Date(record.dateOfSupply).toISOString().substring(0, 10) : '',
+      dateOfManufacture: record.dateOfManufacture ? new Date(record.dateOfManufacture).toISOString().substring(0, 10) : '',
+      dateOfExpiry: record.dateOfExpiry ? new Date(record.dateOfExpiry).toISOString().substring(0, 10) : '',
+      codeSpecification: record.codeSpecification,
+      resultCoa: record.resultCoa,
+      openingStock: record.openingStock,
+      quantityReceived: record.quantityReceived,
+      quantityUsed: record.quantityUsed,
+      wastage: record.wastage,
+      balance: record.balance,
+      techSign: record.techSign || '',
+      medicalOfficerSign: record.medicalOfficerSign || '',
+      remarks: record.remarks || ''
+    });
+    this.showBagStockModal = true;
+  }
+
+  public submitBagStockForm(): void {
+    if (this.bagStockForm.invalid) return;
+    const val = this.bagStockForm.value as any;
+    val.openingStock = Number(val.openingStock || 0);
+    val.quantityReceived = Number(val.quantityReceived || 0);
+    val.quantityUsed = Number(val.quantityUsed || 0);
+    val.wastage = Number(val.wastage || 0);
+    val.balance = val.openingStock + val.quantityReceived - val.quantityUsed - val.wastage;
+
+    if (this.editingBagStock) {
+      this.bloodBankService.updateBloodBagStockRegister(this.editingBagStock.id, val).subscribe({
+        next: () => {
+          this.showBagStockModal = false;
+          this.editingBagStock = null;
+          this.loadBankData();
+        }
+      });
+    } else {
+      this.bloodBankService.createBloodBagStockRegister(val).subscribe({
+        next: () => {
+          this.showBagStockModal = false;
+          this.loadBankData();
+        }
+      });
+    }
+  }
+
+  public deleteBagStock(id: string): void {
+    if (!confirm('Are you sure you want to delete this bag stock register record?')) return;
+    this.bloodBankService.deleteBloodBagStockRegister(id).subscribe({
+      next: () => this.loadBankData()
+    });
+  }
+
+  // Action Methods for Diagnostic Kits
+  public openCreateDiagnosticKitModal(): void {
+    this.editingDiagnosticKit = null;
+    this.diagnosticKitForm.reset({
+      slNo: this.diagnosticKitRecords().length + 1,
+      date: new Date().toISOString().substring(0, 10),
+      supplierName: '',
+      kitName: 'HIV 1&2 ELISA Kit (96 Tests)',
+      manufacturer: 'J. Mitra & Co.',
+      invoiceNo: '',
+      batchNo: '',
+      dateOfManufacture: new Date().toISOString().substring(0, 10),
+      dateOfExpiry: new Date().toISOString().substring(0, 10),
+      quantityReceived: 5,
+      openingBalance: 0,
+      noOfTests: 0,
+      controlsUsed: 2,
+      wastage: 0,
+      closingBalance: 5,
+      techSign: 'Lab Tech',
+      medicalOfficerSign: 'M.O.',
+      remarks: ''
+    });
+    this.showDiagnosticKitModal = true;
+  }
+
+  public openEditDiagnosticKitModal(record: DiagnosticKitRegister): void {
+    this.editingDiagnosticKit = record;
+    this.diagnosticKitForm.patchValue({
+      slNo: record.slNo,
+      date: record.date ? new Date(record.date).toISOString().substring(0, 10) : '',
+      supplierName: record.supplierName,
+      kitName: record.kitName,
+      manufacturer: record.manufacturer,
+      invoiceNo: record.invoiceNo,
+      batchNo: record.batchNo,
+      dateOfManufacture: record.dateOfManufacture ? new Date(record.dateOfManufacture).toISOString().substring(0, 10) : '',
+      dateOfExpiry: record.dateOfExpiry ? new Date(record.dateOfExpiry).toISOString().substring(0, 10) : '',
+      quantityReceived: record.quantityReceived,
+      openingBalance: record.openingBalance,
+      noOfTests: record.noOfTests,
+      controlsUsed: record.controlsUsed,
+      wastage: record.wastage,
+      closingBalance: record.closingBalance,
+      techSign: record.techSign || '',
+      medicalOfficerSign: record.medicalOfficerSign || '',
+      remarks: record.remarks || ''
+    });
+    this.showDiagnosticKitModal = true;
+  }
+
+  public submitDiagnosticKitForm(): void {
+    if (this.diagnosticKitForm.invalid) return;
+    const val = this.diagnosticKitForm.value as any;
+    val.openingBalance = Number(val.openingBalance || 0);
+    val.quantityReceived = Number(val.quantityReceived || 0);
+    val.noOfTests = Number(val.noOfTests || 0);
+    val.controlsUsed = Number(val.controlsUsed || 0);
+    val.wastage = Number(val.wastage || 0);
+    val.closingBalance = Number(val.closingBalance ?? (val.openingBalance + val.quantityReceived - val.wastage));
+
+    if (this.editingDiagnosticKit) {
+      this.bloodBankService.updateDiagnosticKitRegister(this.editingDiagnosticKit.id, val).subscribe({
+        next: () => {
+          this.showDiagnosticKitModal = false;
+          this.editingDiagnosticKit = null;
+          this.loadBankData();
+        }
+      });
+    } else {
+      this.bloodBankService.createDiagnosticKitRegister(val).subscribe({
+        next: () => {
+          this.showDiagnosticKitModal = false;
+          this.loadBankData();
+        }
+      });
+    }
+  }
+
+  public deleteDiagnosticKit(id: string): void {
+    if (!confirm('Are you sure you want to delete this diagnostic kit ledger record?')) return;
+    this.bloodBankService.deleteDiagnosticKitRegister(id).subscribe({
+      next: () => this.loadBankData()
+    });
+  }
+
+  // Action Methods for Apheresis
+  public openCreateApheresisModal(): void {
+    this.editingApheresis = null;
+    this.apheresisForm.reset({
+      registrationNo: 'SDP-' + new Date().getFullYear() + '-' + Math.floor(100 + Math.random() * 900),
+      date: new Date().toISOString().substring(0, 10),
+      donorName: '',
+      ageSex: '28 / M',
+      weightKg: 68,
+      bloodGroup: 'O+',
+      phone: '',
+      email: '',
+      timeOfMeal: '8:30 AM',
+      patientName: '',
+      patientIpNo: '',
+      patientBedNo: '',
+      patientBloodGroup: '',
+      takenAspirinLast3Days: false,
+      haemoglobinGms: 14.2,
+      plateletCountLakhs: 2.6,
+      wbcCount: 6800,
+      bloodPressure: '120/80',
+      pulse: 74,
+      temperatureCelsius: 36.8,
+      totalProteinsGms: 6.8,
+      procedureStartTime: '10:00 AM',
+      procedureEndTime: '11:15 AM',
+      durationMinutes: 75,
+      venipunctureSite: 'Right antecubital',
+      wholeBloodPumpRateMlMin: 65,
+      acdRatio: '1:9',
+      totalBloodVolumeProcessedMl: 3200,
+      totalProductCollectedMl: 300,
+      totalVolumeAcdUsedMl: 310,
+      adverseReaction: 'None',
+      qualityControlPassed: true,
+      phlebotomistSignature: 'Phleb Tech',
+      medicalOfficerSignature: 'Dr. Uddanam M.O.',
+      remarks: ''
+    });
+    this.showApheresisModal = true;
+  }
+
+  public openEditApheresisModal(record: ApheresisRecord): void {
+    this.editingApheresis = record;
+    this.apheresisForm.patchValue({
+      registrationNo: record.registrationNo,
+      date: record.date ? new Date(record.date).toISOString().substring(0, 10) : '',
+      donorName: record.donorName,
+      ageSex: record.ageSex || '',
+      weightKg: record.weightKg,
+      bloodGroup: record.bloodGroup,
+      phone: record.phone || '',
+      email: record.email || '',
+      timeOfMeal: record.timeOfMeal || '',
+      patientName: record.patientName || '',
+      patientIpNo: record.patientIpNo || '',
+      patientBedNo: record.patientBedNo || '',
+      patientBloodGroup: record.patientBloodGroup || '',
+      takenAspirinLast3Days: record.takenAspirinLast3Days,
+      haemoglobinGms: record.haemoglobinGms,
+      plateletCountLakhs: record.plateletCountLakhs,
+      wbcCount: record.wbcCount,
+      bloodPressure: record.bloodPressure || '',
+      pulse: record.pulse,
+      temperatureCelsius: record.temperatureCelsius,
+      totalProteinsGms: record.totalProteinsGms,
+      procedureStartTime: record.procedureStartTime || '',
+      procedureEndTime: record.procedureEndTime || '',
+      durationMinutes: record.durationMinutes,
+      venipunctureSite: record.venipunctureSite,
+      wholeBloodPumpRateMlMin: record.wholeBloodPumpRateMlMin,
+      acdRatio: record.acdRatio,
+      totalBloodVolumeProcessedMl: record.totalBloodVolumeProcessedMl,
+      totalProductCollectedMl: record.totalProductCollectedMl,
+      totalVolumeAcdUsedMl: record.totalVolumeAcdUsedMl,
+      adverseReaction: record.adverseReaction || 'None',
+      qualityControlPassed: record.qualityControlPassed,
+      phlebotomistSignature: record.phlebotomistSignature || '',
+      medicalOfficerSignature: record.medicalOfficerSignature || '',
+      remarks: record.remarks || ''
+    });
+    this.showApheresisModal = true;
+  }
+
+  public submitApheresisForm(): void {
+    if (this.apheresisForm.invalid) return;
+    const val = this.apheresisForm.value as any;
+    val.weightKg = Number(val.weightKg || 0);
+    val.haemoglobinGms = Number(val.haemoglobinGms || 0);
+    val.plateletCountLakhs = Number(val.plateletCountLakhs || 0);
+    val.wbcCount = Number(val.wbcCount || 0);
+    val.pulse = Number(val.pulse || 0);
+    val.temperatureCelsius = Number(val.temperatureCelsius || 0);
+    val.totalProteinsGms = Number(val.totalProteinsGms || 0);
+    val.durationMinutes = Number(val.durationMinutes || 0);
+    val.wholeBloodPumpRateMlMin = Number(val.wholeBloodPumpRateMlMin || 0);
+    val.totalBloodVolumeProcessedMl = Number(val.totalBloodVolumeProcessedMl || 0);
+    val.totalProductCollectedMl = Number(val.totalProductCollectedMl || 0);
+    val.totalVolumeAcdUsedMl = Number(val.totalVolumeAcdUsedMl || 0);
+
+    if (this.editingApheresis) {
+      this.bloodBankService.updateApheresisRecord(this.editingApheresis.id, val).subscribe({
+        next: () => {
+          this.showApheresisModal = false;
+          this.editingApheresis = null;
+          this.loadBankData();
+        }
+      });
+    } else {
+      this.bloodBankService.createApheresisRecord(val).subscribe({
+        next: () => {
+          this.showApheresisModal = false;
+          this.loadBankData();
+        }
+      });
+    }
+  }
+
+  public deleteApheresis(id: string): void {
+    if (!confirm('Are you sure you want to delete this apheresis procedure record?')) return;
+    this.bloodBankService.deleteApheresisRecord(id).subscribe({
+      next: () => this.loadBankData()
     });
   }
 

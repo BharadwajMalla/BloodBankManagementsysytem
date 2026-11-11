@@ -72,6 +72,47 @@ public sealed class EfBloodBankRepository : IBloodBankRepository
     public Task UpdateComponentReturnAsync(ComponentReturn item) { _db.ComponentReturns.Update(item); return Task.CompletedTask; }
     public void RemoveComponentReturn(ComponentReturn item) => _db.ComponentReturns.Remove(item);
 
+    // Uddanam Register 1: TTI Screening
+    public Task<List<TtiScreeningRecord>> GetTtiScreeningsAsync(string? status = null) =>
+        _db.TtiScreeningRecords.AsNoTracking().Where(x => string.IsNullOrWhiteSpace(status) || x.OverallStatus == status).OrderByDescending(x => x.TestingDate).ToListAsync();
+    public Task<TtiScreeningRecord?> FindTtiScreeningAsync(Guid id) => _db.TtiScreeningRecords.FirstOrDefaultAsync(x => x.Id == id);
+    public Task<TtiScreeningRecord?> FindTtiScreeningByBarcodeAsync(string barcode) => _db.TtiScreeningRecords.FirstOrDefaultAsync(x => x.BagBarcode == barcode);
+    public Task AddTtiScreeningAsync(TtiScreeningRecord item) => _db.TtiScreeningRecords.AddAsync(item).AsTask();
+    public Task UpdateTtiScreeningAsync(TtiScreeningRecord item) { _db.TtiScreeningRecords.Update(item); return Task.CompletedTask; }
+    public void RemoveTtiScreening(TtiScreeningRecord item) => _db.TtiScreeningRecords.Remove(item);
+
+    // Uddanam Register 2: Patient Grouping & Crossmatch
+    public Task<List<PatientGroupingRecord>> GetPatientGroupingsAsync() =>
+        _db.PatientGroupingRecords.AsNoTracking().OrderByDescending(x => x.Date).ToListAsync();
+    public Task<PatientGroupingRecord?> FindPatientGroupingAsync(Guid id) => _db.PatientGroupingRecords.FirstOrDefaultAsync(x => x.Id == id);
+    public Task AddPatientGroupingAsync(PatientGroupingRecord item) => _db.PatientGroupingRecords.AddAsync(item).AsTask();
+    public Task UpdatePatientGroupingAsync(PatientGroupingRecord item) { _db.PatientGroupingRecords.Update(item); return Task.CompletedTask; }
+    public void RemovePatientGrouping(PatientGroupingRecord item) => _db.PatientGroupingRecords.Remove(item);
+
+    // Uddanam Register 3: CPDA Blood Bags Stock Register
+    public Task<List<BloodBagStockRegister>> GetBloodBagStockRegistersAsync() =>
+        _db.BloodBagStockRegisters.AsNoTracking().OrderByDescending(x => x.Date).ToListAsync();
+    public Task<BloodBagStockRegister?> FindBloodBagStockRegisterAsync(Guid id) => _db.BloodBagStockRegisters.FirstOrDefaultAsync(x => x.Id == id);
+    public Task AddBloodBagStockRegisterAsync(BloodBagStockRegister item) => _db.BloodBagStockRegisters.AddAsync(item).AsTask();
+    public Task UpdateBloodBagStockRegisterAsync(BloodBagStockRegister item) { _db.BloodBagStockRegisters.Update(item); return Task.CompletedTask; }
+    public void RemoveBloodBagStockRegister(BloodBagStockRegister item) => _db.BloodBagStockRegisters.Remove(item);
+
+    // Uddanam Register 4: Diagnostic Kits & Reagents
+    public Task<List<DiagnosticKitRegister>> GetDiagnosticKitRegistersAsync() =>
+        _db.DiagnosticKitRegisters.AsNoTracking().OrderByDescending(x => x.Date).ToListAsync();
+    public Task<DiagnosticKitRegister?> FindDiagnosticKitRegisterAsync(Guid id) => _db.DiagnosticKitRegisters.FirstOrDefaultAsync(x => x.Id == id);
+    public Task AddDiagnosticKitRegisterAsync(DiagnosticKitRegister item) => _db.DiagnosticKitRegisters.AddAsync(item).AsTask();
+    public Task UpdateDiagnosticKitRegisterAsync(DiagnosticKitRegister item) { _db.DiagnosticKitRegisters.Update(item); return Task.CompletedTask; }
+    public void RemoveDiagnosticKitRegister(DiagnosticKitRegister item) => _db.DiagnosticKitRegisters.Remove(item);
+
+    // Uddanam Register 5: Apheresis / SDP Records
+    public Task<List<ApheresisRecord>> GetApheresisRecordsAsync() =>
+        _db.ApheresisRecords.AsNoTracking().OrderByDescending(x => x.Date).ToListAsync();
+    public Task<ApheresisRecord?> FindApheresisRecordAsync(Guid id) => _db.ApheresisRecords.FirstOrDefaultAsync(x => x.Id == id);
+    public Task AddApheresisRecordAsync(ApheresisRecord item) => _db.ApheresisRecords.AddAsync(item).AsTask();
+    public Task UpdateApheresisRecordAsync(ApheresisRecord item) { _db.ApheresisRecords.Update(item); return Task.CompletedTask; }
+    public void RemoveApheresisRecord(ApheresisRecord item) => _db.ApheresisRecords.Remove(item);
+
     public async Task ClearOperationalDataAsync()
     {
         _db.BloodRequests.RemoveRange(_db.BloodRequests);
@@ -83,6 +124,11 @@ public sealed class EfBloodBankRepository : IBloodBankRepository
         _db.ComponentCollections.RemoveRange(_db.ComponentCollections);
         _db.ComponentDiscards.RemoveRange(_db.ComponentDiscards);
         _db.ComponentReturns.RemoveRange(_db.ComponentReturns);
+        _db.TtiScreeningRecords.RemoveRange(_db.TtiScreeningRecords);
+        _db.PatientGroupingRecords.RemoveRange(_db.PatientGroupingRecords);
+        _db.BloodBagStockRegisters.RemoveRange(_db.BloodBagStockRegisters);
+        _db.DiagnosticKitRegisters.RemoveRange(_db.DiagnosticKitRegisters);
+        _db.ApheresisRecords.RemoveRange(_db.ApheresisRecords);
         await _db.SaveChangesAsync();
     }
     public Task SaveChangesAsync() => _db.SaveChangesAsync();

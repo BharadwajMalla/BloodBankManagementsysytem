@@ -62,4 +62,34 @@ public class BloodBankController(IBloodBankService service):ControllerBase
     [HttpPut("requests/{id:guid}")] public async Task<IActionResult> UpdateRequest(Guid id, UpdateBloodRequestDto dto){if(!ModelState.IsValid)return BadRequest(ModelState);var r=await service.UpdateRequestAsync(id,dto);return r==null?NotFound(new{message="Request not found."}):Ok(r);}
     [HttpPut("components/discards/{id:guid}")] public async Task<IActionResult> UpdateComponentDiscard(Guid id, UpdateComponentDiscardDto dto){if(!ModelState.IsValid)return BadRequest(ModelState);var (r,err)=await service.UpdateComponentDiscardAsync(id,dto);return r==null?BadRequest(new{message=err}):Ok(r);}
     [HttpPut("components/returns/{id:guid}")] public async Task<IActionResult> UpdateComponentReturn(Guid id, UpdateComponentReturnDto dto){if(!ModelState.IsValid)return BadRequest(ModelState);var (r,err)=await service.UpdateComponentReturnAsync(id,dto);return r==null?BadRequest(new{message=err}):Ok(r);}
+
+    // ==========================================
+    // Uddanam Blood Centre Register Endpoints
+    // ==========================================
+    [HttpGet("registers/tti")] public async Task<IActionResult> GetTtiScreenings(string? status) => Ok(await service.GetTtiScreeningsAsync(status));
+    [HttpPost("registers/tti")] public async Task<IActionResult> CreateTtiScreening(CreateTtiScreeningDto dto) { if(!ModelState.IsValid) return BadRequest(ModelState); var res = await service.CreateTtiScreeningAsync(dto); return Ok(res); }
+    [HttpPut("registers/tti/{id:guid}")] public async Task<IActionResult> UpdateTtiScreening(Guid id, UpdateTtiScreeningDto dto) { if(!ModelState.IsValid) return BadRequest(ModelState); var res = await service.UpdateTtiScreeningAsync(id, dto); return res == null ? NotFound(new{message="Record not found."}) : Ok(res); }
+    [HttpDelete("registers/tti/{id:guid}")] public async Task<IActionResult> DeleteTtiScreening(Guid id) => await service.DeleteTtiScreeningAsync(id) ? NoContent() : NotFound();
+
+    [HttpGet("registers/grouping")] public async Task<IActionResult> GetPatientGroupings() => Ok(await service.GetPatientGroupingsAsync());
+    [HttpPost("registers/grouping")] public async Task<IActionResult> CreatePatientGrouping(CreatePatientGroupingDto dto) { if(!ModelState.IsValid) return BadRequest(ModelState); var res = await service.CreatePatientGroupingAsync(dto); return Ok(res); }
+    [HttpPut("registers/grouping/{id:guid}")] public async Task<IActionResult> UpdatePatientGrouping(Guid id, UpdatePatientGroupingDto dto) { if(!ModelState.IsValid) return BadRequest(ModelState); var res = await service.UpdatePatientGroupingAsync(id, dto); return res == null ? NotFound(new{message="Record not found."}) : Ok(res); }
+    [HttpDelete("registers/grouping/{id:guid}")] public async Task<IActionResult> DeletePatientGrouping(Guid id) => await service.DeletePatientGroupingAsync(id) ? NoContent() : NotFound();
+
+    [HttpGet("registers/bag-stock")] public async Task<IActionResult> GetBloodBagStockRegisters() => Ok(await service.GetBloodBagStockRegistersAsync());
+    [HttpPost("registers/bag-stock")] public async Task<IActionResult> CreateBloodBagStockRegister(CreateBloodBagStockRegisterDto dto) { if(!ModelState.IsValid) return BadRequest(ModelState); var res = await service.CreateBloodBagStockRegisterAsync(dto); return Ok(res); }
+    [HttpPut("registers/bag-stock/{id:guid}")] public async Task<IActionResult> UpdateBloodBagStockRegister(Guid id, UpdateBloodBagStockRegisterDto dto) { if(!ModelState.IsValid) return BadRequest(ModelState); var res = await service.UpdateBloodBagStockRegisterAsync(id, dto); return res == null ? NotFound(new{message="Record not found."}) : Ok(res); }
+    [HttpDelete("registers/bag-stock/{id:guid}")] public async Task<IActionResult> DeleteBloodBagStockRegister(Guid id) => await service.DeleteBloodBagStockRegisterAsync(id) ? NoContent() : NotFound();
+
+    [HttpGet("registers/diagnostic-kits")] public async Task<IActionResult> GetDiagnosticKitRegisters() => Ok(await service.GetDiagnosticKitRegistersAsync());
+    [HttpPost("registers/diagnostic-kits")] public async Task<IActionResult> CreateDiagnosticKitRegister(CreateDiagnosticKitRegisterDto dto) { if(!ModelState.IsValid) return BadRequest(ModelState); var res = await service.CreateDiagnosticKitRegisterAsync(dto); return Ok(res); }
+    [HttpPut("registers/diagnostic-kits/{id:guid}")] public async Task<IActionResult> UpdateDiagnosticKitRegister(Guid id, UpdateDiagnosticKitRegisterDto dto) { if(!ModelState.IsValid) return BadRequest(ModelState); var res = await service.UpdateDiagnosticKitRegisterAsync(id, dto); return res == null ? NotFound(new{message="Record not found."}) : Ok(res); }
+    [HttpDelete("registers/diagnostic-kits/{id:guid}")] public async Task<IActionResult> DeleteDiagnosticKitRegister(Guid id) => await service.DeleteDiagnosticKitRegisterAsync(id) ? NoContent() : NotFound();
+
+    [HttpGet("registers/apheresis")] public async Task<IActionResult> GetApheresisRecords() => Ok(await service.GetApheresisRecordsAsync());
+    [HttpPost("registers/apheresis")] public async Task<IActionResult> CreateApheresisRecord(CreateApheresisRecordDto dto) { if(!ModelState.IsValid) return BadRequest(ModelState); var res = await service.CreateApheresisRecordAsync(dto); return Ok(res); }
+    [HttpPut("registers/apheresis/{id:guid}")] public async Task<IActionResult> UpdateApheresisRecord(Guid id, UpdateApheresisRecordDto dto) { if(!ModelState.IsValid) return BadRequest(ModelState); var res = await service.UpdateApheresisRecordAsync(id, dto); return res == null ? NotFound(new{message="Record not found."}) : Ok(res); }
+    [HttpDelete("registers/apheresis/{id:guid}")] public async Task<IActionResult> DeleteApheresisRecord(Guid id) => await service.DeleteApheresisRecordAsync(id) ? NoContent() : NotFound();
+
+    [HttpGet("registers/master-record")] public async Task<IActionResult> GetMasterRecords() => Ok(await service.GetMasterRecordsAsync());
 }

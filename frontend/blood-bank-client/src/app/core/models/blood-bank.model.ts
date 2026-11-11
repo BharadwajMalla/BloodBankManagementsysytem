@@ -292,3 +292,299 @@ export interface CreateComponentReturnPayload {
   reason: string;
   returnedBy: string;
 }
+
+// ================= Uddanam Clinical Registers & Audit Models =================
+
+export interface TtiScreeningRecord {
+  id: string;
+  bagBarcode: string;
+  bloodGroup: string;
+  testingDate: string;
+  hivResult: string;
+  hbsAgResult: string;
+  hcvResult: string;
+  vdrlResult: string;
+  malariaResult: string;
+  atypicalAntibodies: string;
+  overallStatus: string;
+  testedBy: string;
+  approvedBy?: string;
+  remarks?: string;
+  createdAt: string;
+}
+
+export interface CreateTtiScreeningPayload {
+  bagBarcode: string;
+  bloodGroup: string;
+  testingDate?: string;
+  hivResult?: string;
+  hbsAgResult?: string;
+  hcvResult?: string;
+  vdrlResult?: string;
+  malariaResult?: string;
+  atypicalAntibodies?: string;
+  overallStatus?: string;
+  testedBy?: string;
+  approvedBy?: string;
+  remarks?: string;
+}
+
+export interface PatientGroupingRecord {
+  id: string;
+  slNo: number;
+  date: string;
+  patientName: string;
+  ageSex?: string;
+  hospitalName?: string;
+  ipNumber?: string;
+  bagNumber?: string;
+  bagType?: string;
+  bloodGroup: string;
+  rhType: string;
+  antiA: string;
+  antiB: string;
+  antiAb: string;
+  antiD: string;
+  lectinA1: string;
+  lectinH: string;
+  aCells: string;
+  bCells: string;
+  oCells: string;
+  duTest: string;
+  irregularAntibodies: string;
+  autoAntibodies: string;
+  crossmatchSaline: string;
+  crossmatchAlbumin: string;
+  crossmatchAhg: string;
+  technicianSignature?: string;
+  medicalOfficerSignature?: string;
+  createdAt: string;
+}
+
+export interface CreatePatientGroupingPayload {
+  slNo?: number;
+  date?: string;
+  patientName: string;
+  ageSex?: string;
+  hospitalName?: string;
+  ipNumber?: string;
+  bagNumber?: string;
+  bagType?: string;
+  bloodGroup: string;
+  rhType: string;
+  antiA?: string;
+  antiB?: string;
+  antiAb?: string;
+  antiD?: string;
+  lectinA1?: string;
+  lectinH?: string;
+  aCells?: string;
+  bCells?: string;
+  oCells?: string;
+  duTest?: string;
+  irregularAntibodies?: string;
+  autoAntibodies?: string;
+  crossmatchSaline?: string;
+  crossmatchAlbumin?: string;
+  crossmatchAhg?: string;
+  technicianSignature?: string;
+  medicalOfficerSignature?: string;
+}
+
+export interface BloodBagStockRegister {
+  id: string;
+  slNo: number;
+  date: string;
+  supplierName: string;
+  invoiceNo: string;
+  invoiceDate: string;
+  manufacturer: string;
+  batchNo: string;
+  dateOfSupply: string;
+  dateOfManufacture: string;
+  dateOfExpiry: string;
+  codeSpecification: string;
+  resultCoa: string;
+  openingStock: number;
+  quantityReceived: number;
+  quantityUsed: number;
+  wastage: number;
+  balance: number;
+  techSign?: string;
+  medicalOfficerSign?: string;
+  remarks?: string;
+  createdAt: string;
+}
+
+export interface CreateBloodBagStockRegisterPayload {
+  slNo?: number;
+  date?: string;
+  supplierName: string;
+  invoiceNo: string;
+  invoiceDate?: string;
+  manufacturer: string;
+  batchNo: string;
+  dateOfSupply?: string;
+  dateOfManufacture?: string;
+  dateOfExpiry?: string;
+  codeSpecification: string;
+  resultCoa?: string;
+  openingStock: number;
+  quantityReceived: number;
+  quantityUsed: number;
+  wastage: number;
+  balance: number;
+  techSign?: string;
+  medicalOfficerSign?: string;
+  remarks?: string;
+}
+
+export interface DiagnosticKitRegister {
+  id: string;
+  slNo: number;
+  date: string;
+  supplierName: string;
+  kitName: string;
+  manufacturer: string;
+  invoiceNo: string;
+  batchNo: string;
+  dateOfManufacture: string;
+  dateOfExpiry: string;
+  quantityReceived: number;
+  openingBalance: number;
+  noOfTests: number;
+  controlsUsed: number;
+  wastage: number;
+  closingBalance: number;
+  techSign?: string;
+  medicalOfficerSign?: string;
+  remarks?: string;
+  createdAt: string;
+}
+
+export interface CreateDiagnosticKitRegisterPayload {
+  slNo?: number;
+  date?: string;
+  supplierName: string;
+  kitName: string;
+  manufacturer: string;
+  invoiceNo: string;
+  batchNo: string;
+  dateOfManufacture?: string;
+  dateOfExpiry?: string;
+  quantityReceived: number;
+  openingBalance: number;
+  noOfTests: number;
+  controlsUsed: number;
+  wastage: number;
+  closingBalance: number;
+  techSign?: string;
+  medicalOfficerSign?: string;
+  remarks?: string;
+}
+
+export interface ApheresisRecord {
+  id: string;
+  registrationNo: string;
+  date: string;
+  donorName: string;
+  ageSex?: string;
+  weightKg: number;
+  bloodGroup: string;
+  phone?: string;
+  email?: string;
+  timeOfMeal?: string;
+  patientName?: string;
+  patientIpNo?: string;
+  patientBedNo?: string;
+  patientBloodGroup?: string;
+  takenAspirinLast3Days: boolean;
+  haemoglobinGms: number;
+  plateletCountLakhs: number;
+  wbcCount: number;
+  bloodPressure?: string;
+  pulse: number;
+  temperatureCelsius: number;
+  totalProteinsGms: number;
+  procedureStartTime?: string;
+  procedureEndTime?: string;
+  durationMinutes: number;
+  venipunctureSite: string;
+  wholeBloodPumpRateMlMin: number;
+  acdRatio: string;
+  totalBloodVolumeProcessedMl: number;
+  totalProductCollectedMl: number;
+  totalVolumeAcdUsedMl: number;
+  adverseReaction?: string;
+  qualityControlPassed: boolean;
+  phlebotomistSignature?: string;
+  medicalOfficerSignature?: string;
+  remarks?: string;
+  createdAt: string;
+}
+
+export interface CreateApheresisRecordPayload {
+  registrationNo: string;
+  date?: string;
+  donorName: string;
+  ageSex?: string;
+  weightKg: number;
+  bloodGroup: string;
+  phone?: string;
+  email?: string;
+  timeOfMeal?: string;
+  patientName?: string;
+  patientIpNo?: string;
+  patientBedNo?: string;
+  patientBloodGroup?: string;
+  takenAspirinLast3Days: boolean;
+  haemoglobinGms: number;
+  plateletCountLakhs: number;
+  wbcCount: number;
+  bloodPressure?: string;
+  pulse: number;
+  temperatureCelsius: number;
+  totalProteinsGms: number;
+  procedureStartTime?: string;
+  procedureEndTime?: string;
+  durationMinutes: number;
+  venipunctureSite: string;
+  wholeBloodPumpRateMlMin: number;
+  acdRatio: string;
+  totalBloodVolumeProcessedMl: number;
+  totalProductCollectedMl: number;
+  totalVolumeAcdUsedMl: number;
+  adverseReaction?: string;
+  qualityControlPassed: boolean;
+  phlebotomistSignature?: string;
+  medicalOfficerSignature?: string;
+  remarks?: string;
+}
+
+export interface MasterRecordItem {
+  id: string;
+  yearlySlNo?: number;
+  bagNumber: string;
+  bloodGroup: string;
+  componentType: string;
+  dateOfCollection: string;
+  dateOfExpiry: string;
+  bagType: string;
+  volumeMl: number;
+  donorName: string;
+  donorAddress?: string;
+  ageSex?: string;
+  hbPercentage?: number;
+  hivResult: string;
+  hbsAgResult: string;
+  hcvResult: string;
+  vdrlResult: string;
+  malariaResult: string;
+  atypicalAntibodies: string;
+  ttiOverallStatus: string;
+  status: string;
+  utilisationIssueNo?: string;
+  discardReason?: string;
+  techSign?: string;
+  moSign?: string;
+}

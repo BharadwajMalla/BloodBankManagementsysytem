@@ -342,3 +342,221 @@ public class UpdateStockDto
     [Range(0, 100000)]
     public int QuantityUnits { get; set; }
 }
+
+
+// ==========================================
+// Uddanam Blood Centre Register DTOs
+// ==========================================
+
+public class CreateTtiScreeningDto
+{
+    [Required] public string BagBarcode { get; set; } = string.Empty;
+    [Required] public string BloodGroup { get; set; } = string.Empty;
+    public DateTime TestingDate { get; set; } = DateTime.UtcNow;
+    public string HivResult { get; set; } = "Non-Reactive";
+    public string HbsAgResult { get; set; } = "Non-Reactive";
+    public string HcvResult { get; set; } = "Non-Reactive";
+    public string VdrlResult { get; set; } = "Non-Reactive";
+    public string MalariaResult { get; set; } = "Negative";
+    public string AtypicalAntibodies { get; set; } = "Negative";
+    public string OverallStatus { get; set; } = "Passed";
+    public string TestedBy { get; set; } = "Lab Technician";
+    public string? ApprovedBy { get; set; }
+    public string? Remarks { get; set; }
+}
+
+public class TtiScreeningDto : CreateTtiScreeningDto
+{
+    public Guid Id { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class UpdateTtiScreeningDto : CreateTtiScreeningDto
+{
+}
+
+public class CreatePatientGroupingDto
+{
+    public int SlNo { get; set; }
+    public DateTime Date { get; set; } = DateTime.UtcNow;
+    [Required] public string PatientName { get; set; } = string.Empty;
+    public string? AgeSex { get; set; }
+    public string? HospitalName { get; set; }
+    public string? IpNumber { get; set; }
+    public string? BagNumber { get; set; }
+    public string? BagType { get; set; }
+    [Required] public string BloodGroup { get; set; } = string.Empty;
+    [Required] public string RhType { get; set; } = "Positive";
+    public string AntiA { get; set; } = "+";
+    public string AntiB { get; set; } = "-";
+    public string AntiAb { get; set; } = "+";
+    public string AntiD { get; set; } = "+";
+    public string LectinA1 { get; set; } = "+";
+    public string LectinH { get; set; } = "-";
+    public string ACells { get; set; } = "-";
+    public string BCells { get; set; } = "+";
+    public string OCells { get; set; } = "-";
+    public string DuTest { get; set; } = "Negative";
+    public string IrregularAntibodies { get; set; } = "Negative";
+    public string AutoAntibodies { get; set; } = "Negative";
+    public string CrossmatchSaline { get; set; } = "Compatible";
+    public string CrossmatchAlbumin { get; set; } = "Compatible";
+    public string CrossmatchAhg { get; set; } = "Compatible";
+    public string? TechnicianSignature { get; set; }
+    public string? MedicalOfficerSignature { get; set; }
+}
+
+public class PatientGroupingDto : CreatePatientGroupingDto
+{
+    public Guid Id { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class UpdatePatientGroupingDto : CreatePatientGroupingDto
+{
+}
+
+public class CreateBloodBagStockRegisterDto
+{
+    public int SlNo { get; set; }
+    public DateTime Date { get; set; } = DateTime.UtcNow;
+    [Required] public string SupplierName { get; set; } = string.Empty;
+    [Required] public string InvoiceNo { get; set; } = string.Empty;
+    public DateTime InvoiceDate { get; set; } = DateTime.UtcNow;
+    [Required] public string Manufacturer { get; set; } = string.Empty;
+    [Required] public string BatchNo { get; set; } = string.Empty;
+    public DateTime DateOfSupply { get; set; } = DateTime.UtcNow;
+    public DateTime DateOfManufacture { get; set; } = DateTime.UtcNow.AddMonths(-3);
+    public DateTime DateOfExpiry { get; set; } = DateTime.UtcNow.AddYears(2);
+    [Required] public string CodeSpecification { get; set; } = "CPDA-1 Triple (450ml)";
+    public string ResultCoa { get; set; } = "Satisfactory";
+    public int OpeningStock { get; set; }
+    public int QuantityReceived { get; set; }
+    public int QuantityUsed { get; set; }
+    public int Wastage { get; set; }
+    public int Balance { get; set; }
+    public string? TechSign { get; set; }
+    public string? MedicalOfficerSign { get; set; }
+    public string? Remarks { get; set; }
+}
+
+public class BloodBagStockRegisterDto : CreateBloodBagStockRegisterDto
+{
+    public Guid Id { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class UpdateBloodBagStockRegisterDto : CreateBloodBagStockRegisterDto
+{
+}
+
+public class CreateDiagnosticKitRegisterDto
+{
+    public int SlNo { get; set; }
+    public DateTime Date { get; set; } = DateTime.UtcNow;
+    [Required] public string SupplierName { get; set; } = string.Empty;
+    [Required] public string KitName { get; set; } = string.Empty;
+    [Required] public string Manufacturer { get; set; } = string.Empty;
+    [Required] public string InvoiceNo { get; set; } = string.Empty;
+    [Required] public string BatchNo { get; set; } = string.Empty;
+    public DateTime DateOfManufacture { get; set; } = DateTime.UtcNow.AddMonths(-2);
+    public DateTime DateOfExpiry { get; set; } = DateTime.UtcNow.AddMonths(12);
+    public int QuantityReceived { get; set; }
+    public int OpeningBalance { get; set; }
+    public int NoOfTests { get; set; }
+    public int ControlsUsed { get; set; }
+    public int Wastage { get; set; }
+    public int ClosingBalance { get; set; }
+    public string? TechSign { get; set; }
+    public string? MedicalOfficerSign { get; set; }
+    public string? Remarks { get; set; }
+}
+
+public class DiagnosticKitRegisterDto : CreateDiagnosticKitRegisterDto
+{
+    public Guid Id { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class UpdateDiagnosticKitRegisterDto : CreateDiagnosticKitRegisterDto
+{
+}
+
+public class CreateApheresisRecordDto
+{
+    [Required] public string RegistrationNo { get; set; } = string.Empty;
+    public DateTime Date { get; set; } = DateTime.UtcNow;
+    [Required] public string DonorName { get; set; } = string.Empty;
+    public string? AgeSex { get; set; }
+    public decimal WeightKg { get; set; }
+    [Required] public string BloodGroup { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public string? Email { get; set; }
+    public string? TimeOfMeal { get; set; }
+    public string? PatientName { get; set; }
+    public string? PatientIpNo { get; set; }
+    public string? PatientBedNo { get; set; }
+    public string? PatientBloodGroup { get; set; }
+    public bool TakenAspirinLast3Days { get; set; }
+    public decimal HaemoglobinGms { get; set; } = 13.5m;
+    public decimal PlateletCountLakhs { get; set; } = 2.45m;
+    public int WbcCount { get; set; } = 6800;
+    public string? BloodPressure { get; set; } = "120/80";
+    public int Pulse { get; set; } = 74;
+    public decimal TemperatureCelsius { get; set; } = 36.6m;
+    public decimal TotalProteinsGms { get; set; } = 6.8m;
+    public string? ProcedureStartTime { get; set; }
+    public string? ProcedureEndTime { get; set; }
+    public int DurationMinutes { get; set; } = 65;
+    public string VenipunctureSite { get; set; } = "Right";
+    public decimal WholeBloodPumpRateMlMin { get; set; } = 60.0m;
+    public string AcdRatio { get; set; } = "1:9";
+    public decimal TotalBloodVolumeProcessedMl { get; set; } = 3000m;
+    public decimal TotalProductCollectedMl { get; set; } = 300m;
+    public decimal TotalVolumeAcdUsedMl { get; set; } = 300m;
+    public string? AdverseReaction { get; set; }
+    public bool QualityControlPassed { get; set; } = true;
+    public string? PhlebotomistSignature { get; set; }
+    public string? MedicalOfficerSignature { get; set; }
+    public string? Remarks { get; set; }
+}
+
+public class ApheresisRecordDto : CreateApheresisRecordDto
+{
+    public Guid Id { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class UpdateApheresisRecordDto : CreateApheresisRecordDto
+{
+}
+
+
+public class MasterRecordItemDto
+{
+    public Guid Id { get; set; }
+    public int? YearlySlNo { get; set; }
+    public string BagNumber { get; set; } = string.Empty;
+    public string BloodGroup { get; set; } = string.Empty;
+    public string ComponentType { get; set; } = string.Empty;
+    public DateTime DateOfCollection { get; set; }
+    public DateTime DateOfExpiry { get; set; }
+    public string BagType { get; set; } = string.Empty;
+    public decimal VolumeMl { get; set; }
+    public string DonorName { get; set; } = string.Empty;
+    public string? DonorAddress { get; set; }
+    public string? AgeSex { get; set; }
+    public decimal? HbPercentage { get; set; }
+    public string HivResult { get; set; } = "Non-Reactive";
+    public string HbsAgResult { get; set; } = "Non-Reactive";
+    public string HcvResult { get; set; } = "Non-Reactive";
+    public string VdrlResult { get; set; } = "Non-Reactive";
+    public string MalariaResult { get; set; } = "Negative";
+    public string AtypicalAntibodies { get; set; } = "Negative";
+    public string TtiOverallStatus { get; set; } = "Passed";
+    public string Status { get; set; } = "Available";
+    public string? UtilisationIssueNo { get; set; }
+    public string? DiscardReason { get; set; }
+    public string? TechSign { get; set; }
+    public string? MoSign { get; set; }
+}

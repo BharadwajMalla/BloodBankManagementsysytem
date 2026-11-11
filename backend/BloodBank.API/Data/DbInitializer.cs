@@ -167,6 +167,160 @@ public static class DbInitializer
                             [ApprovedAt] datetime2 NULL
                         );
                     END
+                    IF OBJECT_ID('TtiScreeningRecords') IS NULL
+                    BEGIN
+                        CREATE TABLE [TtiScreeningRecords] (
+                            [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                            [BagBarcode] nvarchar(50) NOT NULL,
+                            [BloodGroup] nvarchar(10) NOT NULL,
+                            [TestingDate] datetime2 NOT NULL DEFAULT GETUTCDATE(),
+                            [HivResult] nvarchar(20) NOT NULL DEFAULT 'Non-Reactive',
+                            [HbsAgResult] nvarchar(20) NOT NULL DEFAULT 'Non-Reactive',
+                            [HcvResult] nvarchar(20) NOT NULL DEFAULT 'Non-Reactive',
+                            [VdrlResult] nvarchar(20) NOT NULL DEFAULT 'Non-Reactive',
+                            [MalariaResult] nvarchar(20) NOT NULL DEFAULT 'Negative',
+                            [AtypicalAntibodies] nvarchar(20) NOT NULL DEFAULT 'Negative',
+                            [OverallStatus] nvarchar(30) NOT NULL DEFAULT 'Passed',
+                            [TestedBy] nvarchar(150) NOT NULL,
+                            [ApprovedBy] nvarchar(150) NULL,
+                            [Remarks] nvarchar(500) NULL,
+                            [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE()
+                        );
+                        CREATE INDEX [IX_TtiScreeningRecords_BagBarcode] ON [TtiScreeningRecords] ([BagBarcode]);
+                    END
+
+                    IF OBJECT_ID('PatientGroupingRecords') IS NULL
+                    BEGIN
+                        CREATE TABLE [PatientGroupingRecords] (
+                            [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                            [SlNo] int NOT NULL DEFAULT 1,
+                            [Date] datetime2 NOT NULL DEFAULT GETUTCDATE(),
+                            [PatientName] nvarchar(150) NOT NULL,
+                            [AgeSex] nvarchar(20) NULL,
+                            [HospitalName] nvarchar(150) NULL,
+                            [IpNumber] nvarchar(50) NULL,
+                            [BagNumber] nvarchar(50) NULL,
+                            [BagType] nvarchar(50) NULL,
+                            [BloodGroup] nvarchar(10) NOT NULL,
+                            [RhType] nvarchar(10) NOT NULL DEFAULT 'Positive',
+                            [AntiA] nvarchar(10) NOT NULL DEFAULT '+',
+                            [AntiB] nvarchar(10) NOT NULL DEFAULT '-',
+                            [AntiAb] nvarchar(10) NOT NULL DEFAULT '+',
+                            [AntiD] nvarchar(10) NOT NULL DEFAULT '+',
+                            [LectinA1] nvarchar(10) NOT NULL DEFAULT '+',
+                            [LectinH] nvarchar(10) NOT NULL DEFAULT '-',
+                            [ACells] nvarchar(10) NOT NULL DEFAULT '-',
+                            [BCells] nvarchar(10) NOT NULL DEFAULT '+',
+                            [OCells] nvarchar(10) NOT NULL DEFAULT '-',
+                            [DuTest] nvarchar(20) NOT NULL DEFAULT 'Negative',
+                            [IrregularAntibodies] nvarchar(20) NOT NULL DEFAULT 'Negative',
+                            [AutoAntibodies] nvarchar(20) NOT NULL DEFAULT 'Negative',
+                            [CrossmatchSaline] nvarchar(30) NOT NULL DEFAULT 'Compatible',
+                            [CrossmatchAlbumin] nvarchar(30) NOT NULL DEFAULT 'Compatible',
+                            [CrossmatchAhg] nvarchar(30) NOT NULL DEFAULT 'Compatible',
+                            [TechnicianSignature] nvarchar(150) NULL,
+                            [MedicalOfficerSignature] nvarchar(150) NULL,
+                            [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE()
+                        );
+                    END
+
+                    IF OBJECT_ID('BloodBagStockRegisters') IS NULL
+                    BEGIN
+                        CREATE TABLE [BloodBagStockRegisters] (
+                            [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                            [SlNo] int NOT NULL DEFAULT 1,
+                            [Date] datetime2 NOT NULL DEFAULT GETUTCDATE(),
+                            [SupplierName] nvarchar(200) NOT NULL,
+                            [InvoiceNo] nvarchar(100) NOT NULL,
+                            [InvoiceDate] datetime2 NOT NULL,
+                            [Manufacturer] nvarchar(200) NOT NULL,
+                            [BatchNo] nvarchar(100) NOT NULL,
+                            [DateOfSupply] datetime2 NOT NULL,
+                            [DateOfManufacture] datetime2 NOT NULL,
+                            [DateOfExpiry] datetime2 NOT NULL,
+                            [CodeSpecification] nvarchar(100) NOT NULL,
+                            [ResultCoa] nvarchar(50) NOT NULL DEFAULT 'Satisfactory',
+                            [OpeningStock] int NOT NULL DEFAULT 0,
+                            [QuantityReceived] int NOT NULL DEFAULT 0,
+                            [QuantityUsed] int NOT NULL DEFAULT 0,
+                            [Wastage] int NOT NULL DEFAULT 0,
+                            [Balance] int NOT NULL DEFAULT 0,
+                            [TechSign] nvarchar(150) NULL,
+                            [MedicalOfficerSign] nvarchar(150) NULL,
+                            [Remarks] nvarchar(500) NULL,
+                            [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE()
+                        );
+                    END
+
+                    IF OBJECT_ID('DiagnosticKitRegisters') IS NULL
+                    BEGIN
+                        CREATE TABLE [DiagnosticKitRegisters] (
+                            [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                            [SlNo] int NOT NULL DEFAULT 1,
+                            [Date] datetime2 NOT NULL DEFAULT GETUTCDATE(),
+                            [SupplierName] nvarchar(200) NOT NULL,
+                            [KitName] nvarchar(200) NOT NULL,
+                            [Manufacturer] nvarchar(200) NOT NULL,
+                            [InvoiceNo] nvarchar(100) NOT NULL,
+                            [BatchNo] nvarchar(100) NOT NULL,
+                            [DateOfManufacture] datetime2 NOT NULL,
+                            [DateOfExpiry] datetime2 NOT NULL,
+                            [QuantityReceived] int NOT NULL DEFAULT 0,
+                            [OpeningBalance] int NOT NULL DEFAULT 0,
+                            [NoOfTests] int NOT NULL DEFAULT 0,
+                            [ControlsUsed] int NOT NULL DEFAULT 0,
+                            [Wastage] int NOT NULL DEFAULT 0,
+                            [ClosingBalance] int NOT NULL DEFAULT 0,
+                            [TechSign] nvarchar(150) NULL,
+                            [MedicalOfficerSign] nvarchar(150) NULL,
+                            [Remarks] nvarchar(500) NULL,
+                            [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE()
+                        );
+                    END
+
+                    IF OBJECT_ID('ApheresisRecords') IS NULL
+                    BEGIN
+                        CREATE TABLE [ApheresisRecords] (
+                            [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                            [RegistrationNo] nvarchar(50) NOT NULL,
+                            [Date] datetime2 NOT NULL DEFAULT GETUTCDATE(),
+                            [DonorName] nvarchar(150) NOT NULL,
+                            [AgeSex] nvarchar(20) NULL,
+                            [WeightKg] decimal(18,2) NOT NULL DEFAULT 60,
+                            [BloodGroup] nvarchar(10) NOT NULL,
+                            [Phone] nvarchar(20) NULL,
+                            [Email] nvarchar(100) NULL,
+                            [TimeOfMeal] nvarchar(50) NULL,
+                            [PatientName] nvarchar(150) NULL,
+                            [PatientIpNo] nvarchar(50) NULL,
+                            [PatientBedNo] nvarchar(50) NULL,
+                            [PatientBloodGroup] nvarchar(10) NULL,
+                            [TakenAspirinLast3Days] bit NOT NULL DEFAULT 0,
+                            [HaemoglobinGms] decimal(18,2) NOT NULL DEFAULT 13.5,
+                            [PlateletCountLakhs] decimal(18,2) NOT NULL DEFAULT 2.45,
+                            [WbcCount] int NOT NULL DEFAULT 6500,
+                            [BloodPressure] nvarchar(30) NULL,
+                            [Pulse] int NOT NULL DEFAULT 72,
+                            [TemperatureCelsius] decimal(18,2) NOT NULL DEFAULT 36.6,
+                            [TotalProteinsGms] decimal(18,2) NOT NULL DEFAULT 6.8,
+                            [ProcedureStartTime] nvarchar(20) NULL,
+                            [ProcedureEndTime] nvarchar(20) NULL,
+                            [DurationMinutes] int NOT NULL DEFAULT 65,
+                            [VenipunctureSite] nvarchar(20) NOT NULL DEFAULT 'Right',
+                            [WholeBloodPumpRateMlMin] decimal(18,2) NOT NULL DEFAULT 60.0,
+                            [AcdRatio] nvarchar(20) NOT NULL DEFAULT '1:9',
+                            [TotalBloodVolumeProcessedMl] decimal(18,2) NOT NULL DEFAULT 3000,
+                            [TotalProductCollectedMl] decimal(18,2) NOT NULL DEFAULT 300,
+                            [TotalVolumeAcdUsedMl] decimal(18,2) NOT NULL DEFAULT 300,
+                            [AdverseReaction] nvarchar(200) NULL,
+                            [QualityControlPassed] bit NOT NULL DEFAULT 1,
+                            [PhlebotomistSignature] nvarchar(150) NULL,
+                            [MedicalOfficerSignature] nvarchar(150) NULL,
+                            [Remarks] nvarchar(500) NULL,
+                            [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE()
+                        );
+                    END
+
                     IF OBJECT_ID('ComponentReturns') IS NULL
                     BEGIN
                         CREATE TABLE [ComponentReturns] (
@@ -347,6 +501,139 @@ public static class DbInitializer
                         Reason TEXT NOT NULL,
                         ReturnedBy TEXT NOT NULL,
                         ReturnDate TEXT NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS TtiScreeningRecords (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        BagBarcode TEXT NOT NULL,
+                        BloodGroup TEXT NOT NULL,
+                        TestingDate TEXT NOT NULL,
+                        HivResult TEXT NOT NULL,
+                        HbsAgResult TEXT NOT NULL,
+                        HcvResult TEXT NOT NULL,
+                        VdrlResult TEXT NOT NULL,
+                        MalariaResult TEXT NOT NULL,
+                        AtypicalAntibodies TEXT NOT NULL,
+                        OverallStatus TEXT NOT NULL,
+                        TestedBy TEXT NOT NULL,
+                        ApprovedBy TEXT NULL,
+                        Remarks TEXT NULL,
+                        CreatedAt TEXT NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS PatientGroupingRecords (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        SlNo INTEGER NOT NULL,
+                        Date TEXT NOT NULL,
+                        PatientName TEXT NOT NULL,
+                        AgeSex TEXT NULL,
+                        HospitalName TEXT NULL,
+                        IpNumber TEXT NULL,
+                        BagNumber TEXT NULL,
+                        BagType TEXT NULL,
+                        BloodGroup TEXT NOT NULL,
+                        RhType TEXT NOT NULL,
+                        AntiA TEXT NOT NULL,
+                        AntiB TEXT NOT NULL,
+                        AntiAb TEXT NOT NULL,
+                        AntiD TEXT NOT NULL,
+                        LectinA1 TEXT NOT NULL,
+                        LectinH TEXT NOT NULL,
+                        ACells TEXT NOT NULL,
+                        BCells TEXT NOT NULL,
+                        OCells TEXT NOT NULL,
+                        DuTest TEXT NOT NULL,
+                        IrregularAntibodies TEXT NOT NULL,
+                        AutoAntibodies TEXT NOT NULL,
+                        CrossmatchSaline TEXT NOT NULL,
+                        CrossmatchAlbumin TEXT NOT NULL,
+                        CrossmatchAhg TEXT NOT NULL,
+                        TechnicianSignature TEXT NULL,
+                        MedicalOfficerSignature TEXT NULL,
+                        CreatedAt TEXT NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS BloodBagStockRegisters (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        SlNo INTEGER NOT NULL,
+                        Date TEXT NOT NULL,
+                        SupplierName TEXT NOT NULL,
+                        InvoiceNo TEXT NOT NULL,
+                        InvoiceDate TEXT NOT NULL,
+                        Manufacturer TEXT NOT NULL,
+                        BatchNo TEXT NOT NULL,
+                        DateOfSupply TEXT NOT NULL,
+                        DateOfManufacture TEXT NOT NULL,
+                        DateOfExpiry TEXT NOT NULL,
+                        CodeSpecification TEXT NOT NULL,
+                        ResultCoa TEXT NOT NULL,
+                        OpeningStock INTEGER NOT NULL,
+                        QuantityReceived INTEGER NOT NULL,
+                        QuantityUsed INTEGER NOT NULL,
+                        Wastage INTEGER NOT NULL,
+                        Balance INTEGER NOT NULL,
+                        TechSign TEXT NULL,
+                        MedicalOfficerSign TEXT NULL,
+                        Remarks TEXT NULL,
+                        CreatedAt TEXT NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS DiagnosticKitRegisters (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        SlNo INTEGER NOT NULL,
+                        Date TEXT NOT NULL,
+                        SupplierName TEXT NOT NULL,
+                        KitName TEXT NOT NULL,
+                        Manufacturer TEXT NOT NULL,
+                        InvoiceNo TEXT NOT NULL,
+                        BatchNo TEXT NOT NULL,
+                        DateOfManufacture TEXT NOT NULL,
+                        DateOfExpiry TEXT NOT NULL,
+                        QuantityReceived INTEGER NOT NULL,
+                        OpeningBalance INTEGER NOT NULL,
+                        NoOfTests INTEGER NOT NULL,
+                        ControlsUsed INTEGER NOT NULL,
+                        Wastage INTEGER NOT NULL,
+                        ClosingBalance INTEGER NOT NULL,
+                        TechSign TEXT NULL,
+                        MedicalOfficerSign TEXT NULL,
+                        Remarks TEXT NULL,
+                        CreatedAt TEXT NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS ApheresisRecords (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        RegistrationNo TEXT NOT NULL,
+                        Date TEXT NOT NULL,
+                        DonorName TEXT NOT NULL,
+                        AgeSex TEXT NULL,
+                        WeightKg REAL NOT NULL,
+                        BloodGroup TEXT NOT NULL,
+                        Phone TEXT NULL,
+                        Email TEXT NULL,
+                        TimeOfMeal TEXT NULL,
+                        PatientName TEXT NULL,
+                        PatientIpNo TEXT NULL,
+                        PatientBedNo TEXT NULL,
+                        PatientBloodGroup TEXT NULL,
+                        TakenAspirinLast3Days INTEGER NOT NULL,
+                        HaemoglobinGms REAL NOT NULL,
+                        PlateletCountLakhs REAL NOT NULL,
+                        WbcCount INTEGER NOT NULL,
+                        BloodPressure TEXT NULL,
+                        Pulse INTEGER NOT NULL,
+                        TemperatureCelsius REAL NOT NULL,
+                        TotalProteinsGms REAL NOT NULL,
+                        ProcedureStartTime TEXT NULL,
+                        ProcedureEndTime TEXT NULL,
+                        DurationMinutes INTEGER NOT NULL,
+                        VenipunctureSite TEXT NOT NULL,
+                        WholeBloodPumpRateMlMin REAL NOT NULL,
+                        AcdRatio TEXT NOT NULL,
+                        TotalBloodVolumeProcessedMl REAL NOT NULL,
+                        TotalProductCollectedMl REAL NOT NULL,
+                        TotalVolumeAcdUsedMl REAL NOT NULL,
+                        AdverseReaction TEXT NULL,
+                        QualityControlPassed INTEGER NOT NULL,
+                        PhlebotomistSignature TEXT NULL,
+                        MedicalOfficerSignature TEXT NULL,
+                        Remarks TEXT NULL,
+                        CreatedAt TEXT NOT NULL
                     );");
             }
 
@@ -898,6 +1185,266 @@ public static class DbInitializer
                 ReturnDate = DateTime.UtcNow.AddHours(-5)
             }
         );
+
+        
+        // 11. Seed Uddanam TTI Screening Records
+        if (!await context.TtiScreeningRecords.AnyAsync())
+        {
+            await context.TtiScreeningRecords.AddRangeAsync(
+                new TtiScreeningRecord
+                {
+                    Id = Guid.NewGuid(),
+                    BagBarcode = "BAG-2026-WB-8801",
+                    BloodGroup = "O+",
+                    TestingDate = DateTime.UtcNow.AddDays(-5),
+                    HivResult = "Non-Reactive",
+                    HbsAgResult = "Non-Reactive",
+                    HcvResult = "Non-Reactive",
+                    VdrlResult = "Non-Reactive",
+                    MalariaResult = "Negative",
+                    AtypicalAntibodies = "Negative",
+                    OverallStatus = "Passed",
+                    TestedBy = "Lab Tech S. Murthy",
+                    ApprovedBy = "Dr. K. S. Rao, M.O.",
+                    Remarks = "All 4th Gen ELISA markers negative. Unit released for clinical distribution."
+                },
+                new TtiScreeningRecord
+                {
+                    Id = Guid.NewGuid(),
+                    BagBarcode = "BAG-2026-PLT-8802",
+                    BloodGroup = "A+",
+                    TestingDate = DateTime.UtcNow.AddDays(-2),
+                    HivResult = "Non-Reactive",
+                    HbsAgResult = "Non-Reactive",
+                    HcvResult = "Non-Reactive",
+                    VdrlResult = "Non-Reactive",
+                    MalariaResult = "Negative",
+                    AtypicalAntibodies = "Negative",
+                    OverallStatus = "Passed",
+                    TestedBy = "Lab Tech P. Anusha",
+                    ApprovedBy = "Dr. K. S. Rao, M.O.",
+                    Remarks = "Platelet concentrate tested and cleared."
+                },
+                new TtiScreeningRecord
+                {
+                    Id = Guid.NewGuid(),
+                    BagBarcode = "BAG-2026-DIS-9901",
+                    BloodGroup = "B+",
+                    TestingDate = DateTime.UtcNow.AddHours(-6),
+                    HivResult = "Non-Reactive",
+                    HbsAgResult = "Reactive (Borderline)",
+                    HcvResult = "Non-Reactive",
+                    VdrlResult = "Non-Reactive",
+                    MalariaResult = "Negative",
+                    AtypicalAntibodies = "Negative",
+                    OverallStatus = "Failed - Reactive",
+                    TestedBy = "Lab Tech S. Murthy",
+                    ApprovedBy = "Dr. K. S. Rao, M.O.",
+                    Remarks = "HBsAg repeat test reactive. Immediate autoclave sterilization and bio-waste discard."
+                }
+            );
+        }
+
+        // 12. Seed Uddanam Patient Grouping Records
+        if (!await context.PatientGroupingRecords.AnyAsync())
+        {
+            await context.PatientGroupingRecords.AddRangeAsync(
+                new PatientGroupingRecord
+                {
+                    Id = Guid.NewGuid(),
+                    SlNo = 1,
+                    Date = DateTime.UtcNow.AddDays(-3),
+                    PatientName = "V. Rama Rao",
+                    AgeSex = "54 / M",
+                    HospitalName = "Government Area Hospital, Sompeta",
+                    IpNumber = "GAH-2026-904",
+                    BagNumber = "BAG-2026-WB-8801",
+                    BagType = "Triple (450ml)",
+                    BloodGroup = "O",
+                    RhType = "Positive",
+                    AntiA = "-", AntiB = "-", AntiAb = "-", AntiD = "+",
+                    LectinA1 = "-", LectinH = "4+",
+                    ACells = "4+", BCells = "4+", OCells = "-",
+                    DuTest = "Negative", IrregularAntibodies = "Negative", AutoAntibodies = "Negative",
+                    CrossmatchSaline = "Compatible", CrossmatchAlbumin = "Compatible", CrossmatchAhg = "Compatible",
+                    TechnicianSignature = "Lab Tech P. Anusha",
+                    MedicalOfficerSignature = "Dr. K. S. Rao"
+                },
+                new PatientGroupingRecord
+                {
+                    Id = Guid.NewGuid(),
+                    SlNo = 2,
+                    Date = DateTime.UtcNow.AddDays(-1),
+                    PatientName = "K. Lakshmi",
+                    AgeSex = "38 / F",
+                    HospitalName = "Savithri Nursing Home, Sompeta",
+                    IpNumber = "SNH-882",
+                    BagNumber = "BAG-2026-PLT-8802",
+                    BagType = "Single (250ml)",
+                    BloodGroup = "A",
+                    RhType = "Positive",
+                    AntiA = "4+", AntiB = "-", AntiAb = "4+", AntiD = "+",
+                    LectinA1 = "4+", LectinH = "-",
+                    ACells = "-", BCells = "4+", OCells = "-",
+                    DuTest = "Negative", IrregularAntibodies = "Negative", AutoAntibodies = "Negative",
+                    CrossmatchSaline = "Compatible", CrossmatchAlbumin = "Compatible", CrossmatchAhg = "Compatible",
+                    TechnicianSignature = "Lab Tech S. Murthy",
+                    MedicalOfficerSignature = "Dr. K. S. Rao"
+                }
+            );
+        }
+
+        // 13. Seed Uddanam CPDA Blood Bags Stock Register
+        if (!await context.BloodBagStockRegisters.AnyAsync())
+        {
+            await context.BloodBagStockRegisters.AddRangeAsync(
+                new BloodBagStockRegister
+                {
+                    Id = Guid.NewGuid(),
+                    SlNo = 1,
+                    Date = DateTime.UtcNow.AddDays(-20),
+                    SupplierName = "Terumo Penpol Pvt Ltd, Hyderabad",
+                    InvoiceNo = "TP-2026-INV-5510",
+                    InvoiceDate = DateTime.UtcNow.AddDays(-22),
+                    Manufacturer = "Terumo Penpol Ltd",
+                    BatchNo = "B-CPDA-9902",
+                    DateOfSupply = DateTime.UtcNow.AddDays(-20),
+                    DateOfManufacture = DateTime.UtcNow.AddMonths(-2),
+                    DateOfExpiry = DateTime.UtcNow.AddYears(2),
+                    CodeSpecification = "CPDA-1 Triple Bag (450ml)",
+                    ResultCoa = "Satisfactory (Sterility & Endotoxin Passed)",
+                    OpeningStock = 120,
+                    QuantityReceived = 200,
+                    QuantityUsed = 45,
+                    Wastage = 1,
+                    Balance = 274,
+                    TechSign = "S. Murthy",
+                    MedicalOfficerSign = "Dr. K. S. Rao",
+                    Remarks = "Standard 16G ultra-thin needle bags. Cold-chain storage at 22C."
+                },
+                new BloodBagStockRegister
+                {
+                    Id = Guid.NewGuid(),
+                    SlNo = 2,
+                    Date = DateTime.UtcNow.AddDays(-10),
+                    SupplierName = "Hindustan Syringes & Medical Devices (Dispovan)",
+                    InvoiceNo = "HMD-AP-4019",
+                    InvoiceDate = DateTime.UtcNow.AddDays(-12),
+                    Manufacturer = "HMD Healthcare",
+                    BatchNo = "HMD-SAGM-881",
+                    DateOfSupply = DateTime.UtcNow.AddDays(-10),
+                    DateOfManufacture = DateTime.UtcNow.AddMonths(-1),
+                    DateOfExpiry = DateTime.UtcNow.AddYears(2),
+                    CodeSpecification = "SAGM Quadruple Blood Bag (450ml)",
+                    ResultCoa = "Satisfactory",
+                    OpeningStock = 50,
+                    QuantityReceived = 100,
+                    QuantityUsed = 22,
+                    Wastage = 0,
+                    Balance = 128,
+                    TechSign = "P. Anusha",
+                    MedicalOfficerSign = "Dr. K. S. Rao",
+                    Remarks = "Optimal red cell preservation up to 42 days."
+                }
+            );
+        }
+
+        // 14. Seed Uddanam Diagnostic Kits & Reagents (ELISA Record)
+        if (!await context.DiagnosticKitRegisters.AnyAsync())
+        {
+            await context.DiagnosticKitRegisters.AddRangeAsync(
+                new DiagnosticKitRegister
+                {
+                    Id = Guid.NewGuid(),
+                    SlNo = 1,
+                    Date = DateTime.UtcNow.AddDays(-15),
+                    SupplierName = "J. Mitra & Co. Pvt Ltd, New Delhi",
+                    KitName = "HIV 4th Gen Microlisa ELISA Kit (96 Tests)",
+                    Manufacturer = "J. Mitra & Co.",
+                    InvoiceNo = "JM-2026-9921",
+                    BatchNo = "HIV-4G-7703",
+                    DateOfManufacture = DateTime.UtcNow.AddMonths(-2),
+                    DateOfExpiry = DateTime.UtcNow.AddMonths(10),
+                    QuantityReceived = 5,
+                    OpeningBalance = 2,
+                    NoOfTests = 48,
+                    ControlsUsed = 6,
+                    Wastage = 0,
+                    ClosingBalance = 6,
+                    TechSign = "S. Murthy",
+                    MedicalOfficerSign = "Dr. K. S. Rao",
+                    Remarks = "Validation run passed: Positive control OD > 1.2, Negative control OD < 0.15."
+                },
+                new DiagnosticKitRegister
+                {
+                    Id = Guid.NewGuid(),
+                    SlNo = 2,
+                    Date = DateTime.UtcNow.AddDays(-15),
+                    SupplierName = "Transasia Bio-Medicals Ltd, Mumbai",
+                    KitName = "ErbaLisa HBsAg ELISA Kit (96 Tests)",
+                    Manufacturer = "Transasia",
+                    InvoiceNo = "TA-2026-4402",
+                    BatchNo = "HBS-EL-551",
+                    DateOfManufacture = DateTime.UtcNow.AddMonths(-1),
+                    DateOfExpiry = DateTime.UtcNow.AddMonths(11),
+                    QuantityReceived = 4,
+                    OpeningBalance = 1,
+                    NoOfTests = 36,
+                    ControlsUsed = 4,
+                    Wastage = 0,
+                    ClosingBalance = 4,
+                    TechSign = "P. Anusha",
+                    MedicalOfficerSign = "Dr. K. S. Rao",
+                    Remarks = "Sensitivity 100%, Specificity 99.8% verified."
+                }
+            );
+        }
+
+        // 15. Seed Uddanam Apheresis / SDP Record
+        if (!await context.ApheresisRecords.AnyAsync())
+        {
+            await context.ApheresisRecords.AddAsync(
+                new ApheresisRecord
+                {
+                    Id = Guid.NewGuid(),
+                    RegistrationNo = "SDP-2026-001",
+                    Date = DateTime.UtcNow.AddDays(-4),
+                    DonorName = "P. Venkata Ramana",
+                    AgeSex = "29 / M",
+                    WeightKg = 72.5m,
+                    BloodGroup = "B+",
+                    Phone = "9848123456",
+                    Email = "ramana.p@gmail.com",
+                    TimeOfMeal = "08:30 AM (Light breakfast)",
+                    PatientName = "D. Appala Naidu (Leukemia chemotherapy thrombocytopenia)",
+                    PatientIpNo = "GAH-ONCO-402",
+                    PatientBedNo = "ICU-Bed-04",
+                    PatientBloodGroup = "B+",
+                    TakenAspirinLast3Days = false,
+                    HaemoglobinGms = 14.8m,
+                    PlateletCountLakhs = 2.85m,
+                    WbcCount = 7200,
+                    BloodPressure = "120/80 mmHg",
+                    Pulse = 74,
+                    TemperatureCelsius = 36.7m,
+                    TotalProteinsGms = 7.1m,
+                    ProcedureStartTime = "10:15 AM",
+                    ProcedureEndTime = "11:22 AM",
+                    DurationMinutes = 67,
+                    VenipunctureSite = "Right Antecubital",
+                    WholeBloodPumpRateMlMin = 65.0m,
+                    AcdRatio = "1:9",
+                    TotalBloodVolumeProcessedMl = 3200m,
+                    TotalProductCollectedMl = 320m,
+                    TotalVolumeAcdUsedMl = 310m,
+                    AdverseReaction = "Nil (Mild tingling managed with 10% oral calcium gluconate)",
+                    QualityControlPassed = true,
+                    PhlebotomistSignature = "Senior Phlebotomist T. N. Rao",
+                    MedicalOfficerSignature = "Dr. K. S. Rao, M.O.",
+                    Remarks = "Product Yield: 3.8 x 10^11 platelets. Swirling +++, stored on continuous agitator at 22C."
+                }
+            );
+        }
 
         await context.SaveChangesAsync();
         logger?.LogInformation("Live example operational data successfully populated directly into the database.");

@@ -20,6 +20,13 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
     private readonly Dictionary<Guid, ComponentDiscard> _trackedDiscards = new();
     private readonly Dictionary<Guid, ComponentReturn> _trackedReturns = new();
 
+    // Uddanam Registers Tracking
+    private readonly Dictionary<Guid, TtiScreeningRecord> _trackedTti = new();
+    private readonly Dictionary<Guid, PatientGroupingRecord> _trackedGroupings = new();
+    private readonly Dictionary<Guid, BloodBagStockRegister> _trackedBagStocks = new();
+    private readonly Dictionary<Guid, DiagnosticKitRegister> _trackedKits = new();
+    private readonly Dictionary<Guid, ApheresisRecord> _trackedApheresis = new();
+
     // Pending Inserts & Deletes
     private readonly List<object> _pendingInserts = new();
     private readonly List<(string TableName, Guid Id)> _pendingDeletes = new();
@@ -43,6 +50,11 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
             case ComponentCollection cc: _trackedCollections[cc.Id] = cc; break;
             case ComponentDiscard cd: _trackedDiscards[cd.Id] = cd; break;
             case ComponentReturn cr: _trackedReturns[cr.Id] = cr; break;
+            case TtiScreeningRecord tti: _trackedTti[tti.Id] = tti; break;
+            case PatientGroupingRecord pg: _trackedGroupings[pg.Id] = pg; break;
+            case BloodBagStockRegister bbs: _trackedBagStocks[bbs.Id] = bbs; break;
+            case DiagnosticKitRegister dk: _trackedKits[dk.Id] = dk; break;
+            case ApheresisRecord aph: _trackedApheresis[aph.Id] = aph; break;
         }
     }
 
@@ -553,7 +565,228 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
     }
 
     // ==========================================
-    // 11. Clear Operational Data
+    // 11. Uddanam Register 1: TTI Screening
+    // ==========================================
+    public async Task<List<TtiScreeningRecord>> GetTtiScreeningsAsync(string? status = null)
+    {
+        using var conn = _factory.CreateConnection();
+        const string sql = @"
+            SELECT * FROM TtiScreeningRecords 
+            WHERE (@Status IS NULL OR OverallStatus = @Status) 
+            ORDER BY TestingDate DESC";
+        var list = (await conn.QueryAsync<TtiScreeningRecord>(sql, new { Status = string.IsNullOrWhiteSpace(status) ? null : status.Trim() })).AsList();
+        foreach (var item in list) Track(item);
+        return list;
+    }
+
+    public async Task<TtiScreeningRecord?> FindTtiScreeningAsync(Guid id)
+    {
+        if (_trackedTti.TryGetValue(id, out var tracked)) return tracked;
+        using var conn = _factory.CreateConnection();
+        const string sql = "SELECT * FROM TtiScreeningRecords WHERE Id = @Id";
+        var item = await conn.QuerySingleOrDefaultAsync<TtiScreeningRecord>(sql, new { Id = id });
+        Track(item);
+        return item;
+    }
+
+    public async Task<TtiScreeningRecord?> FindTtiScreeningByBarcodeAsync(string barcode)
+    {
+        var code = barcode.Trim();
+        var tracked = _trackedTti.Values.FirstOrDefault(t => t.BagBarcode.Equals(code, StringComparison.OrdinalIgnoreCase));
+        if (tracked != null) return tracked;
+
+        using var conn = _factory.CreateConnection();
+        const string sql = "SELECT * FROM TtiScreeningRecords WHERE BagBarcode = @Barcode";
+        var item = await conn.QueryFirstOrDefaultAsync<TtiScreeningRecord>(sql, new { Barcode = code });
+        Track(item);
+        return item;
+    }
+
+    public Task AddTtiScreeningAsync(TtiScreeningRecord item)
+    {
+        _trackedTti[item.Id] = item;
+        _pendingInserts.Add(item);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateTtiScreeningAsync(TtiScreeningRecord item)
+    {
+        _trackedTti[item.Id] = item;
+        return Task.CompletedTask;
+    }
+
+    public void RemoveTtiScreening(TtiScreeningRecord item)
+    {
+        _trackedTti.Remove(item.Id);
+        _pendingDeletes.Add(("TtiScreeningRecords", item.Id));
+    }
+
+    // ==========================================
+    // 12. Uddanam Register 2: Patient Grouping & Crossmatch
+    // ==========================================
+    public async Task<List<PatientGroupingRecord>> GetPatientGroupingsAsync()
+    {
+        using var conn = _factory.CreateConnection();
+        const string sql = "SELECT * FROM PatientGroupingRecords ORDER BY Date DESC";
+        var list = (await conn.QueryAsync<PatientGroupingRecord>(sql)).AsList();
+        foreach (var item in list) Track(item);
+        return list;
+    }
+
+    public async Task<PatientGroupingRecord?> FindPatientGroupingAsync(Guid id)
+    {
+        if (_trackedGroupings.TryGetValue(id, out var tracked)) return tracked;
+        using var conn = _factory.CreateConnection();
+        const string sql = "SELECT * FROM PatientGroupingRecords WHERE Id = @Id";
+        var item = await conn.QuerySingleOrDefaultAsync<PatientGroupingRecord>(sql, new { Id = id });
+        Track(item);
+        return item;
+    }
+
+    public Task AddPatientGroupingAsync(PatientGroupingRecord item)
+    {
+        _trackedGroupings[item.Id] = item;
+        _pendingInserts.Add(item);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdatePatientGroupingAsync(PatientGroupingRecord item)
+    {
+        _trackedGroupings[item.Id] = item;
+        return Task.CompletedTask;
+    }
+
+    public void RemovePatientGrouping(PatientGroupingRecord item)
+    {
+        _trackedGroupings.Remove(item.Id);
+        _pendingDeletes.Add(("PatientGroupingRecords", item.Id));
+    }
+
+    // ==========================================
+    // 13. Uddanam Register 3: CPDA Blood Bags Stock Register
+    // ==========================================
+    public async Task<List<BloodBagStockRegister>> GetBloodBagStockRegistersAsync()
+    {
+        using var conn = _factory.CreateConnection();
+        const string sql = "SELECT * FROM BloodBagStockRegisters ORDER BY Date DESC";
+        var list = (await conn.QueryAsync<BloodBagStockRegister>(sql)).AsList();
+        foreach (var item in list) Track(item);
+        return list;
+    }
+
+    public async Task<BloodBagStockRegister?> FindBloodBagStockRegisterAsync(Guid id)
+    {
+        if (_trackedBagStocks.TryGetValue(id, out var tracked)) return tracked;
+        using var conn = _factory.CreateConnection();
+        const string sql = "SELECT * FROM BloodBagStockRegisters WHERE Id = @Id";
+        var item = await conn.QuerySingleOrDefaultAsync<BloodBagStockRegister>(sql, new { Id = id });
+        Track(item);
+        return item;
+    }
+
+    public Task AddBloodBagStockRegisterAsync(BloodBagStockRegister item)
+    {
+        _trackedBagStocks[item.Id] = item;
+        _pendingInserts.Add(item);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateBloodBagStockRegisterAsync(BloodBagStockRegister item)
+    {
+        _trackedBagStocks[item.Id] = item;
+        return Task.CompletedTask;
+    }
+
+    public void RemoveBloodBagStockRegister(BloodBagStockRegister item)
+    {
+        _trackedBagStocks.Remove(item.Id);
+        _pendingDeletes.Add(("BloodBagStockRegisters", item.Id));
+    }
+
+    // ==========================================
+    // 14. Uddanam Register 4: Diagnostic Kits & Reagents
+    // ==========================================
+    public async Task<List<DiagnosticKitRegister>> GetDiagnosticKitRegistersAsync()
+    {
+        using var conn = _factory.CreateConnection();
+        const string sql = "SELECT * FROM DiagnosticKitRegisters ORDER BY Date DESC";
+        var list = (await conn.QueryAsync<DiagnosticKitRegister>(sql)).AsList();
+        foreach (var item in list) Track(item);
+        return list;
+    }
+
+    public async Task<DiagnosticKitRegister?> FindDiagnosticKitRegisterAsync(Guid id)
+    {
+        if (_trackedKits.TryGetValue(id, out var tracked)) return tracked;
+        using var conn = _factory.CreateConnection();
+        const string sql = "SELECT * FROM DiagnosticKitRegisters WHERE Id = @Id";
+        var item = await conn.QuerySingleOrDefaultAsync<DiagnosticKitRegister>(sql, new { Id = id });
+        Track(item);
+        return item;
+    }
+
+    public Task AddDiagnosticKitRegisterAsync(DiagnosticKitRegister item)
+    {
+        _trackedKits[item.Id] = item;
+        _pendingInserts.Add(item);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateDiagnosticKitRegisterAsync(DiagnosticKitRegister item)
+    {
+        _trackedKits[item.Id] = item;
+        return Task.CompletedTask;
+    }
+
+    public void RemoveDiagnosticKitRegister(DiagnosticKitRegister item)
+    {
+        _trackedKits.Remove(item.Id);
+        _pendingDeletes.Add(("DiagnosticKitRegisters", item.Id));
+    }
+
+    // ==========================================
+    // 15. Uddanam Register 5: Apheresis / SDP Records
+    // ==========================================
+    public async Task<List<ApheresisRecord>> GetApheresisRecordsAsync()
+    {
+        using var conn = _factory.CreateConnection();
+        const string sql = "SELECT * FROM ApheresisRecords ORDER BY Date DESC";
+        var list = (await conn.QueryAsync<ApheresisRecord>(sql)).AsList();
+        foreach (var item in list) Track(item);
+        return list;
+    }
+
+    public async Task<ApheresisRecord?> FindApheresisRecordAsync(Guid id)
+    {
+        if (_trackedApheresis.TryGetValue(id, out var tracked)) return tracked;
+        using var conn = _factory.CreateConnection();
+        const string sql = "SELECT * FROM ApheresisRecords WHERE Id = @Id";
+        var item = await conn.QuerySingleOrDefaultAsync<ApheresisRecord>(sql, new { Id = id });
+        Track(item);
+        return item;
+    }
+
+    public Task AddApheresisRecordAsync(ApheresisRecord item)
+    {
+        _trackedApheresis[item.Id] = item;
+        _pendingInserts.Add(item);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateApheresisRecordAsync(ApheresisRecord item)
+    {
+        _trackedApheresis[item.Id] = item;
+        return Task.CompletedTask;
+    }
+
+    public void RemoveApheresisRecord(ApheresisRecord item)
+    {
+        _trackedApheresis.Remove(item.Id);
+        _pendingDeletes.Add(("ApheresisRecords", item.Id));
+    }
+
+    // ==========================================
+    // 16. Clear Operational Data
     // ==========================================
     public async Task ClearOperationalDataAsync()
     {
@@ -570,7 +803,12 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
             DELETE FROM BloodInventories;
             DELETE FROM ComponentCollections;
             DELETE FROM ComponentDiscards;
-            DELETE FROM ComponentReturns;";
+            DELETE FROM ComponentReturns;
+            DELETE FROM TtiScreeningRecords;
+            DELETE FROM PatientGroupingRecords;
+            DELETE FROM BloodBagStockRegisters;
+            DELETE FROM DiagnosticKitRegisters;
+            DELETE FROM ApheresisRecords;";
 
         await conn.ExecuteAsync(sql, transaction: tx);
         tx.Commit();
@@ -583,12 +821,17 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
         _trackedCollections.Clear();
         _trackedDiscards.Clear();
         _trackedReturns.Clear();
+        _trackedTti.Clear();
+        _trackedGroupings.Clear();
+        _trackedBagStocks.Clear();
+        _trackedKits.Clear();
+        _trackedApheresis.Clear();
         _pendingInserts.Clear();
         _pendingDeletes.Clear();
     }
 
     // ==========================================
-    // 12. Save Changes with ACID Transaction
+    // 17. Save Changes with ACID Transaction
     // ==========================================
     public async Task SaveChangesAsync()
     {
@@ -648,6 +891,8 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                     const string insertRecord = @"
                         INSERT INTO DonationRecords (
                             Id, DonorId, DonorName, BloodGroup, UnitsDonated, DonationDate, CampName, BloodBankName,
+                            YearlySlNo, MonthlySlNo, DonationCategory, ReplacementPatientName, ReplacementPatientHospital,
+                            ReplacementPatientIpNo, BagNumber, HbTestMethod, HbEligibilityStatus, DeferralRecords,
                             WeightKg, PulsePerMinute, Hemoglobin, Hematocrit, PlateletCount, BloodPressure, TemperatureCelsius,
                             ScreeningStaffName, ScreeningStaffSignature, ScreeningDate, ScreeningTime, MedicalExamAccepted,
                             DeferralReason, MedicalOfficerName, MedicalOfficerSignature, MedicalOfficerDate, DonorNumber,
@@ -660,6 +905,8 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                             HasHivOrHepatitisRisk, HasPermanentDisqualification
                         ) VALUES (
                             @Id, @DonorId, @DonorName, @BloodGroup, @UnitsDonated, @DonationDate, @CampName, @BloodBankName,
+                            @YearlySlNo, @MonthlySlNo, @DonationCategory, @ReplacementPatientName, @ReplacementPatientHospital,
+                            @ReplacementPatientIpNo, @BagNumber, @HbTestMethod, @HbEligibilityStatus, @DeferralRecords,
                             @WeightKg, @PulsePerMinute, @Hemoglobin, @Hematocrit, @PlateletCount, @BloodPressure, @TemperatureCelsius,
                             @ScreeningStaffName, @ScreeningStaffSignature, @ScreeningDate, @ScreeningTime, @MedicalExamAccepted,
                             @DeferralReason, @MedicalOfficerName, @MedicalOfficerSignature, @MedicalOfficerDate, @DonorNumber,
@@ -679,11 +926,15 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                         INSERT INTO BloodRequests (
                             Id, RequesterId, RequesterType, RequesterName, RequesterContact, HospitalName, PatientName,
                             BloodGroup, ComponentType, QuantityUnits, Urgency, Status, HospitalDepartment, MedicalReason,
-                            AdminComments, CreatedAt, ProcessedAt, IssuedBagNumbers, PaymentMode, PaymentStatus, TransactionId, AmountPaid
+                            AdminComments, CreatedAt, ProcessedAt, IssuedBagNumbers, PaymentMode, PaymentStatus, TransactionId, AmountPaid,
+                            Indication, EmergencyUrgency, RefDoctor, IpNumber, RoomNumber, PreviousTransfusion, TransfusionReactionHistory,
+                            CrossMatchingReport, BillNumber, YearlySlNo, MonthlySlNo
                         ) VALUES (
                             @Id, @RequesterId, @RequesterType, @RequesterName, @RequesterContact, @HospitalName, @PatientName,
                             @BloodGroup, @ComponentType, @QuantityUnits, @Urgency, @Status, @HospitalDepartment, @MedicalReason,
-                            @AdminComments, @CreatedAt, @ProcessedAt, @IssuedBagNumbers, @PaymentMode, @PaymentStatus, @TransactionId, @AmountPaid
+                            @AdminComments, @CreatedAt, @ProcessedAt, @IssuedBagNumbers, @PaymentMode, @PaymentStatus, @TransactionId, @AmountPaid,
+                            @Indication, @EmergencyUrgency, @RefDoctor, @IpNumber, @RoomNumber, @PreviousTransfusion, @TransfusionReactionHistory,
+                            @CrossMatchingReport, @BillNumber, @YearlySlNo, @MonthlySlNo
                         )";
                     await conn.ExecuteAsync(insertReq, r, transaction: tx);
                     break;
@@ -707,6 +958,82 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                         INSERT INTO ComponentReturns (Id, BagBarcode, Reason, ReturnedBy, ReturnDate)
                         VALUES (@Id, @BagBarcode, @Reason, @ReturnedBy, @ReturnDate)";
                     await conn.ExecuteAsync(insertRet, cr, transaction: tx);
+                    break;
+
+                case TtiScreeningRecord tti:
+                    const string insertTti = @"
+                        INSERT INTO TtiScreeningRecords (
+                            Id, BagBarcode, BloodGroup, TestingDate, HivResult, HbsAgResult, HcvResult, VdrlResult,
+                            MalariaResult, AtypicalAntibodies, OverallStatus, TestedBy, ApprovedBy, Remarks, CreatedAt
+                        ) VALUES (
+                            @Id, @BagBarcode, @BloodGroup, @TestingDate, @HivResult, @HbsAgResult, @HcvResult, @VdrlResult,
+                            @MalariaResult, @AtypicalAntibodies, @OverallStatus, @TestedBy, @ApprovedBy, @Remarks, @CreatedAt
+                        )";
+                    await conn.ExecuteAsync(insertTti, tti, transaction: tx);
+                    break;
+
+                case PatientGroupingRecord pg:
+                    const string insertPg = @"
+                        INSERT INTO PatientGroupingRecords (
+                            Id, SlNo, Date, PatientName, AgeSex, HospitalName, IpNumber, BagNumber, BagType,
+                            BloodGroup, RhType, AntiA, AntiB, AntiAb, AntiD, LectinA1, LectinH, ACells, BCells, OCells,
+                            DuTest, IrregularAntibodies, AutoAntibodies, CrossmatchSaline, CrossmatchAlbumin, CrossmatchAhg,
+                            TechnicianSignature, MedicalOfficerSignature, CreatedAt
+                        ) VALUES (
+                            @Id, @SlNo, @Date, @PatientName, @AgeSex, @HospitalName, @IpNumber, @BagNumber, @BagType,
+                            @BloodGroup, @RhType, @AntiA, @AntiB, @AntiAb, @AntiD, @LectinA1, @LectinH, @ACells, @BCells, @OCells,
+                            @DuTest, @IrregularAntibodies, @AutoAntibodies, @CrossmatchSaline, @CrossmatchAlbumin, @CrossmatchAhg,
+                            @TechnicianSignature, @MedicalOfficerSignature, @CreatedAt
+                        )";
+                    await conn.ExecuteAsync(insertPg, pg, transaction: tx);
+                    break;
+
+                case BloodBagStockRegister bbs:
+                    const string insertBbs = @"
+                        INSERT INTO BloodBagStockRegisters (
+                            Id, SlNo, Date, SupplierName, InvoiceNo, InvoiceDate, Manufacturer, BatchNo, DateOfSupply,
+                            DateOfManufacture, DateOfExpiry, CodeSpecification, ResultCoa, OpeningStock, QuantityReceived,
+                            QuantityUsed, Wastage, Balance, TechSign, MedicalOfficerSign, Remarks, CreatedAt
+                        ) VALUES (
+                            @Id, @SlNo, @Date, @SupplierName, @InvoiceNo, @InvoiceDate, @Manufacturer, @BatchNo, @DateOfSupply,
+                            @DateOfManufacture, @DateOfExpiry, @CodeSpecification, @ResultCoa, @OpeningStock, @QuantityReceived,
+                            @QuantityUsed, @Wastage, @Balance, @TechSign, @MedicalOfficerSign, @Remarks, @CreatedAt
+                        )";
+                    await conn.ExecuteAsync(insertBbs, bbs, transaction: tx);
+                    break;
+
+                case DiagnosticKitRegister dk:
+                    const string insertDk = @"
+                        INSERT INTO DiagnosticKitRegisters (
+                            Id, SlNo, Date, SupplierName, KitName, Manufacturer, InvoiceNo, BatchNo, DateOfManufacture,
+                            DateOfExpiry, QuantityReceived, OpeningBalance, NoOfTests, ControlsUsed, Wastage, ClosingBalance,
+                            TechSign, MedicalOfficerSign, Remarks, CreatedAt
+                        ) VALUES (
+                            @Id, @SlNo, @Date, @SupplierName, @KitName, @Manufacturer, @InvoiceNo, @BatchNo, @DateOfManufacture,
+                            @DateOfExpiry, @QuantityReceived, @OpeningBalance, @NoOfTests, @ControlsUsed, @Wastage, @ClosingBalance,
+                            @TechSign, @MedicalOfficerSign, @Remarks, @CreatedAt
+                        )";
+                    await conn.ExecuteAsync(insertDk, dk, transaction: tx);
+                    break;
+
+                case ApheresisRecord aph:
+                    const string insertAph = @"
+                        INSERT INTO ApheresisRecords (
+                            Id, RegistrationNo, Date, DonorName, AgeSex, WeightKg, BloodGroup, Phone, Email, TimeOfMeal,
+                            PatientName, PatientIpNo, PatientBedNo, PatientBloodGroup, TakenAspirinLast3Days,
+                            HaemoglobinGms, PlateletCountLakhs, WbcCount, BloodPressure, Pulse, TemperatureCelsius, TotalProteinsGms,
+                            ProcedureStartTime, ProcedureEndTime, DurationMinutes, VenipunctureSite, WholeBloodPumpRateMlMin,
+                            AcdRatio, TotalBloodVolumeProcessedMl, TotalProductCollectedMl, TotalVolumeAcdUsedMl,
+                            AdverseReaction, QualityControlPassed, PhlebotomistSignature, MedicalOfficerSignature, Remarks, CreatedAt
+                        ) VALUES (
+                            @Id, @RegistrationNo, @Date, @DonorName, @AgeSex, @WeightKg, @BloodGroup, @Phone, @Email, @TimeOfMeal,
+                            @PatientName, @PatientIpNo, @PatientBedNo, @PatientBloodGroup, @TakenAspirinLast3Days,
+                            @HaemoglobinGms, @PlateletCountLakhs, @WbcCount, @BloodPressure, @Pulse, @TemperatureCelsius, @TotalProteinsGms,
+                            @ProcedureStartTime, @ProcedureEndTime, @DurationMinutes, @VenipunctureSite, @WholeBloodPumpRateMlMin,
+                            @AcdRatio, @TotalBloodVolumeProcessedMl, @TotalProductCollectedMl, @TotalVolumeAcdUsedMl,
+                            @AdverseReaction, @QualityControlPassed, @PhlebotomistSignature, @MedicalOfficerSignature, @Remarks, @CreatedAt
+                        )";
+                    await conn.ExecuteAsync(insertAph, aph, transaction: tx);
                     break;
             }
         }
@@ -812,7 +1139,18 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                     PaymentMode = @PaymentMode, 
                     PaymentStatus = @PaymentStatus, 
                     TransactionId = @TransactionId, 
-                    AmountPaid = @AmountPaid 
+                    AmountPaid = @AmountPaid,
+                    Indication = @Indication,
+                    EmergencyUrgency = @EmergencyUrgency,
+                    RefDoctor = @RefDoctor,
+                    IpNumber = @IpNumber,
+                    RoomNumber = @RoomNumber,
+                    PreviousTransfusion = @PreviousTransfusion,
+                    TransfusionReactionHistory = @TransfusionReactionHistory,
+                    CrossMatchingReport = @CrossMatchingReport,
+                    BillNumber = @BillNumber,
+                    YearlySlNo = @YearlySlNo,
+                    MonthlySlNo = @MonthlySlNo
                 WHERE Id = @Id";
             await conn.ExecuteAsync(updateReq, r, transaction: tx);
         }
@@ -857,6 +1195,159 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                     ReturnDate = @ReturnDate 
                 WHERE Id = @Id";
             await conn.ExecuteAsync(updateRet, cr, transaction: tx);
+        }
+
+        foreach (var tti in _trackedTti.Values)
+        {
+            const string updateTti = @"
+                UPDATE TtiScreeningRecords SET 
+                    BagBarcode = @BagBarcode,
+                    BloodGroup = @BloodGroup,
+                    TestingDate = @TestingDate,
+                    HivResult = @HivResult,
+                    HbsAgResult = @HbsAgResult,
+                    HcvResult = @HcvResult,
+                    VdrlResult = @VdrlResult,
+                    MalariaResult = @MalariaResult,
+                    AtypicalAntibodies = @AtypicalAntibodies,
+                    OverallStatus = @OverallStatus,
+                    TestedBy = @TestedBy,
+                    ApprovedBy = @ApprovedBy,
+                    Remarks = @Remarks
+                WHERE Id = @Id";
+            await conn.ExecuteAsync(updateTti, tti, transaction: tx);
+        }
+
+        foreach (var pg in _trackedGroupings.Values)
+        {
+            const string updatePg = @"
+                UPDATE PatientGroupingRecords SET 
+                    SlNo = @SlNo,
+                    Date = @Date,
+                    PatientName = @PatientName,
+                    AgeSex = @AgeSex,
+                    HospitalName = @HospitalName,
+                    IpNumber = @IpNumber,
+                    BagNumber = @BagNumber,
+                    BagType = @BagType,
+                    BloodGroup = @BloodGroup,
+                    RhType = @RhType,
+                    AntiA = @AntiA,
+                    AntiB = @AntiB,
+                    AntiAb = @AntiAb,
+                    AntiD = @AntiD,
+                    LectinA1 = @LectinA1,
+                    LectinH = @LectinH,
+                    ACells = @ACells,
+                    BCells = @BCells,
+                    OCells = @OCells,
+                    DuTest = @DuTest,
+                    IrregularAntibodies = @IrregularAntibodies,
+                    AutoAntibodies = @AutoAntibodies,
+                    CrossmatchSaline = @CrossmatchSaline,
+                    CrossmatchAlbumin = @CrossmatchAlbumin,
+                    CrossmatchAhg = @CrossmatchAhg,
+                    TechnicianSignature = @TechnicianSignature,
+                    MedicalOfficerSignature = @MedicalOfficerSignature
+                WHERE Id = @Id";
+            await conn.ExecuteAsync(updatePg, pg, transaction: tx);
+        }
+
+        foreach (var bbs in _trackedBagStocks.Values)
+        {
+            const string updateBbs = @"
+                UPDATE BloodBagStockRegisters SET 
+                    SlNo = @SlNo,
+                    Date = @Date,
+                    SupplierName = @SupplierName,
+                    InvoiceNo = @InvoiceNo,
+                    InvoiceDate = @InvoiceDate,
+                    Manufacturer = @Manufacturer,
+                    BatchNo = @BatchNo,
+                    DateOfSupply = @DateOfSupply,
+                    DateOfManufacture = @DateOfManufacture,
+                    DateOfExpiry = @DateOfExpiry,
+                    CodeSpecification = @CodeSpecification,
+                    ResultCoa = @ResultCoa,
+                    OpeningStock = @OpeningStock,
+                    QuantityReceived = @QuantityReceived,
+                    QuantityUsed = @QuantityUsed,
+                    Wastage = @Wastage,
+                    Balance = @Balance,
+                    TechSign = @TechSign,
+                    MedicalOfficerSign = @MedicalOfficerSign,
+                    Remarks = @Remarks
+                WHERE Id = @Id";
+            await conn.ExecuteAsync(updateBbs, bbs, transaction: tx);
+        }
+
+        foreach (var dk in _trackedKits.Values)
+        {
+            const string updateDk = @"
+                UPDATE DiagnosticKitRegisters SET 
+                    SlNo = @SlNo,
+                    Date = @Date,
+                    SupplierName = @SupplierName,
+                    KitName = @KitName,
+                    Manufacturer = @Manufacturer,
+                    InvoiceNo = @InvoiceNo,
+                    BatchNo = @BatchNo,
+                    DateOfManufacture = @DateOfManufacture,
+                    DateOfExpiry = @DateOfExpiry,
+                    QuantityReceived = @QuantityReceived,
+                    OpeningBalance = @OpeningBalance,
+                    NoOfTests = @NoOfTests,
+                    ControlsUsed = @ControlsUsed,
+                    Wastage = @Wastage,
+                    ClosingBalance = @ClosingBalance,
+                    TechSign = @TechSign,
+                    MedicalOfficerSign = @MedicalOfficerSign,
+                    Remarks = @Remarks
+                WHERE Id = @Id";
+            await conn.ExecuteAsync(updateDk, dk, transaction: tx);
+        }
+
+        foreach (var aph in _trackedApheresis.Values)
+        {
+            const string updateAph = @"
+                UPDATE ApheresisRecords SET 
+                    RegistrationNo = @RegistrationNo,
+                    Date = @Date,
+                    DonorName = @DonorName,
+                    AgeSex = @AgeSex,
+                    WeightKg = @WeightKg,
+                    BloodGroup = @BloodGroup,
+                    Phone = @Phone,
+                    Email = @Email,
+                    TimeOfMeal = @TimeOfMeal,
+                    PatientName = @PatientName,
+                    PatientIpNo = @PatientIpNo,
+                    PatientBedNo = @PatientBedNo,
+                    PatientBloodGroup = @PatientBloodGroup,
+                    TakenAspirinLast3Days = @TakenAspirinLast3Days,
+                    HaemoglobinGms = @HaemoglobinGms,
+                    PlateletCountLakhs = @PlateletCountLakhs,
+                    WbcCount = @WbcCount,
+                    BloodPressure = @BloodPressure,
+                    Pulse = @Pulse,
+                    TemperatureCelsius = @TemperatureCelsius,
+                    TotalProteinsGms = @TotalProteinsGms,
+                    ProcedureStartTime = @ProcedureStartTime,
+                    ProcedureEndTime = @ProcedureEndTime,
+                    DurationMinutes = @DurationMinutes,
+                    VenipunctureSite = @VenipunctureSite,
+                    WholeBloodPumpRateMlMin = @WholeBloodPumpRateMlMin,
+                    AcdRatio = @AcdRatio,
+                    TotalBloodVolumeProcessedMl = @TotalBloodVolumeProcessedMl,
+                    TotalProductCollectedMl = @TotalProductCollectedMl,
+                    TotalVolumeAcdUsedMl = @TotalVolumeAcdUsedMl,
+                    AdverseReaction = @AdverseReaction,
+                    QualityControlPassed = @QualityControlPassed,
+                    PhlebotomistSignature = @PhlebotomistSignature,
+                    MedicalOfficerSignature = @MedicalOfficerSignature,
+                    Remarks = @Remarks
+                WHERE Id = @Id";
+            await conn.ExecuteAsync(updateAph, aph, transaction: tx);
         }
 
         tx.Commit();
