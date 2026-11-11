@@ -1,5 +1,5 @@
 using System.Net.Mail;
-using Microsoft.EntityFrameworkCore;
+using Dapper;
 using BloodBank.API.Data;
 using BloodBank.API.Models;
 
@@ -7,16 +7,16 @@ namespace BloodBank.API.Services;
 
 public class EmailOtpService : IEmailOtpService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbConnectionFactory _factory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<EmailOtpService> _logger;
 
     public EmailOtpService(
-        ApplicationDbContext context,
+        IDbConnectionFactory factory,
         IConfiguration configuration,
         ILogger<EmailOtpService> logger)
     {
-        _context = context;
+        _factory = factory;
         _configuration = configuration;
         _logger = logger;
     }
@@ -25,17 +25,18 @@ public class EmailOtpService : IEmailOtpService
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
 
-        // Invalidate previous unused OTPs for this email and purpose
-        var oldOtps = await _context.EmailOtps
-            .Where(o => o.Email == normalizedEmail && o.Purpose == purpose && !o.IsUsed)
-            .ToListAsync();
+        using var conn = _factory.CreateConnection();
 
-        foreach (var old in oldOtps)
-        {
-            old.IsUsed = true;
-        }
+        // 1. Invalidate previous unused OTPs for this email and purpose via Dapper
+        const string invalidateSql = @"
+            UPDATE EmailOtps 
+            SET IsUsed = 1 
+            WHERE LOWER(Email) = LOWER(@Email) 
+              AND Purpose = @Purpose 
+              AND IsUsed = 0";
+        await conn.ExecuteAsync(invalidateSql, new { Email = normalizedEmail, Purpose = purpose });
 
-        // Generate 6-digit numeric OTP
+        // 2. Generate 6-digit numeric OTP
         var otpCode = Random.Shared.Next(100000, 999999).ToString();
 
         var otpRecord = new EmailOtp
@@ -49,10 +50,13 @@ public class EmailOtpService : IEmailOtpService
             CreatedAt = DateTime.UtcNow
         };
 
-        await _context.EmailOtps.AddAsync(otpRecord);
-        await _context.SaveChangesAsync();
+        // 3. Insert OTP record via Dapper
+        const string insertSql = @"
+            INSERT INTO EmailOtps (Id, Email, OtpCode, Purpose, ExpiresAt, IsUsed, CreatedAt)
+            VALUES (@Id, @Email, @OtpCode, @Purpose, @ExpiresAt, @IsUsed, @CreatedAt)";
+        await conn.ExecuteAsync(insertSql, otpRecord);
 
-        // Attempt SMTP dispatch if configured
+        // 4. Attempt SMTP dispatch if configured
         var smtpHost = _configuration["Smtp:Host"];
         if (!string.IsNullOrEmpty(smtpHost))
         {
@@ -95,7 +99,7 @@ Blood Bank Management System";
         }
 
         _logger.LogInformation("==================================================");
-        _logger.LogInformation(">>> [EMAIL OTP DISPATCHED] <<<");
+        _logger.LogInformation(">>> [EMAIL OTP DISPATCHED (DAPPER SQL)] <<<");
         _logger.LogInformation("Recipient: {Email} | Purpose: {Purpose} | Code: {Code}", normalizedEmail, purpose, otpCode);
         _logger.LogInformation("==================================================");
 
@@ -107,18 +111,34 @@ Blood Bank Management System";
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var cleanCode = code.Trim();
 
-        var otpRecord = await _context.EmailOtps
-            .Where(o => o.Email == normalizedEmail && o.OtpCode == cleanCode && o.Purpose == purpose && !o.IsUsed && o.ExpiresAt >= DateTime.UtcNow)
-            .OrderByDescending(o => o.CreatedAt)
-            .FirstOrDefaultAsync();
+        using var conn = _factory.CreateConnection();
+
+        // Query active unexpired OTP via Dapper
+        const string selectSql = @"
+            SELECT * FROM EmailOtps
+            WHERE LOWER(Email) = LOWER(@Email)
+              AND OtpCode = @Code
+              AND Purpose = @Purpose
+              AND IsUsed = 0
+              AND ExpiresAt >= @Now
+            ORDER BY CreatedAt DESC";
+
+        var otpRecord = await conn.QueryFirstOrDefaultAsync<EmailOtp>(selectSql, new
+        {
+            Email = normalizedEmail,
+            Code = cleanCode,
+            Purpose = purpose,
+            Now = DateTime.UtcNow
+        });
 
         if (otpRecord == null)
         {
             return false;
         }
 
-        otpRecord.IsUsed = true;
-        await _context.SaveChangesAsync();
+        // Mark OTP as used via Dapper
+        const string updateSql = "UPDATE EmailOtps SET IsUsed = 1 WHERE Id = @Id";
+        await conn.ExecuteAsync(updateSql, new { Id = otpRecord.Id });
         return true;
     }
 }

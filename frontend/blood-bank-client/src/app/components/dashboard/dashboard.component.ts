@@ -698,6 +698,15 @@ export class DashboardComponent implements OnInit {
   public deleteComponentDiscard(id: string): void {
     if (confirm('Delete this discard record?')) this.bloodBankService.deleteComponentDiscard(id).subscribe({ next: () => this.loadBankData(), error: err => this.componentError = err.error?.message || 'Unable to delete discard record.' });
   }
+    public deleteCamp(id: string): void {
+    if (confirm('Are you sure you want to delete this donation camp?')) {
+      this.bloodBankService.deleteCamp(id).subscribe({
+        next: () => this.loadBankData(),
+        error: err => this.componentError = err.error?.message || 'Unable to delete donation camp.'
+      });
+    }
+  }
+
   public deleteComponentReturn(id: string): void {
     if (confirm('Delete this return record?')) this.bloodBankService.deleteComponentReturn(id).subscribe({ next: () => this.loadBankData(), error: err => this.componentError = err.error?.message || 'Unable to delete return record.' });
   }

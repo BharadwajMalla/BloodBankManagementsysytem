@@ -88,8 +88,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
 });
 
-// 3. Register Domain Services & Repositories
-builder.Services.AddScoped<IBloodBankRepository, EfBloodBankRepository>();
+// 3. Register Dapper SQL Factory, Repositories & Domain Services
+var dapperConnectionString = useSqlite ? "Data Source=bloodbank.db" : rawConnectionString;
+builder.Services.AddSingleton<IDbConnectionFactory>(new DbConnectionFactory(dapperConnectionString, useSqlite));
+builder.Services.AddScoped<IBloodBankRepository, DapperBloodBankRepository>();
+builder.Services.AddScoped<EfBloodBankRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailOtpService, EmailOtpService>();
 builder.Services.AddScoped<IBloodBankService, BloodBankService>();
