@@ -13,17 +13,20 @@ public class AuthController : ControllerBase
     private readonly IAuthService _authService;
     private readonly IEmailOtpService _otpService;
     private readonly IBloodBankRepository _repo;
+    private readonly ILoginAuditRepository _loginAuditRepository;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         IAuthService authService,
         IEmailOtpService otpService,
         IBloodBankRepository repo,
+        ILoginAuditRepository loginAuditRepository,
         ILogger<AuthController> logger)
     {
         _authService = authService;
         _otpService = otpService;
         _repo = repo;
+        _loginAuditRepository = loginAuditRepository;
         _logger = logger;
     }
 
@@ -118,10 +121,12 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.LoginAsync(dto);
+            await RecordLoginAttemptAsync(dto.Email, result.User, succeeded: true);
             return Ok(result);
         }
         catch (UnauthorizedAccessException ex)
         {
+            await RecordLoginAttemptAsync(dto.Email, user: null, succeeded: false);
             return Unauthorized(new { message = ex.Message });
         }
         catch (Exception ex)
@@ -131,6 +136,31 @@ public class AuthController : ControllerBase
                 message = "Authentication failed: " + ex.Message,
                 detail = ex.InnerException?.Message 
             });
+        }
+    }
+
+    private async Task RecordLoginAttemptAsync(string email, UserDto? user, bool succeeded)
+    {
+        try
+        {
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+            await _loginAuditRepository.AddAsync(new Models.LoginAuditRecord
+            {
+                UserId = user?.Id,
+                Email = normalizedEmail.Length <= 200 ? normalizedEmail : normalizedEmail[..200],
+                FullName = user?.FullName,
+                Role = user?.Role,
+                LoginAt = DateTime.UtcNow,
+                Succeeded = succeeded,
+                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                UserAgent = Request.Headers.UserAgent.ToString() is { Length: > 512 } userAgent
+                    ? userAgent[..512]
+                    : Request.Headers.UserAgent.ToString()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to store login audit record for {Email}", email);
         }
     }
 

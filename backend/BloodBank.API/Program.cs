@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Dapper;
 using BloodBank.API.Data;
 using BloodBank.API.Repositories;
 using BloodBank.API.Services;
@@ -92,7 +93,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 var dapperConnectionString = useSqlite ? "Data Source=bloodbank.db" : rawConnectionString;
 builder.Services.AddSingleton<IDbConnectionFactory>(new DbConnectionFactory(dapperConnectionString, useSqlite));
 builder.Services.AddScoped<IBloodBankRepository, DapperBloodBankRepository>();
-builder.Services.AddScoped<EfBloodBankRepository>();
+builder.Services.AddScoped<ILoginAuditRepository, DapperLoginAuditRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailOtpService, EmailOtpService>();
 builder.Services.AddScoped<IBloodBankService, BloodBankService>();
@@ -238,7 +239,7 @@ app.UseCors("AllowFrontendApp");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/api/health", async (ApplicationDbContext db) =>
+app.MapGet("/api/health", async (IDbConnectionFactory connectionFactory) =>
 {
     string? connectionError = null;
     bool canConnect = false;
@@ -246,10 +247,10 @@ app.MapGet("/api/health", async (ApplicationDbContext db) =>
 
     try
     {
-        using var conn = db.Database.GetDbConnection();
-        await conn.OpenAsync();
+        using var conn = connectionFactory.CreateConnection();
+        conn.Open();
         canConnect = true;
-        userCount = await db.Users.CountAsync();
+        userCount = await conn.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM Users");
     }
     catch (Exception ex)
     {
@@ -272,8 +273,8 @@ app.MapControllers();
 if (args.Contains("--seed-data"))
 {
     using var seedScope = app.Services.CreateScope();
-    var seedDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await DbInitializer.SeedLiveDataAsync(seedDb);
+    var seedRepository = seedScope.ServiceProvider.GetRequiredService<IBloodBankRepository>();
+    await DbInitializer.SeedLiveDataAsync(seedRepository);
     Console.WriteLine("SEED_COMPLETE_SUCCESS");
     return;
 }

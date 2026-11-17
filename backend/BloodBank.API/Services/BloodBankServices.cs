@@ -5,14 +5,108 @@ using BloodBank.API.Repositories;
 namespace BloodBank.API.Services;
 internal static class Mapping
 {
-    public static BloodRequestResponseDto Request(BloodRequest r) => new() { Id=r.Id, RequesterId=r.RequesterId, RequesterType=r.RequesterType, RequesterName=r.RequesterName, RequesterContact=r.RequesterContact, HospitalName=r.HospitalName, PatientName=r.PatientName, BloodGroup=r.BloodGroup, ComponentType=r.ComponentType, QuantityUnits=r.QuantityUnits, Urgency=r.Urgency, Status=r.Status, HospitalDepartment=r.HospitalDepartment, MedicalReason=r.MedicalReason, AdminComments=r.AdminComments, CreatedAt=r.CreatedAt, ProcessedAt=r.ProcessedAt, IssuedBagNumbers=r.IssuedBagNumbers, PaymentMode=r.PaymentMode, PaymentStatus=r.PaymentStatus, TransactionId=r.TransactionId, AmountPaid=r.AmountPaid };
+    public static BloodRequestResponseDto Request(BloodRequest request)
+    {
+        return new BloodRequestResponseDto
+        {
+            Id = request.Id,
+            RequesterId = request.RequesterId,
+            RequesterType = request.RequesterType,
+            RequesterName = request.RequesterName,
+            RequesterContact = request.RequesterContact,
+            HospitalName = request.HospitalName,
+            PatientName = request.PatientName,
+            BloodGroup = request.BloodGroup,
+            ComponentType = request.ComponentType,
+            QuantityUnits = request.QuantityUnits,
+            Urgency = request.Urgency,
+            Status = request.Status,
+            HospitalDepartment = request.HospitalDepartment,
+            MedicalReason = request.MedicalReason,
+            AdminComments = request.AdminComments,
+            CreatedAt = request.CreatedAt,
+            ProcessedAt = request.ProcessedAt,
+            IssuedBagNumbers = request.IssuedBagNumbers,
+            PaymentMode = request.PaymentMode,
+            PaymentStatus = request.PaymentStatus,
+            TransactionId = request.TransactionId,
+            AmountPaid = request.AmountPaid
+        };
+    }
 }
 public sealed class BloodBankService : IBloodBankService
 {
     private readonly IBloodBankRepository _repo;
-    public BloodBankService(IBloodBankRepository repo) => _repo = repo;
-    public async Task<IEnumerable<BloodStockDto>> GetStockAsync(string? g,string? c) => (await _repo.GetStocksAsync(string.IsNullOrWhiteSpace(g)?null:g.Trim().ToUpperInvariant(), string.IsNullOrWhiteSpace(c)?null:c.Trim())).Select(s=>new BloodStockDto {Id=s.Id,BloodGroup=s.BloodGroup,ComponentType=s.ComponentType,QuantityUnits=s.QuantityUnits,BloodBankName=s.BloodBankName,LastUpdated=s.LastUpdated});
-    public async Task<BloodStockDto?> AddStockAsync(AddStockDto d) { var g=d.BloodGroup.Trim().ToUpperInvariant(); var c=d.ComponentType.Trim(); var n=d.BagNumber.Trim(); if(await _repo.BagNumberExistsAsync(n)) return null; await _repo.AddBagAsync(new BloodBag {BagNumber=n,BloodGroup=g,ComponentType=c,AddedDate=d.AddedDate==default?DateTime.UtcNow:d.AddedDate}); var s=await _repo.FindStockAsync(g,c); if(s==null){s=new BloodStock{Id=Guid.NewGuid(),BloodGroup=g,ComponentType=c,QuantityUnits=1,BloodBankName="Blood Bank A",LastUpdated=DateTime.UtcNow};await _repo.AddStockAsync(s);}else{s.QuantityUnits++;s.LastUpdated=DateTime.UtcNow;} await _repo.SaveChangesAsync(); return new BloodStockDto{Id=s.Id,BloodGroup=s.BloodGroup,ComponentType=s.ComponentType,QuantityUnits=s.QuantityUnits,BloodBankName=s.BloodBankName,LastUpdated=s.LastUpdated}; }
+    public BloodBankService(IBloodBankRepository repo)
+    {
+        _repo = repo;
+    }
+
+    public async Task<IEnumerable<BloodStockDto>> GetStockAsync(string? group, string? component)
+    {
+        var stocks = await _repo.GetStocksAsync(
+            string.IsNullOrWhiteSpace(group) ? null : group.Trim().ToUpperInvariant(),
+            string.IsNullOrWhiteSpace(component) ? null : component.Trim());
+
+        return stocks.Select(stock => new BloodStockDto
+        {
+            Id = stock.Id,
+            BloodGroup = stock.BloodGroup,
+            ComponentType = stock.ComponentType,
+            QuantityUnits = stock.QuantityUnits,
+            BloodBankName = stock.BloodBankName,
+            LastUpdated = stock.LastUpdated
+        });
+    }
+    public async Task<BloodStockDto?> AddStockAsync(AddStockDto dto)
+    {
+        var bloodGroup = dto.BloodGroup.Trim().ToUpperInvariant();
+        var componentType = dto.ComponentType.Trim();
+        var bagNumber = dto.BagNumber.Trim();
+        if (await _repo.BagNumberExistsAsync(bagNumber))
+        {
+            return null;
+        }
+
+        await _repo.AddBagAsync(new BloodBag
+        {
+            BagNumber = bagNumber,
+            BloodGroup = bloodGroup,
+            ComponentType = componentType,
+            AddedDate = dto.AddedDate == default ? DateTime.UtcNow : dto.AddedDate
+        });
+
+        var stock = await _repo.FindStockAsync(bloodGroup, componentType);
+        if (stock == null)
+        {
+            stock = new BloodStock
+            {
+                Id = Guid.NewGuid(),
+                BloodGroup = bloodGroup,
+                ComponentType = componentType,
+                QuantityUnits = 1,
+                BloodBankName = "Blood Bank A",
+                LastUpdated = DateTime.UtcNow
+            };
+            await _repo.AddStockAsync(stock);
+        }
+        else
+        {
+            stock.QuantityUnits++;
+            stock.LastUpdated = DateTime.UtcNow;
+        }
+
+        await _repo.SaveChangesAsync();
+        return new BloodStockDto
+        {
+            Id = stock.Id,
+            BloodGroup = stock.BloodGroup,
+            ComponentType = stock.ComponentType,
+            QuantityUnits = stock.QuantityUnits,
+            BloodBankName = stock.BloodBankName,
+            LastUpdated = stock.LastUpdated
+        };
+    }
     public async Task<BloodStockDto> ReplenishStockAsync(ReplenishStockDto d)
     {
         var g = d.BloodGroup.Trim().ToUpperInvariant();
@@ -46,15 +140,123 @@ public sealed class BloodBankService : IBloodBankService
         await _repo.SaveChangesAsync();
         return new BloodStockDto { Id = s.Id, BloodGroup = s.BloodGroup, ComponentType = s.ComponentType, QuantityUnits = s.QuantityUnits, BloodBankName = s.BloodBankName, LastUpdated = s.LastUpdated };
     }
-    public Task ClearAllDataAsync() => _repo.ClearOperationalDataAsync();
-    public Task<bool> BagExistsAsync(string n)=>_repo.BagNumberExistsAsync(n);
-    public async Task<IEnumerable<BloodBagDto>> GetBagsAsync(string? c)=> (await _repo.GetBagsAsync(string.IsNullOrWhiteSpace(c)?null:c.Trim())).Select(b=>new BloodBagDto{Id=b.Id,BagNumber=b.BagNumber,BloodGroup=b.BloodGroup,ComponentType=b.ComponentType,QuantityUnits=b.QuantityUnits,AddedDate=b.AddedDate});
-    public async Task<IEnumerable<DonationCamp>> GetCampsAsync()=>await _repo.GetCampsAsync();
-    public Task<DonationCamp?> GetCampAsync(Guid id)=>_repo.FindCampAsync(id);
-    public async Task<DonationCamp> CreateCampAsync(CreateCampDto d){var c=new DonationCamp{Id=Guid.NewGuid(),CampName=d.CampName.Trim(),Location=d.Location.Trim(),CampDate=d.CampDate,TargetUnits=d.TargetUnits,OrganizedBy="Blood Bank A",ContactPhone=d.ContactPhone?.Trim()??"",Notes=d.Notes,Status="Scheduled",CreatedAt=DateTime.UtcNow};await _repo.AddCampAsync(c);await _repo.SaveChangesAsync();return c;}
-    public async Task<DonationCamp?> UpdateCampAsync(Guid id,CreateCampDto d){var c=await _repo.FindCampAsync(id);if(c==null)return null;c.CampName=d.CampName.Trim();c.Location=d.Location.Trim();c.CampDate=d.CampDate;c.TargetUnits=d.TargetUnits;c.ContactPhone=d.ContactPhone?.Trim()??"";c.Notes=d.Notes;await _repo.SaveChangesAsync();return c;}
-    public async Task<bool> DeleteCampAsync(Guid id){var c=await _repo.FindCampAsync(id);if(c==null)return false;_repo.RemoveCamp(c);await _repo.SaveChangesAsync();return true;}
-    public async Task<IEnumerable<DonorDetailsDto>> GetDonorsAsync(){var ds=await _repo.GetDonorsAsync();var rs=await _repo.GetDonationsAsync(ds.Select(d=>d.Id));return ds.Select(d=>{var x=rs.Where(r=>r.DonorId==d.Id).OrderByDescending(r=>r.DonationDate).ToList();return new DonorDetailsDto{Id=d.Id,FullName=d.FullName,Email=d.Email,Phone=d.Phone,DateOfBirth=d.DateOfBirth,Sex=d.Sex,Address=d.Address,BloodGroup=d.BloodGroup,RegisteredDate=d.CreatedAt,TotalDonations=x.Count,LastDonationDate=x.FirstOrDefault()?.DonationDate};});}
+    public Task ClearAllDataAsync()
+    {
+        return _repo.ClearOperationalDataAsync();
+    }
+
+    public Task<bool> BagExistsAsync(string number)
+    {
+        return _repo.BagNumberExistsAsync(number);
+    }
+
+    public async Task<IEnumerable<BloodBagDto>> GetBagsAsync(string? componentType)
+    {
+        var bags = await _repo.GetBagsAsync(
+            string.IsNullOrWhiteSpace(componentType) ? null : componentType.Trim());
+
+        return bags.Select(bag => new BloodBagDto
+        {
+            Id = bag.Id,
+            BagNumber = bag.BagNumber,
+            BloodGroup = bag.BloodGroup,
+            ComponentType = bag.ComponentType,
+            QuantityUnits = bag.QuantityUnits,
+            AddedDate = bag.AddedDate
+        });
+    }
+
+    public async Task<IEnumerable<DonationCamp>> GetCampsAsync()
+    {
+        return await _repo.GetCampsAsync();
+    }
+
+    public async Task<DonationCamp?> GetCampAsync(Guid id)
+    {
+        return await _repo.FindCampAsync(id);
+    }
+
+    public async Task<DonationCamp> CreateCampAsync(CreateCampDto dto)
+    {
+        var camp = new DonationCamp
+        {
+            Id = Guid.NewGuid(),
+            CampName = dto.CampName.Trim(),
+            Location = dto.Location.Trim(),
+            CampDate = dto.CampDate,
+            TargetUnits = dto.TargetUnits,
+            OrganizedBy = "Blood Bank A",
+            ContactPhone = dto.ContactPhone?.Trim() ?? "",
+            Notes = dto.Notes,
+            Status = "Scheduled",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _repo.AddCampAsync(camp);
+        await _repo.SaveChangesAsync();
+        return camp;
+    }
+
+    public async Task<DonationCamp?> UpdateCampAsync(Guid id, CreateCampDto dto)
+    {
+        var camp = await _repo.FindCampAsync(id);
+        if (camp == null)
+        {
+            return null;
+        }
+
+        camp.CampName = dto.CampName.Trim();
+        camp.Location = dto.Location.Trim();
+        camp.CampDate = dto.CampDate;
+        camp.TargetUnits = dto.TargetUnits;
+        camp.ContactPhone = dto.ContactPhone?.Trim() ?? "";
+        camp.Notes = dto.Notes;
+
+        await _repo.SaveChangesAsync();
+        return camp;
+    }
+
+    public async Task<bool> DeleteCampAsync(Guid id)
+    {
+        var camp = await _repo.FindCampAsync(id);
+        if (camp == null)
+        {
+            return false;
+        }
+
+        _repo.RemoveCamp(camp);
+        await _repo.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<IEnumerable<DonorDetailsDto>> GetDonorsAsync()
+    {
+        var donors = await _repo.GetDonorsAsync();
+        var donations = await _repo.GetDonationsAsync(donors.Select(donor => donor.Id));
+
+        return donors.Select(donor =>
+        {
+            var donorDonations = donations
+                .Where(donation => donation.DonorId == donor.Id)
+                .OrderByDescending(donation => donation.DonationDate)
+                .ToList();
+
+            return new DonorDetailsDto
+            {
+                Id = donor.Id,
+                FullName = donor.FullName,
+                Email = donor.Email,
+                Phone = donor.Phone,
+                DateOfBirth = donor.DateOfBirth,
+                Sex = donor.Sex,
+                Address = donor.Address,
+                BloodGroup = donor.BloodGroup,
+                RegisteredDate = donor.CreatedAt,
+                TotalDonations = donorDonations.Count,
+                LastDonationDate = donorDonations.FirstOrDefault()?.DonationDate
+            };
+        });
+    }
     public async Task<CreateDonorResponseDto?> CreateDonorAsync(CreateDonorDto d)
     {
         var email = d.Email.Trim().ToLowerInvariant();
@@ -184,9 +386,54 @@ public sealed class BloodBankService : IBloodBankService
             HasHivOrHepatitisRisk = r.HasHivOrHepatitisRisk, HasPermanentDisqualification = r.HasPermanentDisqualification
         });
     }
-    public async Task<IEnumerable<BloodRequestResponseDto>> GetRequestsAsync(string? s)=>(await _repo.GetRequestsAsync(status:string.IsNullOrWhiteSpace(s)?null:s.Trim())).Select(Mapping.Request);
-    public async Task<BloodRequestResponseDto> CreateRequestAsync(Guid id,CreateBloodRequestDto d){var u=await _repo.FindUserAsync(id);var r=CreateRequest(id,"BloodBank",u?.FullName??"Blood Bank A",u?.Phone??u?.Email,d);await _repo.AddRequestAsync(r);await _repo.SaveChangesAsync();return Mapping.Request(r);}
-    private static BloodRequest CreateRequest(Guid id,string type,string name,string? contact,CreateBloodRequestDto d)=>new(){Id=Guid.NewGuid(),RequesterId=id,RequesterType=type,RequesterName=name,RequesterContact=contact,HospitalName=d.HospitalName?.Trim(),PatientName=d.PatientName.Trim(),BloodGroup=d.BloodGroup.Trim().ToUpperInvariant(),ComponentType=d.ComponentType.Trim(),QuantityUnits=d.QuantityUnits,Urgency=d.Urgency,Status="Pending",HospitalDepartment=d.HospitalDepartment,MedicalReason=d.MedicalReason,CreatedAt=DateTime.UtcNow};
+    public async Task<IEnumerable<BloodRequestResponseDto>> GetRequestsAsync(string? status)
+    {
+        var normalizedStatus = string.IsNullOrWhiteSpace(status) ? null : status.Trim();
+        var requests = await _repo.GetRequestsAsync(status: normalizedStatus);
+        return requests.Select(Mapping.Request);
+    }
+
+    public async Task<BloodRequestResponseDto> CreateRequestAsync(Guid id, CreateBloodRequestDto dto)
+    {
+        var user = await _repo.FindUserAsync(id);
+        var request = CreateRequest(
+            id,
+            "BloodBank",
+            user?.FullName ?? "Blood Bank A",
+            user?.Phone ?? user?.Email,
+            dto);
+
+        await _repo.AddRequestAsync(request);
+        await _repo.SaveChangesAsync();
+        return Mapping.Request(request);
+    }
+
+    private static BloodRequest CreateRequest(
+        Guid id,
+        string type,
+        string name,
+        string? contact,
+        CreateBloodRequestDto dto)
+    {
+        return new BloodRequest
+        {
+            Id = Guid.NewGuid(),
+            RequesterId = id,
+            RequesterType = type,
+            RequesterName = name,
+            RequesterContact = contact,
+            HospitalName = dto.HospitalName?.Trim(),
+            PatientName = dto.PatientName.Trim(),
+            BloodGroup = dto.BloodGroup.Trim().ToUpperInvariant(),
+            ComponentType = dto.ComponentType.Trim(),
+            QuantityUnits = dto.QuantityUnits,
+            Urgency = dto.Urgency,
+            Status = "Pending",
+            HospitalDepartment = dto.HospitalDepartment,
+            MedicalReason = dto.MedicalReason,
+            CreatedAt = DateTime.UtcNow
+        };
+    }
     public async Task<(BloodRequestResponseDto?, string?)> ProcessRequestAsync(Guid id, ProcessRequestDto d)
     {
         var r = await _repo.FindRequestAsync(id);
@@ -275,79 +522,324 @@ public sealed class BloodBankService : IBloodBankService
         await _repo.SaveChangesAsync();
         return (Mapping.Request(r), null);
     }
-    private static decimal GetDefaultComponentPrice(string componentType) => componentType switch
+    private static decimal GetDefaultComponentPrice(string componentType)
     {
-        "Whole Blood" => 1500m,
-        "Red Blood Cells (PRBC)" => 1450m,
-        "Platelets" => 850m,
-        "Fresh Frozen Plasma (FFP)" => 600m,
-        "Cryoprecipitate" => 500m,
-        _ => 1000m
-    };
-    private static ComponentCollectionDto MapCollection(ComponentCollection x) => new() { Id=x.Id, ComponentType=x.ComponentType, BloodGroup=x.BloodGroup, BagType=x.BagType, VolumeMl=x.VolumeMl, BagBarcode=x.BagBarcode, CollectionDate=x.CollectionDate, ExpiryDate=x.ExpiryDate, Status=x.Status };
-    private static ComponentDiscardDto MapDiscard(ComponentDiscard x) => new() { Id=x.Id, BagBarcode=x.BagBarcode, Reason=x.Reason, DiscardedBy=x.DiscardedBy, ApprovalStatus=x.ApprovalStatus, ApprovedBy=x.ApprovedBy, CreatedAt=x.CreatedAt, ApprovedAt=x.ApprovedAt };
-    private static ComponentReturnDto MapReturn(ComponentReturn x) => new() { Id=x.Id, BagBarcode=x.BagBarcode, Reason=x.Reason, ReturnedBy=x.ReturnedBy, ReturnDate=x.ReturnDate };
+        return componentType switch
+        {
+            "Whole Blood" => 1500m,
+            "Red Blood Cells (PRBC)" => 1450m,
+            "Platelets" => 850m,
+            "Fresh Frozen Plasma (FFP)" => 600m,
+            "Cryoprecipitate" => 500m,
+            _ => 1000m
+        };
+    }
 
-    public async Task<IEnumerable<ComponentCollectionDto>> GetComponentCollectionsAsync() => (await _repo.GetComponentCollectionsAsync()).Select(MapCollection);
+    private static ComponentCollectionDto MapCollection(ComponentCollection item)
+    {
+        return new ComponentCollectionDto
+        {
+            Id = item.Id,
+            ComponentType = item.ComponentType,
+            BloodGroup = item.BloodGroup,
+            BagType = item.BagType,
+            VolumeMl = item.VolumeMl,
+            BagBarcode = item.BagBarcode,
+            CollectionDate = item.CollectionDate,
+            ExpiryDate = item.ExpiryDate,
+            Status = item.Status
+        };
+    }
+
+    private static ComponentDiscardDto MapDiscard(ComponentDiscard item)
+    {
+        return new ComponentDiscardDto
+        {
+            Id = item.Id,
+            BagBarcode = item.BagBarcode,
+            Reason = item.Reason,
+            DiscardedBy = item.DiscardedBy,
+            ApprovalStatus = item.ApprovalStatus,
+            ApprovedBy = item.ApprovedBy,
+            CreatedAt = item.CreatedAt,
+            ApprovedAt = item.ApprovedAt
+        };
+    }
+
+    private static ComponentReturnDto MapReturn(ComponentReturn item)
+    {
+        return new ComponentReturnDto
+        {
+            Id = item.Id,
+            BagBarcode = item.BagBarcode,
+            Reason = item.Reason,
+            ReturnedBy = item.ReturnedBy,
+            ReturnDate = item.ReturnDate
+        };
+    }
+
+    public async Task<IEnumerable<ComponentCollectionDto>> GetComponentCollectionsAsync()
+    {
+        var collections = await _repo.GetComponentCollectionsAsync();
+        return collections.Select(MapCollection);
+    }
     public async Task<(ComponentCollectionDto? Result, string? Error)> CreateComponentCollectionAsync(CreateComponentCollectionDto d)
     {
         var barcode = d.BagBarcode.Trim();
         if (await _repo.FindComponentCollectionByBarcodeAsync(barcode) != null || await _repo.BagNumberExistsAsync(barcode))
             return (null, "A component with this bag barcode already exists.");
-        if (d.ExpiryDate.Date <= d.CollectionDate.Date) return (null, "Expiry date must be after the collection date.");
-        var item = new ComponentCollection { ComponentType=d.ComponentType.Trim(), BloodGroup=d.BloodGroup.Trim().ToUpperInvariant(), BagType=d.BagType.Trim(), VolumeMl=d.VolumeMl, BagBarcode=barcode, CollectionDate=d.CollectionDate, ExpiryDate=d.ExpiryDate, Status="Available" };
+        if (d.ExpiryDate.Date <= d.CollectionDate.Date)
+        {
+            return (null, "Expiry date must be after the collection date.");
+        }
+
+        var item = new ComponentCollection
+        {
+            ComponentType = d.ComponentType.Trim(),
+            BloodGroup = d.BloodGroup.Trim().ToUpperInvariant(),
+            BagType = d.BagType.Trim(),
+            VolumeMl = d.VolumeMl,
+            BagBarcode = barcode,
+            CollectionDate = d.CollectionDate,
+            ExpiryDate = d.ExpiryDate,
+            Status = "Available"
+        };
         await _repo.AddComponentCollectionAsync(item);
-        await _repo.AddBagAsync(new BloodBag { BagNumber=barcode, BloodGroup=item.BloodGroup, ComponentType=item.ComponentType, QuantityUnits=1, AddedDate=item.CollectionDate });
+        await _repo.AddBagAsync(new BloodBag
+        {
+            BagNumber = barcode,
+            BloodGroup = item.BloodGroup,
+            ComponentType = item.ComponentType,
+            QuantityUnits = 1,
+            AddedDate = item.CollectionDate
+        });
         var stock = await _repo.FindStockAsync(item.BloodGroup, item.ComponentType);
-        if (stock == null) { stock = new BloodStock { Id=Guid.NewGuid(), BloodGroup=item.BloodGroup, ComponentType=item.ComponentType, QuantityUnits=1, BloodBankName="Blood Bank A", LastUpdated=DateTime.UtcNow }; await _repo.AddStockAsync(stock); } else { stock.QuantityUnits++; stock.LastUpdated=DateTime.UtcNow; }
+        if (stock == null)
+        {
+            stock = new BloodStock
+            {
+                Id = Guid.NewGuid(),
+                BloodGroup = item.BloodGroup,
+                ComponentType = item.ComponentType,
+                QuantityUnits = 1,
+                BloodBankName = "Blood Bank A",
+                LastUpdated = DateTime.UtcNow
+            };
+            await _repo.AddStockAsync(stock);
+        }
+        else
+        {
+            stock.QuantityUnits++;
+            stock.LastUpdated = DateTime.UtcNow;
+        }
         await _repo.SaveChangesAsync();
         return (MapCollection(item), null);
     }
     public async Task<(ComponentCollectionDto? Result, string? Error)> UpdateComponentCollectionAsync(Guid id, CreateComponentCollectionDto d)
     {
         var item = await _repo.FindComponentCollectionAsync(id);
-        if (item == null) return (null, "Component collection not found.");
-        if (item.Status != "Available") return (null, "Only available components can be edited.");
-        if (d.ExpiryDate.Date <= d.CollectionDate.Date) return (null, "Expiry date must be after the collection date.");
+        if (item == null)
+        {
+            return (null, "Component collection not found.");
+        }
+        if (item.Status != "Available")
+        {
+            return (null, "Only available components can be edited.");
+        }
+        if (d.ExpiryDate.Date <= d.CollectionDate.Date)
+        {
+            return (null, "Expiry date must be after the collection date.");
+        }
         var bag = await _repo.FindBagByNumberAsync(item.BagBarcode);
-        item.ComponentType=d.ComponentType.Trim(); item.BloodGroup=d.BloodGroup.Trim().ToUpperInvariant(); item.BagType=d.BagType.Trim(); item.VolumeMl=d.VolumeMl; item.CollectionDate=d.CollectionDate; item.ExpiryDate=d.ExpiryDate;
-        if (bag != null) { bag.ComponentType=item.ComponentType; bag.BloodGroup=item.BloodGroup; bag.AddedDate=item.CollectionDate; }
+        item.ComponentType = d.ComponentType.Trim();
+        item.BloodGroup = d.BloodGroup.Trim().ToUpperInvariant();
+        item.BagType = d.BagType.Trim();
+        item.VolumeMl = d.VolumeMl;
+        item.CollectionDate = d.CollectionDate;
+        item.ExpiryDate = d.ExpiryDate;
+        if (bag != null)
+        {
+            bag.ComponentType = item.ComponentType;
+            bag.BloodGroup = item.BloodGroup;
+            bag.AddedDate = item.CollectionDate;
+        }
         await _repo.SaveChangesAsync();
         return (MapCollection(item), null);
     }
     public async Task<bool> DeleteComponentCollectionAsync(Guid id)
     {
-        var item = await _repo.FindComponentCollectionAsync(id); if (item == null || item.Status != "Available") return false;
-        var bag = await _repo.FindBagByNumberAsync(item.BagBarcode); if (bag?.IsIssued == true) return false;
-        var stock = await _repo.FindStockAsync(item.BloodGroup, item.ComponentType); if (stock != null) { stock.QuantityUnits=Math.Max(0, stock.QuantityUnits-1); stock.LastUpdated=DateTime.UtcNow; }
-        if (bag != null) _repo.RemoveBag(bag); _repo.RemoveComponentCollection(item); await _repo.SaveChangesAsync(); return true;
+        var item = await _repo.FindComponentCollectionAsync(id);
+        if (item == null || item.Status != "Available")
+        {
+            return false;
+        }
+
+        var bag = await _repo.FindBagByNumberAsync(item.BagBarcode);
+        if (bag?.IsIssued == true)
+        {
+            return false;
+        }
+
+        var stock = await _repo.FindStockAsync(item.BloodGroup, item.ComponentType);
+        if (stock != null)
+        {
+            stock.QuantityUnits = Math.Max(0, stock.QuantityUnits - 1);
+            stock.LastUpdated = DateTime.UtcNow;
+        }
+
+        if (bag != null)
+        {
+            _repo.RemoveBag(bag);
+        }
+        _repo.RemoveComponentCollection(item);
+        await _repo.SaveChangesAsync();
+        return true;
     }
-    public async Task<IEnumerable<ComponentDiscardDto>> GetComponentDiscardsAsync() => (await _repo.GetComponentDiscardsAsync()).Select(MapDiscard);
+
+    public async Task<IEnumerable<ComponentDiscardDto>> GetComponentDiscardsAsync()
+    {
+        var discards = await _repo.GetComponentDiscardsAsync();
+        return discards.Select(MapDiscard);
+    }
     public async Task<(ComponentDiscardDto? Result, string? Error)> CreateComponentDiscardAsync(CreateComponentDiscardDto d)
     {
-        var item = await _repo.FindComponentCollectionByBarcodeAsync(d.BagBarcode.Trim()); if (item == null) return (null, "Component barcode was not found.");
-        if (item.Status != "Available") return (null, "Only available components can be submitted for discard.");
-        var discard = new ComponentDiscard { BagBarcode=item.BagBarcode, Reason=d.Reason.Trim(), DiscardedBy=d.DiscardedBy.Trim() };
-        await _repo.AddComponentDiscardAsync(discard); await _repo.SaveChangesAsync(); return (MapDiscard(discard), null);
+        var item = await _repo.FindComponentCollectionByBarcodeAsync(d.BagBarcode.Trim());
+        if (item == null)
+        {
+            return (null, "Component barcode was not found.");
+        }
+        if (item.Status != "Available")
+        {
+            return (null, "Only available components can be submitted for discard.");
+        }
+
+        var discard = new ComponentDiscard
+        {
+            BagBarcode = item.BagBarcode,
+            Reason = d.Reason.Trim(),
+            DiscardedBy = d.DiscardedBy.Trim()
+        };
+
+        await _repo.AddComponentDiscardAsync(discard);
+        await _repo.SaveChangesAsync();
+        return (MapDiscard(discard), null);
     }
     public async Task<(ComponentDiscardDto? Result, string? Error)> ReviewComponentDiscardAsync(Guid id, bool approve, string approvedBy)
     {
-        var discard = await _repo.FindComponentDiscardAsync(id); if (discard == null) return (null, "Discard request not found.");
-        if (discard.ApprovalStatus != "Pending") return (null, "This discard request has already been reviewed.");
-        discard.ApprovalStatus = approve ? "Approved" : "Rejected"; discard.ApprovedBy=approvedBy; discard.ApprovedAt=DateTime.UtcNow;
-        if (approve) { var item=await _repo.FindComponentCollectionByBarcodeAsync(discard.BagBarcode); if (item != null) { item.Status="Discarded"; var stock=await _repo.FindStockAsync(item.BloodGroup,item.ComponentType); if(stock!=null){stock.QuantityUnits=Math.Max(0,stock.QuantityUnits-1);stock.LastUpdated=DateTime.UtcNow;} } }
-        await _repo.SaveChangesAsync(); return (MapDiscard(discard), null);
+        var discard = await _repo.FindComponentDiscardAsync(id);
+        if (discard == null)
+        {
+            return (null, "Discard request not found.");
+        }
+        if (discard.ApprovalStatus != "Pending")
+        {
+            return (null, "This discard request has already been reviewed.");
+        }
+
+        discard.ApprovalStatus = approve ? "Approved" : "Rejected";
+        discard.ApprovedBy = approvedBy;
+        discard.ApprovedAt = DateTime.UtcNow;
+        if (approve)
+        {
+            var item = await _repo.FindComponentCollectionByBarcodeAsync(discard.BagBarcode);
+            if (item != null)
+            {
+                item.Status = "Discarded";
+                var stock = await _repo.FindStockAsync(item.BloodGroup, item.ComponentType);
+                if (stock != null)
+                {
+                    stock.QuantityUnits = Math.Max(0, stock.QuantityUnits - 1);
+                    stock.LastUpdated = DateTime.UtcNow;
+                }
+            }
+        }
+
+        await _repo.SaveChangesAsync();
+        return (MapDiscard(discard), null);
     }
-    public async Task<bool> DeleteComponentDiscardAsync(Guid id) { var item=await _repo.FindComponentDiscardAsync(id); if(item==null)return false; _repo.RemoveComponentDiscard(item); await _repo.SaveChangesAsync(); return true; }
-    public async Task<IEnumerable<ComponentReturnDto>> GetComponentReturnsAsync() => (await _repo.GetComponentReturnsAsync()).Select(MapReturn);
+
+    public async Task<bool> DeleteComponentDiscardAsync(Guid id)
+    {
+        var item = await _repo.FindComponentDiscardAsync(id);
+        if (item == null)
+        {
+            return false;
+        }
+
+        _repo.RemoveComponentDiscard(item);
+        await _repo.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<IEnumerable<ComponentReturnDto>> GetComponentReturnsAsync()
+    {
+        var returns = await _repo.GetComponentReturnsAsync();
+        return returns.Select(MapReturn);
+    }
     public async Task<(ComponentReturnDto? Result, string? Error)> CreateComponentReturnAsync(CreateComponentReturnDto d)
     {
-        var barcode=d.BagBarcode.Trim(); var bag=await _repo.FindBagByNumberAsync(barcode); if(bag==null)return(null,"Issued component barcode was not found."); if(!bag.IsIssued)return(null,"This component is not currently issued to a patient.");
-        bag.IsIssued=false; bag.IssuedDate=null; var item=await _repo.FindComponentCollectionByBarcodeAsync(barcode); if(item!=null)item.Status="Available";
-        var stock=await _repo.FindStockAsync(bag.BloodGroup,bag.ComponentType); if(stock==null){stock=new BloodStock{Id=Guid.NewGuid(),BloodGroup=bag.BloodGroup,ComponentType=bag.ComponentType,QuantityUnits=1,BloodBankName="Blood Bank A",LastUpdated=DateTime.UtcNow};await _repo.AddStockAsync(stock);}else{stock.QuantityUnits++;stock.LastUpdated=DateTime.UtcNow;}
-        var returned=new ComponentReturn{BagBarcode=barcode,Reason=d.Reason.Trim(),ReturnedBy=d.ReturnedBy.Trim()}; await _repo.AddComponentReturnAsync(returned); await _repo.SaveChangesAsync(); return(MapReturn(returned),null);
+        var barcode = d.BagBarcode.Trim();
+        var bag = await _repo.FindBagByNumberAsync(barcode);
+        if (bag == null)
+        {
+            return (null, "Issued component barcode was not found.");
+        }
+        if (!bag.IsIssued)
+        {
+            return (null, "This component is not currently issued to a patient.");
+        }
+
+        bag.IsIssued = false;
+        bag.IssuedDate = null;
+        var item = await _repo.FindComponentCollectionByBarcodeAsync(barcode);
+        if (item != null)
+        {
+            item.Status = "Available";
+        }
+
+        var stock = await _repo.FindStockAsync(bag.BloodGroup, bag.ComponentType);
+        if (stock == null)
+        {
+            stock = new BloodStock
+            {
+                Id = Guid.NewGuid(),
+                BloodGroup = bag.BloodGroup,
+                ComponentType = bag.ComponentType,
+                QuantityUnits = 1,
+                BloodBankName = "Blood Bank A",
+                LastUpdated = DateTime.UtcNow
+            };
+            await _repo.AddStockAsync(stock);
+        }
+        else
+        {
+            stock.QuantityUnits++;
+            stock.LastUpdated = DateTime.UtcNow;
+        }
+
+        var returned = new ComponentReturn
+        {
+            BagBarcode = barcode,
+            Reason = d.Reason.Trim(),
+            ReturnedBy = d.ReturnedBy.Trim()
+        };
+        await _repo.AddComponentReturnAsync(returned);
+        await _repo.SaveChangesAsync();
+        return (MapReturn(returned), null);
     }
-    public async Task<bool> DeleteComponentReturnAsync(Guid id) { var item=await _repo.FindComponentReturnAsync(id); if(item==null)return false; _repo.RemoveComponentReturn(item); await _repo.SaveChangesAsync(); return true; }
+
+    public async Task<bool> DeleteComponentReturnAsync(Guid id)
+    {
+        var item = await _repo.FindComponentReturnAsync(id);
+        if (item == null)
+        {
+            return false;
+        }
+
+        _repo.RemoveComponentReturn(item);
+        await _repo.SaveChangesAsync();
+        return true;
+    }
 
     public async Task<BloodStockDto?> UpdateStockAsync(Guid id, UpdateStockDto d)
     {
@@ -442,27 +934,33 @@ public sealed class BloodBankService : IBloodBankService
     // ==========================================
     // Uddanam Register 1: TTI Screening
     // ==========================================
-    private static TtiScreeningDto MapTti(TtiScreeningRecord x) => new()
+    private static TtiScreeningDto MapTti(TtiScreeningRecord record)
     {
-        Id = x.Id,
-        BagBarcode = x.BagBarcode,
-        BloodGroup = x.BloodGroup,
-        TestingDate = x.TestingDate,
-        HivResult = x.HivResult,
-        HbsAgResult = x.HbsAgResult,
-        HcvResult = x.HcvResult,
-        VdrlResult = x.VdrlResult,
-        MalariaResult = x.MalariaResult,
-        AtypicalAntibodies = x.AtypicalAntibodies,
-        OverallStatus = x.OverallStatus,
-        TestedBy = x.TestedBy,
-        ApprovedBy = x.ApprovedBy,
-        Remarks = x.Remarks,
-        CreatedAt = x.CreatedAt
-    };
+        return new TtiScreeningDto
+        {
+            Id = record.Id,
+            BagBarcode = record.BagBarcode,
+            BloodGroup = record.BloodGroup,
+            TestingDate = record.TestingDate,
+            HivResult = record.HivResult,
+            HbsAgResult = record.HbsAgResult,
+            HcvResult = record.HcvResult,
+            VdrlResult = record.VdrlResult,
+            MalariaResult = record.MalariaResult,
+            AtypicalAntibodies = record.AtypicalAntibodies,
+            OverallStatus = record.OverallStatus,
+            TestedBy = record.TestedBy,
+            ApprovedBy = record.ApprovedBy,
+            Remarks = record.Remarks,
+            CreatedAt = record.CreatedAt
+        };
+    }
 
-    public async Task<IEnumerable<TtiScreeningDto>> GetTtiScreeningsAsync(string? status = null) =>
-        (await _repo.GetTtiScreeningsAsync(status)).Select(MapTti);
+    public async Task<IEnumerable<TtiScreeningDto>> GetTtiScreeningsAsync(string? status = null)
+    {
+        var records = await _repo.GetTtiScreeningsAsync(status);
+        return records.Select(MapTti);
+    }
 
     public async Task<TtiScreeningDto> CreateTtiScreeningAsync(CreateTtiScreeningDto d)
     {
@@ -559,41 +1057,47 @@ public sealed class BloodBankService : IBloodBankService
     // ==========================================
     // Uddanam Register 2: Patient Grouping & Crossmatch
     // ==========================================
-    private static PatientGroupingDto MapGrouping(PatientGroupingRecord x) => new()
+    private static PatientGroupingDto MapGrouping(PatientGroupingRecord record)
     {
-        Id = x.Id,
-        SlNo = x.SlNo,
-        Date = x.Date,
-        PatientName = x.PatientName,
-        AgeSex = x.AgeSex,
-        HospitalName = x.HospitalName,
-        IpNumber = x.IpNumber,
-        BagNumber = x.BagNumber,
-        BagType = x.BagType,
-        BloodGroup = x.BloodGroup,
-        RhType = x.RhType,
-        AntiA = x.AntiA,
-        AntiB = x.AntiB,
-        AntiAb = x.AntiAb,
-        AntiD = x.AntiD,
-        LectinA1 = x.LectinA1,
-        LectinH = x.LectinH,
-        ACells = x.ACells,
-        BCells = x.BCells,
-        OCells = x.OCells,
-        DuTest = x.DuTest,
-        IrregularAntibodies = x.IrregularAntibodies,
-        AutoAntibodies = x.AutoAntibodies,
-        CrossmatchSaline = x.CrossmatchSaline,
-        CrossmatchAlbumin = x.CrossmatchAlbumin,
-        CrossmatchAhg = x.CrossmatchAhg,
-        TechnicianSignature = x.TechnicianSignature,
-        MedicalOfficerSignature = x.MedicalOfficerSignature,
-        CreatedAt = x.CreatedAt
-    };
+        return new PatientGroupingDto
+        {
+            Id = record.Id,
+            SlNo = record.SlNo,
+            Date = record.Date,
+            PatientName = record.PatientName,
+            AgeSex = record.AgeSex,
+            HospitalName = record.HospitalName,
+            IpNumber = record.IpNumber,
+            BagNumber = record.BagNumber,
+            BagType = record.BagType,
+            BloodGroup = record.BloodGroup,
+            RhType = record.RhType,
+            AntiA = record.AntiA,
+            AntiB = record.AntiB,
+            AntiAb = record.AntiAb,
+            AntiD = record.AntiD,
+            LectinA1 = record.LectinA1,
+            LectinH = record.LectinH,
+            ACells = record.ACells,
+            BCells = record.BCells,
+            OCells = record.OCells,
+            DuTest = record.DuTest,
+            IrregularAntibodies = record.IrregularAntibodies,
+            AutoAntibodies = record.AutoAntibodies,
+            CrossmatchSaline = record.CrossmatchSaline,
+            CrossmatchAlbumin = record.CrossmatchAlbumin,
+            CrossmatchAhg = record.CrossmatchAhg,
+            TechnicianSignature = record.TechnicianSignature,
+            MedicalOfficerSignature = record.MedicalOfficerSignature,
+            CreatedAt = record.CreatedAt
+        };
+    }
 
-    public async Task<IEnumerable<PatientGroupingDto>> GetPatientGroupingsAsync() =>
-        (await _repo.GetPatientGroupingsAsync()).Select(MapGrouping);
+    public async Task<IEnumerable<PatientGroupingDto>> GetPatientGroupingsAsync()
+    {
+        var records = await _repo.GetPatientGroupingsAsync();
+        return records.Select(MapGrouping);
+    }
 
     public async Task<PatientGroupingDto> CreatePatientGroupingAsync(CreatePatientGroupingDto d)
     {
@@ -686,34 +1190,40 @@ public sealed class BloodBankService : IBloodBankService
     // ==========================================
     // Uddanam Register 3: CPDA Blood Bags Stock Register
     // ==========================================
-    private static BloodBagStockRegisterDto MapBagStock(BloodBagStockRegister x) => new()
+    private static BloodBagStockRegisterDto MapBagStock(BloodBagStockRegister record)
     {
-        Id = x.Id,
-        SlNo = x.SlNo,
-        Date = x.Date,
-        SupplierName = x.SupplierName,
-        InvoiceNo = x.InvoiceNo,
-        InvoiceDate = x.InvoiceDate,
-        Manufacturer = x.Manufacturer,
-        BatchNo = x.BatchNo,
-        DateOfSupply = x.DateOfSupply,
-        DateOfManufacture = x.DateOfManufacture,
-        DateOfExpiry = x.DateOfExpiry,
-        CodeSpecification = x.CodeSpecification,
-        ResultCoa = x.ResultCoa,
-        OpeningStock = x.OpeningStock,
-        QuantityReceived = x.QuantityReceived,
-        QuantityUsed = x.QuantityUsed,
-        Wastage = x.Wastage,
-        Balance = x.Balance,
-        TechSign = x.TechSign,
-        MedicalOfficerSign = x.MedicalOfficerSign,
-        Remarks = x.Remarks,
-        CreatedAt = x.CreatedAt
-    };
+        return new BloodBagStockRegisterDto
+        {
+            Id = record.Id,
+            SlNo = record.SlNo,
+            Date = record.Date,
+            SupplierName = record.SupplierName,
+            InvoiceNo = record.InvoiceNo,
+            InvoiceDate = record.InvoiceDate,
+            Manufacturer = record.Manufacturer,
+            BatchNo = record.BatchNo,
+            DateOfSupply = record.DateOfSupply,
+            DateOfManufacture = record.DateOfManufacture,
+            DateOfExpiry = record.DateOfExpiry,
+            CodeSpecification = record.CodeSpecification,
+            ResultCoa = record.ResultCoa,
+            OpeningStock = record.OpeningStock,
+            QuantityReceived = record.QuantityReceived,
+            QuantityUsed = record.QuantityUsed,
+            Wastage = record.Wastage,
+            Balance = record.Balance,
+            TechSign = record.TechSign,
+            MedicalOfficerSign = record.MedicalOfficerSign,
+            Remarks = record.Remarks,
+            CreatedAt = record.CreatedAt
+        };
+    }
 
-    public async Task<IEnumerable<BloodBagStockRegisterDto>> GetBloodBagStockRegistersAsync() =>
-        (await _repo.GetBloodBagStockRegistersAsync()).Select(MapBagStock);
+    public async Task<IEnumerable<BloodBagStockRegisterDto>> GetBloodBagStockRegistersAsync()
+    {
+        var records = await _repo.GetBloodBagStockRegistersAsync();
+        return records.Select(MapBagStock);
+    }
 
     public async Task<BloodBagStockRegisterDto> CreateBloodBagStockRegisterAsync(CreateBloodBagStockRegisterDto d)
     {
@@ -793,32 +1303,38 @@ public sealed class BloodBankService : IBloodBankService
     // ==========================================
     // Uddanam Register 4: Diagnostic Kits & Reagents
     // ==========================================
-    private static DiagnosticKitRegisterDto MapKit(DiagnosticKitRegister x) => new()
+    private static DiagnosticKitRegisterDto MapKit(DiagnosticKitRegister record)
     {
-        Id = x.Id,
-        SlNo = x.SlNo,
-        Date = x.Date,
-        SupplierName = x.SupplierName,
-        KitName = x.KitName,
-        Manufacturer = x.Manufacturer,
-        InvoiceNo = x.InvoiceNo,
-        BatchNo = x.BatchNo,
-        DateOfManufacture = x.DateOfManufacture,
-        DateOfExpiry = x.DateOfExpiry,
-        QuantityReceived = x.QuantityReceived,
-        OpeningBalance = x.OpeningBalance,
-        NoOfTests = x.NoOfTests,
-        ControlsUsed = x.ControlsUsed,
-        Wastage = x.Wastage,
-        ClosingBalance = x.ClosingBalance,
-        TechSign = x.TechSign,
-        MedicalOfficerSign = x.MedicalOfficerSign,
-        Remarks = x.Remarks,
-        CreatedAt = x.CreatedAt
-    };
+        return new DiagnosticKitRegisterDto
+        {
+            Id = record.Id,
+            SlNo = record.SlNo,
+            Date = record.Date,
+            SupplierName = record.SupplierName,
+            KitName = record.KitName,
+            Manufacturer = record.Manufacturer,
+            InvoiceNo = record.InvoiceNo,
+            BatchNo = record.BatchNo,
+            DateOfManufacture = record.DateOfManufacture,
+            DateOfExpiry = record.DateOfExpiry,
+            QuantityReceived = record.QuantityReceived,
+            OpeningBalance = record.OpeningBalance,
+            NoOfTests = record.NoOfTests,
+            ControlsUsed = record.ControlsUsed,
+            Wastage = record.Wastage,
+            ClosingBalance = record.ClosingBalance,
+            TechSign = record.TechSign,
+            MedicalOfficerSign = record.MedicalOfficerSign,
+            Remarks = record.Remarks,
+            CreatedAt = record.CreatedAt
+        };
+    }
 
-    public async Task<IEnumerable<DiagnosticKitRegisterDto>> GetDiagnosticKitRegistersAsync() =>
-        (await _repo.GetDiagnosticKitRegistersAsync()).Select(MapKit);
+    public async Task<IEnumerable<DiagnosticKitRegisterDto>> GetDiagnosticKitRegistersAsync()
+    {
+        var records = await _repo.GetDiagnosticKitRegistersAsync();
+        return records.Select(MapKit);
+    }
 
     public async Task<DiagnosticKitRegisterDto> CreateDiagnosticKitRegisterAsync(CreateDiagnosticKitRegisterDto d)
     {
@@ -894,49 +1410,55 @@ public sealed class BloodBankService : IBloodBankService
     // ==========================================
     // Uddanam Register 5: Apheresis / SDP Records
     // ==========================================
-    private static ApheresisRecordDto MapApheresis(ApheresisRecord x) => new()
+    private static ApheresisRecordDto MapApheresis(ApheresisRecord record)
     {
-        Id = x.Id,
-        RegistrationNo = x.RegistrationNo,
-        Date = x.Date,
-        DonorName = x.DonorName,
-        AgeSex = x.AgeSex,
-        WeightKg = x.WeightKg,
-        BloodGroup = x.BloodGroup,
-        Phone = x.Phone,
-        Email = x.Email,
-        TimeOfMeal = x.TimeOfMeal,
-        PatientName = x.PatientName,
-        PatientIpNo = x.PatientIpNo,
-        PatientBedNo = x.PatientBedNo,
-        PatientBloodGroup = x.PatientBloodGroup,
-        TakenAspirinLast3Days = x.TakenAspirinLast3Days,
-        HaemoglobinGms = x.HaemoglobinGms,
-        PlateletCountLakhs = x.PlateletCountLakhs,
-        WbcCount = x.WbcCount,
-        BloodPressure = x.BloodPressure,
-        Pulse = x.Pulse,
-        TemperatureCelsius = x.TemperatureCelsius,
-        TotalProteinsGms = x.TotalProteinsGms,
-        ProcedureStartTime = x.ProcedureStartTime,
-        ProcedureEndTime = x.ProcedureEndTime,
-        DurationMinutes = x.DurationMinutes,
-        VenipunctureSite = x.VenipunctureSite,
-        WholeBloodPumpRateMlMin = x.WholeBloodPumpRateMlMin,
-        AcdRatio = x.AcdRatio,
-        TotalBloodVolumeProcessedMl = x.TotalBloodVolumeProcessedMl,
-        TotalProductCollectedMl = x.TotalProductCollectedMl,
-        TotalVolumeAcdUsedMl = x.TotalVolumeAcdUsedMl,
-        AdverseReaction = x.AdverseReaction,
-        QualityControlPassed = x.QualityControlPassed,
-        PhlebotomistSignature = x.PhlebotomistSignature,
-        MedicalOfficerSignature = x.MedicalOfficerSignature,
-        Remarks = x.Remarks,
-        CreatedAt = x.CreatedAt
-    };
+        return new ApheresisRecordDto
+        {
+            Id = record.Id,
+            RegistrationNo = record.RegistrationNo,
+            Date = record.Date,
+            DonorName = record.DonorName,
+            AgeSex = record.AgeSex,
+            WeightKg = record.WeightKg,
+            BloodGroup = record.BloodGroup,
+            Phone = record.Phone,
+            Email = record.Email,
+            TimeOfMeal = record.TimeOfMeal,
+            PatientName = record.PatientName,
+            PatientIpNo = record.PatientIpNo,
+            PatientBedNo = record.PatientBedNo,
+            PatientBloodGroup = record.PatientBloodGroup,
+            TakenAspirinLast3Days = record.TakenAspirinLast3Days,
+            HaemoglobinGms = record.HaemoglobinGms,
+            PlateletCountLakhs = record.PlateletCountLakhs,
+            WbcCount = record.WbcCount,
+            BloodPressure = record.BloodPressure,
+            Pulse = record.Pulse,
+            TemperatureCelsius = record.TemperatureCelsius,
+            TotalProteinsGms = record.TotalProteinsGms,
+            ProcedureStartTime = record.ProcedureStartTime,
+            ProcedureEndTime = record.ProcedureEndTime,
+            DurationMinutes = record.DurationMinutes,
+            VenipunctureSite = record.VenipunctureSite,
+            WholeBloodPumpRateMlMin = record.WholeBloodPumpRateMlMin,
+            AcdRatio = record.AcdRatio,
+            TotalBloodVolumeProcessedMl = record.TotalBloodVolumeProcessedMl,
+            TotalProductCollectedMl = record.TotalProductCollectedMl,
+            TotalVolumeAcdUsedMl = record.TotalVolumeAcdUsedMl,
+            AdverseReaction = record.AdverseReaction,
+            QualityControlPassed = record.QualityControlPassed,
+            PhlebotomistSignature = record.PhlebotomistSignature,
+            MedicalOfficerSignature = record.MedicalOfficerSignature,
+            Remarks = record.Remarks,
+            CreatedAt = record.CreatedAt
+        };
+    }
 
-    public async Task<IEnumerable<ApheresisRecordDto>> GetApheresisRecordsAsync() =>
-        (await _repo.GetApheresisRecordsAsync()).Select(MapApheresis);
+    public async Task<IEnumerable<ApheresisRecordDto>> GetApheresisRecordsAsync()
+    {
+        var records = await _repo.GetApheresisRecordsAsync();
+        return records.Select(MapApheresis);
+    }
 
     public async Task<ApheresisRecordDto> CreateApheresisRecordAsync(CreateApheresisRecordDto d)
     {

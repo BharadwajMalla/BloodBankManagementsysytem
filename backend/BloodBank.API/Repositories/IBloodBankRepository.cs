@@ -7,6 +7,8 @@ public interface IBloodBankRepository
     // Users
     Task<User?> FindUserAsync(Guid id);
     Task<User?> FindUserByEmailAsync(string email);
+    Task<bool> HasUsersAsync();
+    Task DeleteUsersByRoleAsync(string role);
     Task AddUserAsync(User user);
     Task UpdateUserAsync(User user);
 

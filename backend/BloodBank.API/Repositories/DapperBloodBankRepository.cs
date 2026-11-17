@@ -34,6 +34,7 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
     public DapperBloodBankRepository(IDbConnectionFactory factory)
     {
         _factory = factory;
+        DapperTypeHandlers.Register(_factory.IsSqlite);
     }
 
     private void Track<T>(T? entity) where T : class
@@ -82,6 +83,29 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
         var user = await conn.QueryFirstOrDefaultAsync<User>(sql, new { Email = normalized });
         Track(user);
         return user;
+    }
+
+    public async Task<bool> HasUsersAsync()
+    {
+        using var conn = _factory.CreateConnection();
+        var userCount = await conn.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM Users");
+        return userCount > 0;
+    }
+
+    public async Task DeleteUsersByRoleAsync(string role)
+    {
+        using var conn = _factory.CreateConnection();
+        await conn.ExecuteAsync("DELETE FROM Users WHERE Role = @Role", new { Role = role });
+
+        var trackedIds = _trackedUsers.Values
+            .Where(user => user.Role.Equals(role, StringComparison.OrdinalIgnoreCase))
+            .Select(user => user.Id)
+            .ToList();
+
+        foreach (var id in trackedIds)
+        {
+            _trackedUsers.Remove(id);
+        }
     }
 
     public Task AddUserAsync(User user)
@@ -1321,7 +1345,7 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                     Email = @Email,
                     TimeOfMeal = @TimeOfMeal,
                     PatientName = @PatientName,
-                    PatientIpNo = @PatientIpNo,
+                    PatientIpNo = @PatientIpNo, 
                     PatientBedNo = @PatientBedNo,
                     PatientBloodGroup = @PatientBloodGroup,
                     TakenAspirinLast3Days = @TakenAspirinLast3Days,
