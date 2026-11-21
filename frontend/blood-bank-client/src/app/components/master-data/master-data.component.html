@@ -1,0 +1,141 @@
+<main class="min-h-screen bg-slate-50 p-4 sm:p-8">
+  <div class="mx-auto max-w-7xl space-y-6">
+    <header class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p class="text-xs font-black uppercase tracking-widest text-rose-600">Uddanam Blood Centre</p>
+        <h1 class="mt-1 text-2xl font-black text-slate-900">Master Data</h1>
+        <p class="mt-1 text-sm text-slate-500">Search and maintain donor-supporting reference records.</p>
+      </div>
+      <a routerLink="/dashboard" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">
+        Back to dashboard
+      </a>
+    </header>
+
+    @if (errorMessage) {
+      <div role="alert" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{{ errorMessage }}</div>
+    }
+    @if (successMessage) {
+      <div role="status" class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{{ successMessage }}</div>
+    }
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="flex flex-wrap gap-2">
+        @for (category of categories; track category.type) {
+          <button type="button" (click)="selectType(category.type)"
+            [class]="selectedType === category.type ? 'rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white' : 'rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50'">
+            {{ category.label }}
+          </button>
+        }
+      </div>
+
+      <div class="mt-5 flex flex-wrap items-end justify-between gap-3">
+        <form class="flex min-w-[16rem] flex-1 gap-2" (ngSubmit)="loadRecords()">
+          <label class="sr-only" for="master-search">Search records</label>
+          <input id="master-search" name="search" [(ngModel)]="search" placeholder="Search code, name, contact..."
+            class="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-rose-400" />
+          <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">Search</button>
+        </form>
+        @if (selectedType !== 'staff' || authService.isAdmin()) {
+          <button type="button" (click)="beginCreate()" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700">
+            Add {{ selectedCategoryLabel }}
+          </button>
+        }
+      </div>
+
+      @if (selectedType === 'staff' && !authService.isAdmin()) {
+        <p class="mt-3 text-xs text-slate-500">Only administrators can add, edit, or deactivate staff accounts.</p>
+      }
+
+      @if (showForm) {
+        <form class="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4" (ngSubmit)="save()">
+          <h2 class="mb-4 font-black text-slate-800">{{ editingId ? 'Edit record' : 'New record' }}</h2>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            @for (field of fields; track field.key) {
+              <label class="block text-xs font-bold text-slate-600">
+                {{ field.label }} @if (field.required) { <span class="text-rose-600">*</span> }
+                @if (field.type === 'textarea') {
+                  <textarea [name]="field.key" [(ngModel)]="form[field.key]" [required]="field.required ?? false"
+                    rows="2" class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm"></textarea>
+                } @else if (field.type === 'select') {
+                  <select [name]="field.key" [(ngModel)]="form[field.key]" [required]="field.required ?? false"
+                    class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
+                    <option value="">Select role</option>
+                    @for (option of field.options; track option) { <option [value]="option">{{ option }}</option> }
+                  </select>
+                } @else {
+                  <input [name]="field.key" [type]="field.type ?? 'text'" [(ngModel)]="form[field.key]"
+                    [required]="field.required ?? false" [min]="field.min ?? null"
+                    [autocomplete]="field.type === 'password' ? 'new-password' : 'off'"
+                    class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" />
+                }
+              </label>
+            }
+          </div>
+          @if (editingId && (selectedType === 'staff' || selectedType === 'hospitals')) {
+            <label class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <input type="checkbox" name="isActive" [(ngModel)]="form['isActive']" />
+              Active
+            </label>
+          }
+          <div class="mt-4 flex gap-2">
+            <button type="submit" [disabled]="isSaving" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+              {{ isSaving ? 'Saving...' : 'Save' }}
+            </button>
+            <button type="button" (click)="showForm = false" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600">
+              Cancel
+            </button>
+          </div>
+        </form>
+      }
+
+      <div class="mt-5 overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full min-w-[48rem] text-left text-sm">
+          <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+            <tr>
+              <th class="px-4 py-3">Code</th>
+              <th class="px-4 py-3">Name</th>
+              <th class="px-4 py-3">Register details</th>
+              <th class="px-4 py-3">Contact</th>
+              <th class="px-4 py-3">Status / audit</th>
+              @if (selectedType !== 'staff' || authService.isAdmin()) { <th class="px-4 py-3">Actions</th> }
+            </tr>
+          </thead>
+          <tbody>
+            @for (record of records; track record.id) {
+              <tr class="border-t border-slate-100">
+                <td class="whitespace-nowrap px-4 py-3 font-mono text-xs font-bold text-slate-700">{{ record.code }}</td>
+                <td class="px-4 py-3 font-semibold text-slate-900">{{ record.name }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ displayDetails(record) }}</td>
+                <td class="px-4 py-3 text-xs text-slate-600">
+                  <div>{{ record.email || '—' }}</div>
+                  <div>{{ record.phone || '' }}</div>
+                </td>
+                <td class="px-4 py-3 text-xs">
+                  <span [class]="record.isActive ? 'font-bold text-emerald-700' : 'font-bold text-slate-400'">
+                    {{ record.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                  <div class="mt-1 text-slate-400">{{ record.updatedAt ? (record.updatedAt | date:'short') : (record.createdAt | date:'short') }}</div>
+                  <div class="text-slate-400">{{ record.updatedBy || record.createdBy || 'System' }}</div>
+                </td>
+                @if (selectedType !== 'staff' || authService.isAdmin()) {
+                  <td class="whitespace-nowrap px-4 py-3">
+                    <button type="button" (click)="beginEdit(record)" class="mr-3 font-bold text-blue-700">Edit</button>
+                    <button type="button" (click)="setActive(record)" class="font-bold text-rose-700">
+                      {{ record.isActive ? 'Deactivate' : 'Activate' }}
+                    </button>
+                  </td>
+                }
+              </tr>
+            } @empty {
+              <tr>
+                <td [attr.colspan]="selectedType !== 'staff' || authService.isAdmin() ? 6 : 5" class="px-4 py-8 text-center text-slate-400">
+                  {{ isLoading ? 'Loading records...' : 'No records match this search.' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>

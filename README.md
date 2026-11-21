@@ -70,3 +70,55 @@ The application includes 1-click login buttons on the login screen with these pr
 | **Donor** | `john.donor@gmail.com` | `Donor@123` | Request blood/components, track requests, view camps |
 
 ---
+
+## Developer setup and verification
+
+The backend targets .NET 10. Run commands below from the repository root in PowerShell.
+
+### Restore, build, and test the backend
+
+```powershell
+dotnet restore backend\BloodBank.Application.Tests\BloodBank.Application.Tests.csproj
+dotnet build backend\BloodBank.API\BloodBank.API.csproj --no-restore
+dotnet test backend\BloodBank.Application.Tests\BloodBank.Application.Tests.csproj --no-restore
+```
+
+### Database initialization and migration
+
+The Master Data slice applies an additive migration at API startup: existing donor accounts receive globally sequential `UBC-D-000001`-style IDs, existing staff accounts are backfilled into the staff directory, and the new reference tables are created. No tables or existing records are dropped. The provider-specific scripts are in `backend\BloodBank.Infrastructure\Migrations\MasterData.SqlServer.sql` and `backend\BloodBank.Infrastructure\Migrations\MasterData.Sqlite.sql`; startup runs the appropriate script and performs safe conditional column additions/backfills.
+
+To apply the migration and run against the existing SQLite database:
+
+```powershell
+Set-Location backend\BloodBank.API
+$env:ConnectionStrings__DefaultConnection = "Data Source=bloodbank.db"
+dotnet run
+```
+
+For SQL Server, store the connection string in local .NET User Secrets (never in source control), then run the API in Development:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=<server>;Database=<database>;User Id=<user>;Password=<password>;Encrypt=True;TrustServerCertificate=True" --project backend\BloodBank.API\BloodBank.API.csproj
+Set-Location backend\BloodBank.API
+dotnet run
+```
+
+The API uses the configured SQL Server directly and reports connection failures; it does not silently fall back to SQLite. Startup applies the existing EF migration and additive provider-specific DDL/backfills. Back up the target database before the first startup migration.
+
+### Backend safety rules
+
+- Donor eligibility is enforced for ages 18–60, weight at least 45 kg, hemoglobin at least 12.5 g/dL, and sex-based donation intervals (male: 90 days; female: 120 days).
+- Apheresis records require eligible donor age/weight/Hb/platelets and a 48-hour interval between procedures.
+- Bag issuance is atomic: only passed, unexpired, available, and unreserved bags may be issued; reactive TTI screening quarantines the bag.
+- HIV/hepatitis/TTI screening records remain in blood-bank-staff-authorized routes. Issue actions and TTI/reactive updates are audited by staff identity and timestamps.
+- Donation, request, and apheresis registers receive automatic yearly/monthly serials.
+
+### Run the frontend
+
+```powershell
+Set-Location frontend\blood-bank-client
+npm ci
+npm start
+```
+
+To build the frontend, run `npm run build` in `frontend\blood-bank-client`. The frontend currently has no test script.

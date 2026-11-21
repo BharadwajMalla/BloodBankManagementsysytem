@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using BloodBank.API.Models;
+using BloodBank.API.Repositories;
 
 namespace BloodBank.API.Data;
 
@@ -9,6 +10,7 @@ public static class DbInitializer
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var repository = scope.ServiceProvider.GetRequiredService<IBloodBankRepository>();
 
         try
         {
@@ -468,6 +470,23 @@ public static class DbInitializer
                         );
                         CREATE INDEX [IX_EmailOtps_Email_OtpCode_Purpose] ON [EmailOtps] ([Email], [OtpCode], [Purpose]);
                     END
+
+                    IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'LoginAuditRecords')
+                    BEGIN
+                        CREATE TABLE [LoginAuditRecords] (
+                            [Id] uniqueidentifier NOT NULL PRIMARY KEY,
+                            [UserId] uniqueidentifier NULL,
+                            [Email] nvarchar(200) NOT NULL,
+                            [FullName] nvarchar(150) NULL,
+                            [Role] nvarchar(50) NULL,
+                            [LoginAt] datetime2 NOT NULL,
+                            [Succeeded] bit NOT NULL,
+                            [IpAddress] nvarchar(45) NULL,
+                            [UserAgent] nvarchar(512) NULL
+                        );
+                        CREATE INDEX [IX_LoginAuditRecords_LoginAt] ON [LoginAuditRecords] ([LoginAt]);
+                        CREATE INDEX [IX_LoginAuditRecords_Email] ON [LoginAuditRecords] ([Email]);
+                    END
                 ");
             }
             else
@@ -635,13 +654,27 @@ public static class DbInitializer
                         Remarks TEXT NULL,
                         CreatedAt TEXT NOT NULL
                     );");
+                await context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS LoginAuditRecords (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        UserId TEXT NULL,
+                        Email TEXT NOT NULL,
+                        FullName TEXT NULL,
+                        Role TEXT NULL,
+                        LoginAt TEXT NOT NULL,
+                        Succeeded INTEGER NOT NULL,
+                        IpAddress TEXT NULL,
+                        UserAgent TEXT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS IX_LoginAuditRecords_LoginAt ON LoginAuditRecords (LoginAt);
+                    CREATE INDEX IF NOT EXISTS IX_LoginAuditRecords_Email ON LoginAuditRecords (Email);");
             }
 
             // Ensure at least one default Blood Bank admin exists without deleting operational history.
-            if (!await context.Users.AnyAsync())
+            if (!await repository.HasUsersAsync())
             {
                 logger.LogInformation("Creating default Blood Bank A operator account...");
-                await context.Users.AddAsync(new User
+                await repository.AddUserAsync(new User
                 {
                     Id = Guid.NewGuid(),
                     FullName = "Blood Bank A Administrator",
@@ -649,11 +682,12 @@ public static class DbInitializer
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
                     Role = "BloodBank",
                     Phone = "+1-800-BLOOD-A",
+                    IsEmailVerified = true,
                     CreatedAt = DateTime.UtcNow
                 });
             }
 
-            await context.SaveChangesAsync();
+            await repository.SaveChangesAsync();
             logger.LogInformation("Database schema synchronized and existing operational history preserved.");
         }
         catch (Exception ex)
@@ -662,28 +696,16 @@ public static class DbInitializer
         }
     }
 
-    public static async Task SeedLiveDataAsync(ApplicationDbContext context, ILogger? logger = null)
+    public static async Task SeedLiveDataAsync(IBloodBankRepository repository, ILogger? logger = null)
     {
         // 1. Clear existing operational records
-        context.BloodRequests.RemoveRange(context.BloodRequests);
-        context.DonationRecords.RemoveRange(context.DonationRecords);
-        context.DonationCamps.RemoveRange(context.DonationCamps);
-        context.BloodBags.RemoveRange(context.BloodBags);
-        context.BloodStocks.RemoveRange(context.BloodStocks);
-        context.BloodInventories.RemoveRange(context.BloodInventories);
-        context.ComponentCollections.RemoveRange(context.ComponentCollections);
-        context.ComponentDiscards.RemoveRange(context.ComponentDiscards);
-        context.ComponentReturns.RemoveRange(context.ComponentReturns);
-
-        var existingDonors = await context.Users.Where(u => u.Role == "Donor").ToListAsync();
-        context.Users.RemoveRange(existingDonors);
-
-        await context.SaveChangesAsync();
+        await repository.ClearOperationalDataAsync();
+        await repository.DeleteUsersByRoleAsync("Donor");
 
         // 2. Ensure Admin account exists
-        if (!await context.Users.AnyAsync(u => u.Email == "admin@bloodbankA.org"))
+        if (await repository.FindUserByEmailAsync("admin@bloodbankA.org") == null)
         {
-            await context.Users.AddAsync(new User
+            await repository.AddUserAsync(new User
             {
                 Id = Guid.NewGuid(),
                 FullName = "Blood Bank A Administrator",
@@ -793,10 +815,10 @@ public static class DbInitializer
             CreatedAt = DateTime.UtcNow.AddMonths(-8)
         };
 
-        await context.Users.AddRangeAsync(donorAarav, donorPooja, donorVikram, donorAnanya, donorKarthik, donorSneha);
+        await AddRangeAsync<User>(repository.AddUserAsync, donorAarav, donorPooja, donorVikram, donorAnanya, donorKarthik, donorSneha);
 
         // 4. Seed Donation Records for Donors
-        await context.DonationRecords.AddRangeAsync(
+        await AddRangeAsync<DonationRecord>(repository.AddDonationAsync,
             new DonationRecord
             {
                 Id = Guid.NewGuid(),
@@ -919,7 +941,7 @@ public static class DbInitializer
         var bagCounter = 100;
         foreach (var (comp, group, qty) in stockItems)
         {
-            await context.BloodStocks.AddAsync(new BloodStock
+            await repository.AddStockAsync(new BloodStock
             {
                 Id = Guid.NewGuid(),
                 ComponentType = comp,
@@ -934,7 +956,7 @@ public static class DbInitializer
                 bagCounter++;
                 var prefix = comp.Contains("Whole") ? "WB" : comp.Contains("PRBC") ? "PRBC" : comp.Contains("Platelet") ? "PLT" : comp.Contains("Plasma") ? "FFP" : "CRYO";
                 var barcode = $"BAG-{prefix}-{group.Replace("+", "P").Replace("-", "N")}-{bagCounter}";
-                await context.BloodBags.AddAsync(new BloodBag
+                await repository.AddBagAsync(new BloodBag
                 {
                     Id = Guid.NewGuid(),
                     BagNumber = barcode,
@@ -945,7 +967,7 @@ public static class DbInitializer
                     IsIssued = false
                 });
 
-                await context.ComponentCollections.AddAsync(new ComponentCollection
+                await repository.AddComponentCollectionAsync(new ComponentCollection
                 {
                     Id = Guid.NewGuid(),
                     BagBarcode = barcode,
@@ -961,7 +983,7 @@ public static class DbInitializer
         }
 
         // 6. Seed Donation Camps
-        await context.DonationCamps.AddRangeAsync(
+        await AddRangeAsync<DonationCamp>(repository.AddCampAsync,
             new DonationCamp
             {
                 Id = Guid.NewGuid(),
@@ -1004,7 +1026,7 @@ public static class DbInitializer
         );
 
         // 7. Seed Incoming & Fulfilled Blood Requests (with Account Summary & Payments)
-        await context.BloodRequests.AddRangeAsync(
+        await AddRangeAsync<BloodRequest>(repository.AddRequestAsync,
             // Pending 1: Critical Emergency Request
             new BloodRequest
             {
@@ -1099,7 +1121,7 @@ public static class DbInitializer
         );
 
         // 8. Seed Component Collections (including near-expiry alert)
-        await context.ComponentCollections.AddRangeAsync(
+        await AddRangeAsync<ComponentCollection>(repository.AddComponentCollectionAsync,
             new ComponentCollection
             {
                 Id = Guid.NewGuid(),
@@ -1151,7 +1173,7 @@ public static class DbInitializer
         );
 
         // 9. Seed Component Discards (including pending approval alert)
-        await context.ComponentDiscards.AddRangeAsync(
+        await AddRangeAsync<ComponentDiscard>(repository.AddComponentDiscardAsync,
             new ComponentDiscard
             {
                 Id = Guid.NewGuid(),
@@ -1175,7 +1197,7 @@ public static class DbInitializer
         );
 
         // 10. Seed Component Returns
-        await context.ComponentReturns.AddAsync(
+        await repository.AddComponentReturnAsync(
             new ComponentReturn
             {
                 Id = Guid.NewGuid(),
@@ -1188,9 +1210,9 @@ public static class DbInitializer
 
         
         // 11. Seed Uddanam TTI Screening Records
-        if (!await context.TtiScreeningRecords.AnyAsync())
+        if ((await repository.GetTtiScreeningsAsync()).Count == 0)
         {
-            await context.TtiScreeningRecords.AddRangeAsync(
+            await AddRangeAsync<TtiScreeningRecord>(repository.AddTtiScreeningAsync,
                 new TtiScreeningRecord
                 {
                     Id = Guid.NewGuid(),
@@ -1246,9 +1268,9 @@ public static class DbInitializer
         }
 
         // 12. Seed Uddanam Patient Grouping Records
-        if (!await context.PatientGroupingRecords.AnyAsync())
+        if ((await repository.GetPatientGroupingsAsync()).Count == 0)
         {
-            await context.PatientGroupingRecords.AddRangeAsync(
+            await AddRangeAsync<PatientGroupingRecord>(repository.AddPatientGroupingAsync,
                 new PatientGroupingRecord
                 {
                     Id = Guid.NewGuid(),
@@ -1295,9 +1317,9 @@ public static class DbInitializer
         }
 
         // 13. Seed Uddanam CPDA Blood Bags Stock Register
-        if (!await context.BloodBagStockRegisters.AnyAsync())
+        if ((await repository.GetBloodBagStockRegistersAsync()).Count == 0)
         {
-            await context.BloodBagStockRegisters.AddRangeAsync(
+            await AddRangeAsync<BloodBagStockRegister>(repository.AddBloodBagStockRegisterAsync,
                 new BloodBagStockRegister
                 {
                     Id = Guid.NewGuid(),
@@ -1350,9 +1372,9 @@ public static class DbInitializer
         }
 
         // 14. Seed Uddanam Diagnostic Kits & Reagents (ELISA Record)
-        if (!await context.DiagnosticKitRegisters.AnyAsync())
+        if ((await repository.GetDiagnosticKitRegistersAsync()).Count == 0)
         {
-            await context.DiagnosticKitRegisters.AddRangeAsync(
+            await AddRangeAsync<DiagnosticKitRegister>(repository.AddDiagnosticKitRegisterAsync,
                 new DiagnosticKitRegister
                 {
                     Id = Guid.NewGuid(),
@@ -1401,9 +1423,9 @@ public static class DbInitializer
         }
 
         // 15. Seed Uddanam Apheresis / SDP Record
-        if (!await context.ApheresisRecords.AnyAsync())
+        if ((await repository.GetApheresisRecordsAsync()).Count == 0)
         {
-            await context.ApheresisRecords.AddAsync(
+            await repository.AddApheresisRecordAsync(
                 new ApheresisRecord
                 {
                     Id = Guid.NewGuid(),
@@ -1446,8 +1468,16 @@ public static class DbInitializer
             );
         }
 
-        await context.SaveChangesAsync();
+        await repository.SaveChangesAsync();
         logger?.LogInformation("Live example operational data successfully populated directly into the database.");
+    }
+
+    private static async Task AddRangeAsync<T>(Func<T, Task> addAsync, params T[] records)
+    {
+        foreach (var record in records)
+        {
+            await addAsync(record);
+        }
     }
 
 }

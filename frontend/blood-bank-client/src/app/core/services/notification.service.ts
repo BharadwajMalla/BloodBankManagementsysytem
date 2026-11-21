@@ -210,6 +210,18 @@ export class NotificationService {
 
   public navigateToNotification(notification: AppNotification): void {
     this.markAsRead(notification.id);
+    const registerCategory: Partial<Record<AppNotification['targetTab'], string>> = {
+      requests: 'requisitions',
+      collection: 'collections',
+      discard: 'discards'
+    };
+    const category = registerCategory[notification.targetTab];
+    if (category) {
+      this.activeTabRequest.set(null);
+      this.router.navigate(['/registers', category]);
+      return;
+    }
+
     this.activeTabRequest.set(notification.targetTab);
     if (!this.router.url.includes('/dashboard')) {
       this.router.navigate(['/dashboard']);

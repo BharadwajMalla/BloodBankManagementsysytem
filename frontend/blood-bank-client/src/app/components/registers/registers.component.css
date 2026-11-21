@@ -1,0 +1,60 @@
+.register-print-header {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .register-print-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 2px solid #111827;
+    padding-bottom: 0.6rem;
+    margin-bottom: 1rem;
+    color: #111827;
+    font-size: 10pt;
+  }
+
+  .screen-only,
+  [role="alert"],
+  [role="status"] {
+    display: none !important;
+  }
+
+  .registers-header {
+    display: none !important;
+  }
+
+  .registers-sheet {
+    border: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .registers-table {
+    overflow: visible !important;
+    border: 0 !important;
+  }
+
+  .registers-table table {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-collapse: collapse;
+    font-size: 8pt;
+  }
+
+  .registers-table th,
+  .registers-table td {
+    border: 1px solid #64748b;
+    padding: 4px 6px !important;
+    white-space: normal !important;
+  }
+}

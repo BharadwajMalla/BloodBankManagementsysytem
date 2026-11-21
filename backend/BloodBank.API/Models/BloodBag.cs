@@ -27,4 +27,16 @@ public class BloodBag
     public bool IsIssued { get; set; }
 
     public DateTime? IssuedDate { get; set; }
+
+    [MaxLength(30)]
+    public string Status { get; set; } = "Available";
+    public DateTime? ExpiryDate { get; set; }
+    [MaxLength(30)]
+    public string ScreeningStatus { get; set; } = "Unscreened";
+    public DateTime? ReservedUntil { get; set; }
+    [MaxLength(150)]
+    public string? IssuedBy { get; set; }
+    public DateTime? IssuedAt { get; set; }
+    [MaxLength(100)]
+    public string? CpdaBatchNumber { get; set; }
 }

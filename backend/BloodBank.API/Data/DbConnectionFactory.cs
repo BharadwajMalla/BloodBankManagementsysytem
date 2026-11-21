@@ -13,6 +13,7 @@ public sealed class DbConnectionFactory : IDbConnectionFactory
     {
         ConnectionString = connectionString;
         IsSqlite = isSqlite;
+        DapperTypeHandlers.Register(isSqlite);
     }
 
     public IDbConnection CreateConnection()

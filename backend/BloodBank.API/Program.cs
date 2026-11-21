@@ -6,9 +6,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Dapper;
+using BloodBank.Application.Contracts;
+using BloodBank.Application.Services;
 using BloodBank.API.Data;
 using BloodBank.API.Repositories;
 using BloodBank.API.Services;
+using BloodBank.Infrastructure.Repositories;
+using BloodBank.Infrastructure.Security;
+using BloodBank.Infrastructure.Migrations;
 
 // 1. MUST EXECUTE BEFORE BUILDER INITIALIZATION:
 // Disables ASP.NET Core legacy WS-Federation/Identity claim mapping so 'role' remains 'role'
@@ -27,7 +33,7 @@ if (!string.IsNullOrEmpty(portEnv))
 var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(rawConnectionString) || rawConnectionString.Contains("localdb", StringComparison.OrdinalIgnoreCase))
 {
-    rawConnectionString = "Server=db78011.public.databaseasp.net; Database=db78011; User Id=db78011; Password=Mr3_@2EqRh7=; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;";
+    rawConnectionString = "Data Source=bloodbank.db";
 }
 
 bool useSqlite = false;
@@ -40,33 +46,8 @@ if (rawConnectionString.Contains(".db", StringComparison.OrdinalIgnoreCase) || r
 }
 else
 {
-    // Probe SQL Server host on port 1433 with 2.5s timeout.
-    // If blocked or unreachable (e.g. cloud host sandbox/firewall), seamlessly failover to local SQLite.
-    try
-    {
-        var match = System.Text.RegularExpressions.Regex.Match(rawConnectionString, @"Server=([^;,\s]+)");
-        var host = match.Success ? match.Groups[1].Value.Trim() : "db78011.public.databaseasp.net";
-        int port = 1433;
-        if (host.Contains(','))
-        {
-            var parts = host.Split(',');
-            host = parts[0].Trim();
-            int.TryParse(parts[1], out port);
-        }
-
-        using var tcpClient = new System.Net.Sockets.TcpClient();
-        var connectTask = tcpClient.ConnectAsync(host, port);
-        if (!connectTask.Wait(TimeSpan.FromSeconds(5)))
-        {
-            useSqlite = true;
-            activeDbProvider = "Sqlite (Fallback: SQL Server port 1433 timed out)";
-        }
-    }
-    catch
-    {
-        useSqlite = true;
-        activeDbProvider = "Sqlite (Fallback: SQL Server host unreachable)";
-    }
+    useSqlite = false;
+    activeDbProvider = "SqlServer";
 }
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -92,13 +73,32 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 var dapperConnectionString = useSqlite ? "Data Source=bloodbank.db" : rawConnectionString;
 builder.Services.AddSingleton<IDbConnectionFactory>(new DbConnectionFactory(dapperConnectionString, useSqlite));
 builder.Services.AddScoped<IBloodBankRepository, DapperBloodBankRepository>();
-builder.Services.AddScoped<EfBloodBankRepository>();
+builder.Services.AddScoped<ILoginAuditRepository, DapperLoginAuditRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailOtpService, EmailOtpService>();
 builder.Services.AddScoped<IBloodBankService, BloodBankService>();
 builder.Services.AddScoped<IDonorService, DonorService>();
 builder.Services.AddScoped<IHospitalService, HospitalService>();
 builder.Services.AddScoped<IBloodInventoryService, BloodInventoryService>();
+builder.Services.AddScoped<IDonorDonationService, DonorDonationService>();
+builder.Services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
+builder.Services.AddScoped<IDonorIdGenerator>(services =>
+    new DapperDonorIdGenerator(
+        () => services.GetRequiredService<IDbConnectionFactory>().CreateConnection()));
+builder.Services.AddScoped<IDonorDonationRepository>(services =>
+    new DapperDonorDonationRepository(
+        () => services.GetRequiredService<IDbConnectionFactory>().CreateConnection(),
+        services.GetRequiredService<IDonorIdGenerator>()));
+builder.Services.AddSingleton<MasterDataSchemaInitializer>(services =>
+{
+    var connectionFactory = services.GetRequiredService<IDbConnectionFactory>();
+    return new MasterDataSchemaInitializer(connectionFactory.CreateConnection, useSqlite);
+});
+builder.Services.AddScoped<IMasterDataRepository>(services =>
+    new DapperMasterDataRepository(
+        () => services.GetRequiredService<IDbConnectionFactory>().CreateConnection(),
+        useSqlite));
+builder.Services.AddScoped<IMasterDataService, MasterDataService>();
 
 // 4. Authentication & Security Configuration
 var jwtKey = builder.Configuration["Jwt:Key"] 
@@ -172,7 +172,8 @@ builder.Services.AddCors(options =>
         {
             if (string.IsNullOrEmpty(origin)) return false;
             var uri = new Uri(origin);
-            return uri.Host == "localhost" 
+            return uri.Host == "localhost"
+                || uri.Host == "127.0.0.1"
                 || uri.Host.EndsWith("vercel.app") 
                 || uri.Host.EndsWith("onrender.com");
         })
@@ -222,6 +223,8 @@ var app = builder.Build();
 
 // 8. Auto-Migrations and Seeding on application startup
 await DbInitializer.InitializeAsync(app.Services, app.Logger);
+await app.Services.GetRequiredService<MasterDataSchemaInitializer>()
+    .InitializeAsync(app.Lifetime.ApplicationStopping);
 
 // 9. HTTP Request Pipeline Configuration
 app.UseSwagger();
@@ -238,7 +241,7 @@ app.UseCors("AllowFrontendApp");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/api/health", async (ApplicationDbContext db) =>
+app.MapGet("/api/health", async (IDbConnectionFactory connectionFactory) =>
 {
     string? connectionError = null;
     bool canConnect = false;
@@ -246,10 +249,10 @@ app.MapGet("/api/health", async (ApplicationDbContext db) =>
 
     try
     {
-        using var conn = db.Database.GetDbConnection();
-        await conn.OpenAsync();
+        using var conn = connectionFactory.CreateConnection();
+        conn.Open();
         canConnect = true;
-        userCount = await db.Users.CountAsync();
+        userCount = await conn.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM Users");
     }
     catch (Exception ex)
     {
@@ -272,8 +275,8 @@ app.MapControllers();
 if (args.Contains("--seed-data"))
 {
     using var seedScope = app.Services.CreateScope();
-    var seedDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await DbInitializer.SeedLiveDataAsync(seedDb);
+    var seedRepository = seedScope.ServiceProvider.GetRequiredService<IBloodBankRepository>();
+    await DbInitializer.SeedLiveDataAsync(seedRepository);
     Console.WriteLine("SEED_COMPLETE_SUCCESS");
     return;
 }

@@ -72,4 +72,6 @@ public class ApheresisRecord
     [MaxLength(500)] public string? Remarks { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public int? YearlySlNo { get; set; }
+    public int? MonthlySlNo { get; set; }
 }

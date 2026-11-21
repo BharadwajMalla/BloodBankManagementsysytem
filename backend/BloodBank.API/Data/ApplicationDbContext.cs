@@ -11,6 +11,7 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<LoginAuditRecord> LoginAuditRecords => Set<LoginAuditRecord>();
     public DbSet<BloodStock> BloodStocks => Set<BloodStock>();
     public DbSet<BloodBag> BloodBags => Set<BloodBag>();
     public DbSet<BloodInventory> BloodInventories => Set<BloodInventory>();
@@ -40,13 +41,30 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.DonorId).IsUnique().HasFilter("DonorId IS NOT NULL");
             entity.Property(e => e.FullName).IsRequired().HasMaxLength(150);
             entity.Property(e => e.Email).IsRequired().HasMaxLength(200);
             entity.Property(e => e.PasswordHash).IsRequired();
             entity.Property(e => e.Role).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DonorId).HasMaxLength(50);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Sex).HasMaxLength(20);
             entity.Property(e => e.Address).HasMaxLength(300);
+            entity.Property(e => e.CreatedBy).HasMaxLength(200);
+            entity.Property(e => e.UpdatedBy).HasMaxLength(200);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql(utcNowSql);
+        });
+
+        modelBuilder.Entity<LoginAuditRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.FullName).HasMaxLength(150);
+            entity.Property(e => e.Role).HasMaxLength(50);
+            entity.Property(e => e.IpAddress).HasMaxLength(45);
+            entity.Property(e => e.UserAgent).HasMaxLength(512);
+            entity.HasIndex(e => e.LoginAt);
+            entity.HasIndex(e => e.Email);
         });
 
         // BloodStock Configuration (Blood Bank A)

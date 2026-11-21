@@ -34,6 +34,14 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
     public DapperBloodBankRepository(IDbConnectionFactory factory)
     {
         _factory = factory;
+        DapperTypeHandlers.Register(_factory.IsSqlite);
+    }
+
+    private static bool IsCleanScreeningResult(string? result)
+    {
+        return result != null
+            && (result.Equals("Non-Reactive", StringComparison.OrdinalIgnoreCase)
+                || result.Equals("Negative", StringComparison.OrdinalIgnoreCase));
     }
 
     private void Track<T>(T? entity) where T : class
@@ -82,6 +90,29 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
         var user = await conn.QueryFirstOrDefaultAsync<User>(sql, new { Email = normalized });
         Track(user);
         return user;
+    }
+
+    public async Task<bool> HasUsersAsync()
+    {
+        using var conn = _factory.CreateConnection();
+        var userCount = await conn.ExecuteScalarAsync<int>("SELECT COUNT(1) FROM Users");
+        return userCount > 0;
+    }
+
+    public async Task DeleteUsersByRoleAsync(string role)
+    {
+        using var conn = _factory.CreateConnection();
+        await conn.ExecuteAsync("DELETE FROM Users WHERE Role = @Role", new { Role = role });
+
+        var trackedIds = _trackedUsers.Values
+            .Where(user => user.Role.Equals(role, StringComparison.OrdinalIgnoreCase))
+            .Select(user => user.Id)
+            .ToList();
+
+        foreach (var id in trackedIds)
+        {
+            _trackedUsers.Remove(id);
+        }
     }
 
     public Task AddUserAsync(User user)
@@ -245,6 +276,109 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
         return list;
     }
 
+    public async Task<(IReadOnlyList<string> BagNumbers, string? Error)> TryIssueBagsAtomicallyAsync(
+        string bloodGroup, string componentType, int count, string? issuedBy)
+    {
+        using var conn = _factory.CreateConnection();
+        conn.Open();
+        using var tx = conn.BeginTransaction(IsolationLevel.Serializable);
+        var now = DateTime.UtcNow;
+        var candidates = (await conn.QueryAsync<BloodBag>(
+            @"SELECT * FROM BloodBags
+              WHERE IsIssued = 0
+                AND BloodGroup = @BloodGroup
+                AND ComponentType = @ComponentType
+              ORDER BY AddedDate ASC",
+            new { BloodGroup = bloodGroup.Trim().ToUpperInvariant(), ComponentType = componentType.Trim() },
+            transaction: tx)).ToList();
+
+        var eligible = new List<BloodBag>();
+        foreach (var bag in candidates)
+        {
+            if (!string.Equals(bag.Status, "Available", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(bag.ScreeningStatus, "Reactive", StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(bag.ScreeningStatus, "Passed", StringComparison.OrdinalIgnoreCase)
+                || (bag.ReservedUntil.HasValue && bag.ReservedUntil.Value > now)
+                || !bag.ExpiryDate.HasValue
+                || bag.ExpiryDate.Value <= now)
+                continue;
+
+            var collection = await conn.QueryFirstOrDefaultAsync<ComponentCollection>(
+                "SELECT * FROM ComponentCollections WHERE BagBarcode = @BagNumber",
+                new { BagNumber = bag.BagNumber }, tx);
+            if (collection != null
+                && (string.Equals(collection.Status, "Discarded", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(collection.Status, "Quarantined", StringComparison.OrdinalIgnoreCase)
+                    || collection.ExpiryDate <= now))
+                continue;
+
+            var screening = await conn.QueryFirstOrDefaultAsync<TtiScreeningRecord>(
+                @"SELECT * FROM TtiScreeningRecords
+                  WHERE BagBarcode = @BagNumber
+                  ORDER BY TestingDate DESC",
+                new { BagNumber = bag.BagNumber }, tx);
+            if (screening == null
+                || !string.Equals(screening.OverallStatus, "Passed", StringComparison.OrdinalIgnoreCase)
+                || !IsCleanScreeningResult(screening.HivResult)
+                || !IsCleanScreeningResult(screening.HivIResult)
+                || !IsCleanScreeningResult(screening.HivIiResult)
+                || !IsCleanScreeningResult(screening.HbsAgResult)
+                || !IsCleanScreeningResult(screening.HcvResult)
+                || !IsCleanScreeningResult(screening.VdrlResult)
+                || !IsCleanScreeningResult(screening.MalariaResult)
+                || !IsCleanScreeningResult(screening.AtypicalAntibodies))
+                continue;
+
+            eligible.Add(bag);
+            if (eligible.Count == count) break;
+        }
+
+        if (eligible.Count < count)
+        {
+            tx.Rollback();
+            return (Array.Empty<string>(), $"Only {eligible.Count} screened, unexpired, available bags are eligible; {count} requested.");
+        }
+
+        foreach (var bag in eligible)
+        {
+            var updated = await conn.ExecuteAsync(
+                @"UPDATE BloodBags
+                  SET IsIssued = 1, IssuedDate = @Now, IssuedAt = @Now, IssuedBy = @IssuedBy, Status = 'Issued'
+                  WHERE Id = @Id AND IsIssued = 0",
+                new { bag.Id, Now = now, IssuedBy = issuedBy ?? "Blood Bank Staff" },
+                transaction: tx);
+            if (updated != 1)
+            {
+                tx.Rollback();
+                return (Array.Empty<string>(), "Bag status changed concurrently. No bags were issued.");
+            }
+        }
+
+        var stock = await conn.QueryFirstOrDefaultAsync<BloodStock>(
+            "SELECT * FROM BloodStocks WHERE BloodGroup = @BloodGroup AND ComponentType = @ComponentType",
+            new { BloodGroup = bloodGroup.Trim().ToUpperInvariant(), ComponentType = componentType.Trim() }, tx);
+        if (stock == null)
+        {
+            tx.Rollback();
+            return (Array.Empty<string>(), "Stock record not found.");
+        }
+        var affected = await conn.ExecuteAsync(
+            @"UPDATE BloodStocks
+              SET QuantityUnits = QuantityUnits - @Count, LastUpdated = @Now
+              WHERE BloodGroup = @BloodGroup AND ComponentType = @ComponentType
+                AND QuantityUnits >= @Count",
+            new { Count = count, Now = now, BloodGroup = bloodGroup.Trim().ToUpperInvariant(), ComponentType = componentType.Trim() },
+            transaction: tx);
+        if (affected != 1)
+        {
+            tx.Rollback();
+            return (Array.Empty<string>(), "Stock changed concurrently. No bags were issued.");
+        }
+
+        tx.Commit();
+        return (eligible.Select(bag => bag.BagNumber).ToList(), null);
+    }
+
     // ==========================================
     // 4. Donation Camps
     // ==========================================
@@ -372,6 +506,20 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
     {
         _trackedRequests[request.Id] = request;
         return Task.CompletedTask;
+    }
+
+    public async Task<bool> DeletePendingRequestAsync(Guid id)
+    {
+        using var conn = _factory.CreateConnection();
+        const string sql = @"
+            DELETE FROM BloodRequests
+            WHERE Id = @Id
+              AND Status = 'Pending'
+              AND ProcessedAt IS NULL
+              AND (IssuedBagNumbers IS NULL OR TRIM(IssuedBagNumbers) = '')
+              AND PaymentStatus = 'Pending'";
+
+        return await conn.ExecuteAsync(sql, new { Id = id }) > 0;
     }
 
     // ==========================================
@@ -556,12 +704,6 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
     {
         _trackedReturns[item.Id] = item;
         return Task.CompletedTask;
-    }
-
-    public void RemoveComponentReturn(ComponentReturn item)
-    {
-        _trackedReturns.Remove(item.Id);
-        _pendingDeletes.Add(("ComponentReturns", item.Id));
     }
 
     // ==========================================
@@ -868,8 +1010,10 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
 
                 case BloodBag b:
                     const string insertBag = @"
-                        INSERT INTO BloodBags (Id, BagNumber, BloodGroup, ComponentType, QuantityUnits, AddedDate, IsIssued, IssuedDate)
-                        VALUES (@Id, @BagNumber, @BloodGroup, @ComponentType, @QuantityUnits, @AddedDate, @IsIssued, @IssuedDate)";
+                        INSERT INTO BloodBags (Id, BagNumber, BloodGroup, ComponentType, QuantityUnits, AddedDate, IsIssued, IssuedDate,
+                                               Status, ExpiryDate, ScreeningStatus, ReservedUntil, IssuedBy, IssuedAt, CpdaBatchNumber)
+                        VALUES (@Id, @BagNumber, @BloodGroup, @ComponentType, @QuantityUnits, @AddedDate, @IsIssued, @IssuedDate,
+                                @Status, @ExpiryDate, @ScreeningStatus, @ReservedUntil, @IssuedBy, @IssuedAt, @CpdaBatchNumber)";
                     await conn.ExecuteAsync(insertBag, b, transaction: tx);
                     break;
 
@@ -892,7 +1036,7 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                         INSERT INTO DonationRecords (
                             Id, DonorId, DonorName, BloodGroup, UnitsDonated, DonationDate, CampName, BloodBankName,
                             YearlySlNo, MonthlySlNo, DonationCategory, ReplacementPatientName, ReplacementPatientHospital,
-                            ReplacementPatientIpNo, BagNumber, HbTestMethod, HbEligibilityStatus, DeferralRecords,
+                            ReplacementPatientIpNo, BagNumber, CpdaBatchNumber, HbTestMethod, HbEligibilityStatus, DeferralRecords,
                             WeightKg, PulsePerMinute, Hemoglobin, Hematocrit, PlateletCount, BloodPressure, TemperatureCelsius,
                             ScreeningStaffName, ScreeningStaffSignature, ScreeningDate, ScreeningTime, MedicalExamAccepted,
                             DeferralReason, MedicalOfficerName, MedicalOfficerSignature, MedicalOfficerDate, DonorNumber,
@@ -906,7 +1050,7 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                         ) VALUES (
                             @Id, @DonorId, @DonorName, @BloodGroup, @UnitsDonated, @DonationDate, @CampName, @BloodBankName,
                             @YearlySlNo, @MonthlySlNo, @DonationCategory, @ReplacementPatientName, @ReplacementPatientHospital,
-                            @ReplacementPatientIpNo, @BagNumber, @HbTestMethod, @HbEligibilityStatus, @DeferralRecords,
+                            @ReplacementPatientIpNo, @BagNumber, @CpdaBatchNumber, @HbTestMethod, @HbEligibilityStatus, @DeferralRecords,
                             @WeightKg, @PulsePerMinute, @Hemoglobin, @Hematocrit, @PlateletCount, @BloodPressure, @TemperatureCelsius,
                             @ScreeningStaffName, @ScreeningStaffSignature, @ScreeningDate, @ScreeningTime, @MedicalExamAccepted,
                             @DeferralReason, @MedicalOfficerName, @MedicalOfficerSignature, @MedicalOfficerDate, @DonorNumber,
@@ -928,13 +1072,19 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                             BloodGroup, ComponentType, QuantityUnits, Urgency, Status, HospitalDepartment, MedicalReason,
                             AdminComments, CreatedAt, ProcessedAt, IssuedBagNumbers, PaymentMode, PaymentStatus, TransactionId, AmountPaid,
                             Indication, EmergencyUrgency, RefDoctor, IpNumber, RoomNumber, PreviousTransfusion, TransfusionReactionHistory,
-                            CrossMatchingReport, BillNumber, YearlySlNo, MonthlySlNo
+                            CrossMatchingReport, BillNumber, YearlySlNo, MonthlySlNo,
+                            CrossMatchingMethod, HbGdl, PcvPercent, PlateletCount, IndicationDiagnosis,
+                            RequiredResponseTime, RequiredDateTime, IssueOrReserve, ConsentTakenBy, ConsentDate,
+                            ConsentForIssue, BloodBankUseOnly, IssueSerial, ReceiverName, IssuedByName, BloodBankOfficerSignOff
                         ) VALUES (
                             @Id, @RequesterId, @RequesterType, @RequesterName, @RequesterContact, @HospitalName, @PatientName,
                             @BloodGroup, @ComponentType, @QuantityUnits, @Urgency, @Status, @HospitalDepartment, @MedicalReason,
                             @AdminComments, @CreatedAt, @ProcessedAt, @IssuedBagNumbers, @PaymentMode, @PaymentStatus, @TransactionId, @AmountPaid,
                             @Indication, @EmergencyUrgency, @RefDoctor, @IpNumber, @RoomNumber, @PreviousTransfusion, @TransfusionReactionHistory,
-                            @CrossMatchingReport, @BillNumber, @YearlySlNo, @MonthlySlNo
+                            @CrossMatchingReport, @BillNumber, @YearlySlNo, @MonthlySlNo,
+                            @CrossMatchingMethod, @HbGdl, @PcvPercent, @PlateletCount, @IndicationDiagnosis,
+                            @RequiredResponseTime, @RequiredDateTime, @IssueOrReserve, @ConsentTakenBy, @ConsentDate,
+                            @ConsentForIssue, @BloodBankUseOnly, @IssueSerial, @ReceiverName, @IssuedByName, @BloodBankOfficerSignOff
                         )";
                     await conn.ExecuteAsync(insertReq, r, transaction: tx);
                     break;
@@ -963,11 +1113,13 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                 case TtiScreeningRecord tti:
                     const string insertTti = @"
                         INSERT INTO TtiScreeningRecords (
-                            Id, BagBarcode, BloodGroup, TestingDate, HivResult, HbsAgResult, HcvResult, VdrlResult,
-                            MalariaResult, AtypicalAntibodies, OverallStatus, TestedBy, ApprovedBy, Remarks, CreatedAt
+                            Id, BagBarcode, BloodGroup, TestingDate, HivResult, HivIResult, HivIiResult, HbsAgResult, HcvResult, VdrlResult,
+                            MalariaResult, AtypicalAntibodies, OverallStatus, TestedBy, ApprovedBy, Remarks, CreatedAt,
+                            ElisaKitBatch, ElisaSignOffBy, ElisaSignOffAt
                         ) VALUES (
-                            @Id, @BagBarcode, @BloodGroup, @TestingDate, @HivResult, @HbsAgResult, @HcvResult, @VdrlResult,
-                            @MalariaResult, @AtypicalAntibodies, @OverallStatus, @TestedBy, @ApprovedBy, @Remarks, @CreatedAt
+                            @Id, @BagBarcode, @BloodGroup, @TestingDate, @HivResult, @HivIResult, @HivIiResult, @HbsAgResult, @HcvResult, @VdrlResult,
+                            @MalariaResult, @AtypicalAntibodies, @OverallStatus, @TestedBy, @ApprovedBy, @Remarks, @CreatedAt,
+                            @ElisaKitBatch, @ElisaSignOffBy, @ElisaSignOffAt
                         )";
                     await conn.ExecuteAsync(insertTti, tti, transaction: tx);
                     break;
@@ -1024,14 +1176,16 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                             HaemoglobinGms, PlateletCountLakhs, WbcCount, BloodPressure, Pulse, TemperatureCelsius, TotalProteinsGms,
                             ProcedureStartTime, ProcedureEndTime, DurationMinutes, VenipunctureSite, WholeBloodPumpRateMlMin,
                             AcdRatio, TotalBloodVolumeProcessedMl, TotalProductCollectedMl, TotalVolumeAcdUsedMl,
-                            AdverseReaction, QualityControlPassed, PhlebotomistSignature, MedicalOfficerSignature, Remarks, CreatedAt
+                            AdverseReaction, QualityControlPassed, PhlebotomistSignature, MedicalOfficerSignature, Remarks, CreatedAt,
+                            YearlySlNo, MonthlySlNo
                         ) VALUES (
                             @Id, @RegistrationNo, @Date, @DonorName, @AgeSex, @WeightKg, @BloodGroup, @Phone, @Email, @TimeOfMeal,
                             @PatientName, @PatientIpNo, @PatientBedNo, @PatientBloodGroup, @TakenAspirinLast3Days,
                             @HaemoglobinGms, @PlateletCountLakhs, @WbcCount, @BloodPressure, @Pulse, @TemperatureCelsius, @TotalProteinsGms,
                             @ProcedureStartTime, @ProcedureEndTime, @DurationMinutes, @VenipunctureSite, @WholeBloodPumpRateMlMin,
                             @AcdRatio, @TotalBloodVolumeProcessedMl, @TotalProductCollectedMl, @TotalVolumeAcdUsedMl,
-                            @AdverseReaction, @QualityControlPassed, @PhlebotomistSignature, @MedicalOfficerSignature, @Remarks, @CreatedAt
+                            @AdverseReaction, @QualityControlPassed, @PhlebotomistSignature, @MedicalOfficerSignature, @Remarks, @CreatedAt,
+                            @YearlySlNo, @MonthlySlNo
                         )";
                     await conn.ExecuteAsync(insertAph, aph, transaction: tx);
                     break;
@@ -1083,7 +1237,14 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                     QuantityUnits = @QuantityUnits, 
                     AddedDate = @AddedDate, 
                     IsIssued = @IsIssued, 
-                    IssuedDate = @IssuedDate 
+                    IssuedDate = @IssuedDate,
+                    Status = @Status,
+                    ExpiryDate = @ExpiryDate,
+                    ScreeningStatus = @ScreeningStatus,
+                    ReservedUntil = @ReservedUntil,
+                    IssuedBy = @IssuedBy,
+                    IssuedAt = @IssuedAt,
+                    CpdaBatchNumber = @CpdaBatchNumber
                 WHERE Id = @Id";
             await conn.ExecuteAsync(updateBag, b, transaction: tx);
         }
@@ -1150,7 +1311,23 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                     CrossMatchingReport = @CrossMatchingReport,
                     BillNumber = @BillNumber,
                     YearlySlNo = @YearlySlNo,
-                    MonthlySlNo = @MonthlySlNo
+                    MonthlySlNo = @MonthlySlNo,
+                    CrossMatchingMethod = @CrossMatchingMethod,
+                    HbGdl = @HbGdl,
+                    PcvPercent = @PcvPercent,
+                    PlateletCount = @PlateletCount,
+                    IndicationDiagnosis = @IndicationDiagnosis,
+                    RequiredResponseTime = @RequiredResponseTime,
+                    RequiredDateTime = @RequiredDateTime,
+                    IssueOrReserve = @IssueOrReserve,
+                    ConsentTakenBy = @ConsentTakenBy,
+                    ConsentDate = @ConsentDate,
+                    ConsentForIssue = @ConsentForIssue,
+                    BloodBankUseOnly = @BloodBankUseOnly,
+                    IssueSerial = @IssueSerial,
+                    ReceiverName = @ReceiverName,
+                    IssuedByName = @IssuedByName,
+                    BloodBankOfficerSignOff = @BloodBankOfficerSignOff
                 WHERE Id = @Id";
             await conn.ExecuteAsync(updateReq, r, transaction: tx);
         }
@@ -1205,6 +1382,8 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                     BloodGroup = @BloodGroup,
                     TestingDate = @TestingDate,
                     HivResult = @HivResult,
+                    HivIResult = @HivIResult,
+                    HivIiResult = @HivIiResult,
                     HbsAgResult = @HbsAgResult,
                     HcvResult = @HcvResult,
                     VdrlResult = @VdrlResult,
@@ -1213,7 +1392,10 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                     OverallStatus = @OverallStatus,
                     TestedBy = @TestedBy,
                     ApprovedBy = @ApprovedBy,
-                    Remarks = @Remarks
+                    Remarks = @Remarks,
+                    ElisaKitBatch = @ElisaKitBatch,
+                    ElisaSignOffBy = @ElisaSignOffBy,
+                    ElisaSignOffAt = @ElisaSignOffAt
                 WHERE Id = @Id";
             await conn.ExecuteAsync(updateTti, tti, transaction: tx);
         }
@@ -1321,7 +1503,7 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                     Email = @Email,
                     TimeOfMeal = @TimeOfMeal,
                     PatientName = @PatientName,
-                    PatientIpNo = @PatientIpNo,
+                    PatientIpNo = @PatientIpNo, 
                     PatientBedNo = @PatientBedNo,
                     PatientBloodGroup = @PatientBloodGroup,
                     TakenAspirinLast3Days = @TakenAspirinLast3Days,
@@ -1345,7 +1527,9 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
                     QualityControlPassed = @QualityControlPassed,
                     PhlebotomistSignature = @PhlebotomistSignature,
                     MedicalOfficerSignature = @MedicalOfficerSignature,
-                    Remarks = @Remarks
+                    Remarks = @Remarks,
+                    YearlySlNo = @YearlySlNo,
+                    MonthlySlNo = @MonthlySlNo
                 WHERE Id = @Id";
             await conn.ExecuteAsync(updateAph, aph, transaction: tx);
         }

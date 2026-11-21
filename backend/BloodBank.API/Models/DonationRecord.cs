@@ -38,6 +38,7 @@ public class DonationRecord
     [MaxLength(50)] public string? HbTestMethod { get; set; } = "Hemocue"; // Copper Sulphate, Hemocue, Automated Cell Counter
     [MaxLength(30)] public string? HbEligibilityStatus { get; set; } = "Fit"; // Fit / Unfit
     [MaxLength(500)] public string? DeferralRecords { get; set; }
+    [MaxLength(100)] public string? CpdaBatchNumber { get; set; }
 
     public decimal? WeightKg { get; set; }
     public int? PulsePerMinute { get; set; }
