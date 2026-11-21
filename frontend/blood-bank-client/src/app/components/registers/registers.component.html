@@ -1,0 +1,248 @@
+<main class="min-h-screen bg-slate-50 p-4 sm:p-8">
+  <div class="mx-auto max-w-[90rem] space-y-6">
+    <header class="registers-header flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p class="text-xs font-black uppercase tracking-widest text-rose-600">Uddanam Blood Centre · Staff only</p>
+        <h1 class="mt-1 text-2xl font-black text-slate-900">Paper Registers</h1>
+        <p class="mt-1 text-sm text-slate-500">Search, review and maintain operational registers using the existing blood-bank records.</p>
+      </div>
+      <a routerLink="/dashboard" class="screen-only rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">
+        Back to dashboard
+      </a>
+    </header>
+
+    <div class="register-print-header">
+      <strong>Uddanam Blood Centre</strong>
+      <span>Licence No. 07/SKM/AP/2023/BC/G</span>
+      <span>{{ selectedCategory.label }}</span>
+      <span>Printed {{ today | date:'medium' }}</span>
+    </div>
+
+    @if (errorMessage) {
+      <div role="alert" class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{{ errorMessage }}</div>
+    }
+    @if (successMessage) {
+      <div role="status" aria-live="polite" class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{{ successMessage }}</div>
+    }
+
+    <section aria-label="Register workspace" class="registers-sheet rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-black text-slate-900">{{ selectedCategory.label }}</h2>
+          <p class="mt-1 text-sm text-slate-500">{{ selectedCategory.description }}</p>
+        </div>
+        <div class="screen-only flex flex-wrap items-end gap-3">
+          @if (selectedKey === 'donations') {
+            <label class="block text-xs font-bold text-slate-600">
+              Donor
+              <select aria-label="Choose donor to view donation records" [ngModel]="selectedDonorId" (ngModelChange)="setSelectedDonor($event)"
+                class="mt-1 min-w-56 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                <option value="">Select a donor</option>
+                @for (donor of donors; track donor.id) {
+                  <option [value]="donor.id">{{ donor.donorId }} · {{ donor.fullName }}</option>
+                }
+              </select>
+            </label>
+          }
+          <form class="flex min-w-[16rem] gap-2" (ngSubmit)="loadRecords()">
+            <label class="sr-only" for="register-search">Search {{ selectedCategory.label }}</label>
+            <input id="register-search" name="search" [(ngModel)]="search" placeholder="Search register..."
+              class="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-rose-400" />
+            <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">Search</button>
+          </form>
+          @if (!isReadOnly && selectedKey !== 'donations') {
+            <button type="button" (click)="beginCreate()" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700">
+              Add entry
+            </button>
+          } @else if (selectedKey === 'donations' && selectedDonorId) {
+            <button type="button" (click)="beginCreate()" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700">
+              Record donation
+            </button>
+          }
+          <button type="button" (click)="printRegister()" class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+            Print register
+          </button>
+        </div>
+      </div>
+
+      @if (selectedKey === 'master-record') {
+        <p class="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          Master records include confidential TTI screening results and are available only to authorized blood-bank staff.
+        </p>
+      }
+      @if (selectedKey === 'discards' && !authService.isAdmin()) {
+        <p class="mt-3 text-xs text-slate-500">Discard approval and rejection actions are restricted to administrators.</p>
+      }
+      @if (selectedKey === 'requisitions') {
+        <div class="screen-only mt-4 flex flex-wrap items-center gap-2" aria-label="Request status filter">
+          <button type="button" (click)="requestFilterStatus = 'Active'"
+            [class]="requestFilterStatus === 'Active' ? 'rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white' : 'rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700'">
+            Active tasks ({{ activeRequestCount }})
+          </button>
+          <button type="button" (click)="requestFilterStatus = 'Fulfilled'"
+            [class]="requestFilterStatus === 'Fulfilled' ? 'rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white' : 'rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700'">
+            Fulfilled & issued ({{ fulfilledRequestCount }})
+          </button>
+          <button type="button" (click)="requestFilterStatus = 'All'"
+            [class]="requestFilterStatus === 'All' ? 'rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white' : 'rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700'">
+            All ({{ rows.length }})
+          </button>
+          <span class="text-xs text-slate-500">Showing {{ visibleRows.length }} request(s)</span>
+        </div>
+      }
+      @if (selectedKey === 'issues') {
+        <div class="mt-4 grid gap-3 sm:grid-cols-3">
+          <div class="rounded-xl bg-slate-50 p-4"><p class="text-xs text-slate-500">Issued requests</p><p class="text-xl font-black text-slate-900">{{ rows.length }}</p></div>
+          <div class="rounded-xl bg-slate-50 p-4"><p class="text-xs text-slate-500">Units issued</p><p class="text-xl font-black text-slate-900">{{ issueUnitTotal }}</p></div>
+          <div class="rounded-xl bg-slate-50 p-4"><p class="text-xs text-slate-500">Payments completed</p><p class="text-xl font-black text-emerald-700">{{ completedIssuePaymentCount }}</p></div>
+        </div>
+      }
+
+      @if (showForm) {
+        <form class="screen-only mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4" (ngSubmit)="save()">
+          <div class="mb-4 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h3 class="font-black text-slate-800">{{ editingId ? 'Edit entry' : 'New entry' }} · {{ selectedCategory.label }}</h3>
+              @if (selectedKey === 'donations') {
+                <p class="mt-1 text-xs text-slate-500">Donor: {{ selectedDonorName }}. Screening answers are confidential staff records.</p>
+              }
+            </div>
+            <button type="button" (click)="showForm = false" class="text-sm font-bold text-slate-500">Close form</button>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            @for (field of fields; track field.key) {
+              @if (field.type === 'checkbox') {
+                <label class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+                  <input [name]="field.key" type="checkbox" [(ngModel)]="form[field.key]" [required]="field.required ?? false"
+                    class="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500" />
+                  <span>{{ field.label }} @if (field.required) { <span class="text-rose-600">*</span> }</span>
+                </label>
+              } @else {
+                <label class="block text-xs font-bold text-slate-600">
+                  {{ field.label }} @if (field.required) { <span class="text-rose-600">*</span> }
+                  @if (field.type === 'textarea') {
+                    <textarea [name]="field.key" [(ngModel)]="form[field.key]" [required]="field.required ?? false"
+                      rows="2" class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm"></textarea>
+                  } @else if (field.type === 'select') {
+                    <select [name]="field.key" [(ngModel)]="form[field.key]" [required]="field.required ?? false"
+                      class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
+                      <option value="">Choose...</option>
+                      @for (option of field.options; track option) { <option [value]="option">{{ option }}</option> }
+                    </select>
+                  } @else {
+                    <input [name]="field.key" [type]="field.type ?? 'text'" [(ngModel)]="form[field.key]"
+                      [required]="field.required ?? false" [min]="field.min ?? null" [step]="field.step ?? null"
+                      class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" />
+                  }
+                </label>
+              }
+            }
+          </div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button type="submit" [disabled]="isSaving" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+              {{ isSaving ? 'Saving...' : 'Save entry' }}
+            </button>
+            <button type="button" (click)="showForm = false" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600">
+              Cancel
+            </button>
+          </div>
+        </form>
+      }
+
+      @if (processingId) {
+        <form class="screen-only mt-5 grid gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:grid-cols-2 lg:grid-cols-4" (ngSubmit)="processRequest()">
+          <label class="text-xs font-bold text-slate-600">Status
+            <select name="status" [(ngModel)]="processForm['status']" required class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
+              <option>Approved</option><option>Fulfilled</option><option>Rejected</option>
+            </select>
+          </label>
+          <label class="text-xs font-bold text-slate-600">Payment mode
+            <select name="paymentMode" [(ngModel)]="processForm['paymentMode']"
+              [required]="processForm['status'] === 'Fulfilled'" class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
+              <option value="">Not specified</option><option>Cash</option><option>UPI</option>
+            </select>
+          </label>
+          <label class="text-xs font-bold text-slate-600">Transaction ID
+            <input name="transactionId" [(ngModel)]="processForm['transactionId']"
+              [required]="processForm['status'] === 'Fulfilled' && processForm['paymentMode'] === 'UPI'"
+              class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" />
+          </label>
+          <label class="text-xs font-bold text-slate-600">Amount paid
+            <input name="amountPaid" type="number" min="0" [(ngModel)]="processForm['amountPaid']" class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" />
+          </label>
+          <label class="text-xs font-bold text-slate-600 sm:col-span-2 lg:col-span-3">Processing notes
+            <input name="adminComments" [(ngModel)]="processForm['adminComments']" class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" />
+          </label>
+          <div class="flex items-end gap-2">
+            <button type="submit" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white">Save status</button>
+            <button type="button" (click)="processingId = null" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600">Cancel</button>
+          </div>
+        </form>
+      }
+
+      @if (isLoading) {
+        <p role="status" aria-live="polite" class="mt-5 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">Loading {{ selectedCategory.label.toLowerCase() }}...</p>
+      } @else {
+        <div class="registers-table mt-5 overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full min-w-[54rem] text-left text-sm">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                @for (column of tableColumns; track column.key) { <th scope="col" class="whitespace-nowrap px-4 py-3">{{ column.label }}</th> }
+                @if (canEdit() || supportsDelete() || selectedKey === 'requisitions' || selectedKey === 'donors' || (selectedKey === 'discards' && authService.isAdmin())) {
+                  <th scope="col" class="px-4 py-3">Actions</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of visibleRows; track row.id) {
+                <tr class="border-t border-slate-100 align-top">
+                  @for (column of tableColumns; track column.key) {
+                    <td class="max-w-72 whitespace-nowrap px-4 py-3 text-slate-700">{{ displayValue(column.key, row[column.key]) }}</td>
+                  }
+                  @if (canEdit() || supportsDelete() || selectedKey === 'requisitions' || selectedKey === 'donors' || (selectedKey === 'discards' && authService.isAdmin())) {
+                    <td class="screen-only whitespace-nowrap px-4 py-3">
+                      @if (canEditRow(row)) {
+                        <button type="button" (click)="beginEdit(row)" class="mr-3 font-bold text-blue-700" [attr.aria-label]="'Edit entry ' + row.id">Edit</button>
+                      }
+                      @if (canDelete(row)) {
+                        <button type="button" (click)="delete(row)" class="mr-3 font-bold text-rose-700" [attr.aria-label]="'Delete entry ' + row.id">
+                          {{ selectedKey === 'donors' ? 'Deactivate' : 'Delete' }}
+                        </button>
+                      }
+                      @if (selectedKey === 'donors') {
+                        <button type="button" (click)="startDonation(row)" class="mr-3 font-bold text-rose-700" [attr.aria-label]="'Record donation for ' + row['fullName']">Record donation</button>
+                        <button type="button" (click)="openDonations(row)" class="font-bold text-blue-700" [attr.aria-label]="'View donations for ' + row['fullName']">History</button>
+                      }
+                      @if (selectedKey === 'requisitions') {
+                        <button type="button" (click)="startProcessing(row)" class="font-bold text-blue-700" [attr.aria-label]="'Process requisition ' + row.id">Process</button>
+                      }
+                      @if (selectedKey === 'discards' && authService.isAdmin() && row['approvalStatus'] === 'Pending') {
+                        <button type="button" (click)="reviewDiscard(row, true)" class="mr-3 font-bold text-emerald-700">Approve</button>
+                        <button type="button" (click)="reviewDiscard(row, false)" class="font-bold text-rose-700">Reject</button>
+                      }
+                    </td>
+                  }
+                </tr>
+              } @empty {
+                <tr>
+                  <td [attr.colspan]="tableColumns.length + (canEdit() || supportsDelete() || selectedKey === 'requisitions' || selectedKey === 'donors' || (selectedKey === 'discards' && authService.isAdmin()) ? 1 : 0)"
+                    class="px-4 py-10 text-center text-slate-500">
+                    {{ search ? 'No entries match this search.' : 'No entries are available.' }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      @if (selectedKey === 'issues') {
+        <p class="mt-3 text-xs text-slate-500">Fulfilled requests appear here; the existing API atomically issues available bags and records their numbers during fulfillment.</p>
+      }
+      @if (selectedKey === 'donations' && !selectedDonorId && !isLoading) {
+        <p class="mt-3 text-xs text-slate-500">Choose a donor above to view donation history, or use Record donation from the donor register.</p>
+      }
+    </section>
+  </div>
+</main>

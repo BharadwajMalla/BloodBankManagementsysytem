@@ -682,6 +682,7 @@ public static class DbInitializer
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
                     Role = "BloodBank",
                     Phone = "+1-800-BLOOD-A",
+                    IsEmailVerified = true,
                     CreatedAt = DateTime.UtcNow
                 });
             }

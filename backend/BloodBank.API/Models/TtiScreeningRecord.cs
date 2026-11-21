@@ -21,6 +21,10 @@ public class TtiScreeningRecord
 
     [Required, MaxLength(20)]
     public string HivResult { get; set; } = "Non-Reactive"; // Non-Reactive, Reactive
+    [MaxLength(20)]
+    public string HivIResult { get; set; } = "Non-Reactive";
+    [MaxLength(20)]
+    public string HivIiResult { get; set; } = "Non-Reactive";
 
     [Required, MaxLength(20)]
     public string HbsAgResult { get; set; } = "Non-Reactive"; // Non-Reactive, Reactive
@@ -48,6 +52,12 @@ public class TtiScreeningRecord
 
     [MaxLength(500)]
     public string? Remarks { get; set; }
+
+    [MaxLength(100)]
+    public string? ElisaKitBatch { get; set; }
+    [MaxLength(150)]
+    public string? ElisaSignOffBy { get; set; }
+    public DateTime? ElisaSignOffAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

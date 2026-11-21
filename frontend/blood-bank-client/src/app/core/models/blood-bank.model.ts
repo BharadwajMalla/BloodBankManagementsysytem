@@ -72,6 +72,7 @@ export interface BloodRequest {
 
 export interface DonorDetails {
   id: string;
+  donorId: string;
   fullName: string;
   email: string;
   phone?: string;
@@ -86,6 +87,36 @@ export interface DonorDetails {
   eligibilityStatus: string;
   donationStatus: string;
 }
+
+export type MasterDataType = 'hospitals' | 'doctors' | 'staff' | 'products' | 'bag-types' | 'suppliers';
+
+export interface MasterDataEntry {
+  id: string;
+  code: string;
+  name: string;
+  registrationNumber?: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  specialty?: string;
+  hospitalName?: string;
+  category?: string;
+  department?: string;
+  role?: string;
+  shelfLifeDays?: number;
+  volumeMl?: number;
+  anticoagulant?: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  createdBy?: string;
+  updatedBy?: string;
+}
+
+export type MasterDataCommand = Omit<MasterDataEntry, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>
+  & { password?: string };
 
 export interface CreateDonorPayload {
   firstName: string;

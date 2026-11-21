@@ -2,15 +2,19 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BloodBank.API.DTOs;
+using BloodBank.API.Mapping;
 using BloodBank.API.Repositories;
 using BloodBank.API.Services;
+using BloodBank.Application.Contracts;
 
 namespace BloodBank.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize(Roles = "BloodBank,Admin,TechnicalSupervisor,Technician")]
-public class BloodBankController(IBloodBankService service) : ControllerBase
+public class BloodBankController(
+    IBloodBankService service,
+    IDonorDonationService donorDonationService) : ControllerBase
 {
     private Guid UserId()
     {
@@ -24,8 +28,29 @@ public class BloodBankController(IBloodBankService service) : ControllerBase
         return Ok(stock);
     }
 
+    [HttpGet("stock")]
+    public async Task<IActionResult> GetStockAlias(string? bloodGroup, string? componentType)
+    {
+        var stock = await service.GetStockAsync(bloodGroup, componentType);
+        return Ok(stock);
+    }
+
     [HttpPost("addstock")]
     public async Task<IActionResult> AddStock(AddStockDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var stock = await service.AddStockAsync(dto);
+        return stock == null
+            ? Conflict(new { message = "A blood bag with this bag number already exists." })
+            : Ok(stock);
+    }
+
+    [HttpPost("stock")]
+    public async Task<IActionResult> AddStockAlias(AddStockDto dto)
     {
         if (!ModelState.IsValid)
         {
@@ -125,39 +150,60 @@ public class BloodBankController(IBloodBankService service) : ControllerBase
     }
 
     [HttpGet("donors")]
-    public async Task<IActionResult> GetDonors()
+    public async Task<IActionResult> GetDonors(CancellationToken cancellationToken)
     {
-        var donors = await service.GetDonorsAsync();
+        var donors = await donorDonationService.GetDonorsAsync(cancellationToken);
         return Ok(donors);
     }
 
+    [HttpDelete("donors/{id:guid}")]
+    public async Task<IActionResult> DeactivateDonor(Guid id, CancellationToken cancellationToken)
+    {
+        var deactivated = await donorDonationService.DeactivateDonorAsync(
+            id,
+            cancellationToken,
+            User.Identity?.Name);
+        return deactivated
+            ? NoContent()
+            : NotFound(new { message = "Donor not found or already inactive." });
+    }
+
     [HttpPost("donors")]
-    public async Task<IActionResult> CreateDonor(CreateDonorDto dto)
+    public async Task<IActionResult> CreateDonor(CreateDonorDto dto, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
 
-        var donor = await service.CreateDonorAsync(dto);
+        var donor = await donorDonationService.CreateDonorAsync(
+            DonorDonationApiMapper.ToCommand(dto),
+            cancellationToken,
+            User.Identity?.Name);
         return donor == null
             ? Conflict(new { message = "A user with this email already exists." })
             : CreatedAtAction(nameof(GetDonors), new { id = donor.Donor.Id }, donor);
     }
 
     [HttpPost("donors/{id:guid}/donation")]
-    public async Task<IActionResult> CompleteDonation(Guid id, CompleteDonationDto dto)
+    public async Task<IActionResult> CompleteDonation(
+        Guid id,
+        CompleteDonationDto dto,
+        CancellationToken cancellationToken)
     {
-        var result = await service.CompleteDonationAsync(id, dto);
+        var result = await donorDonationService.CompleteDonationAsync(
+            id,
+            DonorDonationApiMapper.ToCommand(dto),
+            cancellationToken);
         return result.IsEligible
             ? Ok(result)
             : BadRequest(result);
     }
 
     [HttpGet("donors/{id:guid}/donations")]
-    public async Task<IActionResult> GetDonationHistory(Guid id)
+    public async Task<IActionResult> GetDonationHistory(Guid id, CancellationToken cancellationToken)
     {
-        var donations = await service.GetDonationHistoryAsync(id);
+        var donations = await donorDonationService.GetDonationHistoryAsync(id, cancellationToken);
         return Ok(donations);
     }
 
@@ -183,7 +229,7 @@ public class BloodBankController(IBloodBankService service) : ControllerBase
     [HttpPut("requests/{id}/process")]
     public async Task<IActionResult> Process(Guid id, ProcessRequestDto dto)
     {
-        var (result, error) = await service.ProcessRequestAsync(id, dto);
+        var (result, error) = await service.ProcessRequestAsync(id, dto, User.Identity?.Name);
         if (result != null)
         {
             return Ok(result);
@@ -298,10 +344,12 @@ public class BloodBankController(IBloodBankService service) : ControllerBase
     }
 
     [HttpDelete("components/returns/{id:guid}")]
-    public async Task<IActionResult> DeleteComponentReturn(Guid id)
+    public IActionResult DeleteComponentReturn(Guid id)
     {
-        var deleted = await service.DeleteComponentReturnAsync(id);
-        return deleted ? NoContent() : NotFound();
+        return Conflict(new
+        {
+            message = "Component return records cannot be deleted because deletion would desynchronize bag status and stock."
+        });
     }
 
     [HttpPut("stock/{id:guid}")]
@@ -319,14 +367,21 @@ public class BloodBankController(IBloodBankService service) : ControllerBase
     }
 
     [HttpPut("donors/{id:guid}")]
-    public async Task<IActionResult> UpdateDonor(Guid id, UpdateDonorDto dto)
+    public async Task<IActionResult> UpdateDonor(
+        Guid id,
+        UpdateDonorDto dto,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
 
-        var donor = await service.UpdateDonorAsync(id, dto);
+        var donor = await donorDonationService.UpdateDonorAsync(
+            id,
+            DonorDonationApiMapper.ToCommand(dto),
+            cancellationToken,
+            User.Identity?.Name);
         return donor == null
             ? BadRequest(new { message = "Donor not found or email already registered." })
             : Ok(donor);
@@ -344,6 +399,20 @@ public class BloodBankController(IBloodBankService service) : ControllerBase
         return request == null
             ? NotFound(new { message = "Request not found." })
             : Ok(request);
+    }
+
+    [HttpDelete("requests/{id:guid}")]
+    public async Task<IActionResult> DeletePendingRequest(Guid id)
+    {
+        var deleted = await service.DeletePendingRequestAsync(id);
+        if (deleted is null)
+        {
+            return NotFound(new { message = "Request not found." });
+        }
+
+        return deleted.Value
+            ? NoContent()
+            : Conflict(new { message = "Only pending, unprocessed requests can be deleted." });
     }
 
     [HttpPut("components/discards/{id:guid}")]
@@ -548,9 +617,15 @@ public class BloodBankController(IBloodBankService service) : ControllerBase
         {
             return BadRequest(ModelState);
         }
-
-        var result = await service.CreateApheresisRecordAsync(dto);
-        return Ok(result);
+        try
+        {
+            var result = await service.CreateApheresisRecordAsync(dto);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("registers/apheresis/{id:guid}")]
@@ -561,10 +636,17 @@ public class BloodBankController(IBloodBankService service) : ControllerBase
             return BadRequest(ModelState);
         }
 
-        var result = await service.UpdateApheresisRecordAsync(id, dto);
-        return result == null
-            ? NotFound(new { message = "Record not found." })
-            : Ok(result);
+        try
+        {
+            var result = await service.UpdateApheresisRecordAsync(id, dto);
+            return result == null
+                ? NotFound(new { message = "Record not found." })
+                : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpDelete("registers/apheresis/{id:guid}")]

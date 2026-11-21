@@ -5,7 +5,7 @@ namespace BloodBank.API.Services;
 
 public interface IAuthService
 {
-    Task<AuthResponseDto> RegisterAsync(RegisterDto dto);
+    Task<AuthResponseDto> RegisterAsync(RegisterDto dto, CancellationToken cancellationToken = default);
     Task<AuthResponseDto> LoginAsync(LoginDto dto);
     Task<bool> ResetPasswordAsync(ResetPasswordDto dto);
     string GenerateJwtToken(User user);

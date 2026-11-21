@@ -88,6 +88,10 @@ export class BloodBankService {
     return this.http.put<DonorDetails>(`${this.baseUrl}/donors/${id}`, payload);
   }
 
+  public deleteDonor(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/donors/${id}`);
+  }
+
   public completeDonation(id: string, payload: CompleteDonationPayload): Observable<DonationCompletionResult> {
     return this.http.post<DonationCompletionResult>(`${this.baseUrl}/donors/${id}/donation`, payload);
   }
@@ -109,6 +113,10 @@ export class BloodBankService {
 
   public updateRequest(id: string, payload: Partial<CreateBloodRequestPayload> & { status?: string; adminComments?: string }): Observable<BloodRequest> {
     return this.http.put<BloodRequest>(`${this.baseUrl}/requests/${id}`, payload);
+  }
+
+  public deletePendingRequest(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/requests/${id}`);
   }
 
   public processRequest(id: string, status: 'Approved' | 'Fulfilled' | 'Rejected', adminComments?: string, paymentMode?: 'Cash' | 'UPI', transactionId?: string, amountPaid?: number): Observable<BloodRequest> {

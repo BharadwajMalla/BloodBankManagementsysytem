@@ -81,6 +81,22 @@ public class BloodRequest
     public bool? TransfusionReactionHistory { get; set; }
     [MaxLength(200)] public string? CrossMatchingReport { get; set; } // "Saline / ALB / AHG Compatible"
     [MaxLength(50)] public string? BillNumber { get; set; }
+    [MaxLength(20)] public string? CrossMatchingMethod { get; set; }
+    public decimal? HbGdl { get; set; }
+    public decimal? PcvPercent { get; set; }
+    public decimal? PlateletCount { get; set; }
+    [MaxLength(500)] public string? IndicationDiagnosis { get; set; }
+    [MaxLength(30)] public string? RequiredResponseTime { get; set; }
+    public DateTime? RequiredDateTime { get; set; }
+    [MaxLength(20)] public string? IssueOrReserve { get; set; }
+    [MaxLength(150)] public string? ConsentTakenBy { get; set; }
+    public DateTime? ConsentDate { get; set; }
+    public bool ConsentForIssue { get; set; }
+    public bool BloodBankUseOnly { get; set; }
+    [MaxLength(50)] public string? IssueSerial { get; set; }
+    [MaxLength(150)] public string? ReceiverName { get; set; }
+    [MaxLength(150)] public string? IssuedByName { get; set; }
+    [MaxLength(150)] public string? BloodBankOfficerSignOff { get; set; }
     public int? YearlySlNo { get; set; }
     public int? MonthlySlNo { get; set; }
 }

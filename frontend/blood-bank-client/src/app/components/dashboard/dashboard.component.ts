@@ -6,6 +6,8 @@ import { BloodBankService } from '../../core/services/blood-bank.service';
 import { DonorService } from '../../core/services/donor.service';
 import { HospitalService } from '../../core/services/hospital.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { RouterLink, RouterLinkActive } from '@angular/router';
+import { registerList } from '../registers/registers.component';
 import {
   BloodBag, BloodGroup, BloodRequest, BloodStock, ComponentCollection, ComponentDiscard,
   ComponentReturn, ComponentType, DonationCamp, DonationHistory, DonorDetails,
@@ -20,7 +22,7 @@ import {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, RouterLinkActive],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
@@ -31,6 +33,12 @@ export class DashboardComponent implements OnInit {
   private donorService = inject(DonorService);
   private hospitalService = inject(HospitalService);
   private fb = inject(FormBuilder);
+
+  public get paperRegisterCategories() {
+    return this.authService.hasRole(['Admin', 'TechnicalSupervisor'])
+      ? registerList
+      : registerList.filter(category => category.key !== 'tti' && category.key !== 'master-record');
+  }
 
   constructor() {
     effect(() => {
@@ -297,13 +305,11 @@ export class DashboardComponent implements OnInit {
     bloodPressure: [''],
     temperatureCelsius: [null],
     screeningStaffName: [''],
-    screeningStaffSignature: [''],
     screeningDate: [new Date().toISOString().substring(0, 10)],
     screeningTime: [''],
     medicalExamAccepted: [false],
     deferralReason: [''],
     medicalOfficerName: [''],
-    medicalOfficerSignature: [''],
     medicalOfficerDate: [new Date().toISOString().substring(0, 10)],
     donorNumber: [''],
     bagType: ['Whole Blood'],
@@ -312,7 +318,6 @@ export class DashboardComponent implements OnInit {
     donationEndTime: [''],
     venipunctureSite: ['Right arm'],
     phlebotomistName: [''],
-    phlebotomistSignature: [''],
     visualInspectionPassed: [false],
     feelsHealthyToday: [false, [Validators.requiredTrue]],
     donatedRecently: [false],
@@ -832,10 +837,17 @@ export class DashboardComponent implements OnInit {
 
   public submitCreateCamp(): void {
     if (this.createCampForm.invalid) return;
-    this.bloodBankService.createCamp(this.createCampForm.value).subscribe({
+    const request = this.editingCamp
+      ? this.bloodBankService.updateCamp(this.editingCamp.id, this.createCampForm.value)
+      : this.bloodBankService.createCamp(this.createCampForm.value);
+    request.subscribe({
       next: () => {
         this.showCreateCampModal = false;
+        this.editingCamp = null;
         this.loadBankData();
+      },
+      error: error => {
+        this.componentError = error.error?.message || 'Unable to save donation camp.';
       }
     });
   }
@@ -919,13 +931,11 @@ export class DashboardComponent implements OnInit {
       bloodPressure: '',
       temperatureCelsius: null,
       screeningStaffName: '',
-      screeningStaffSignature: '',
       screeningDate: new Date().toISOString().substring(0, 10),
       screeningTime: '',
       medicalExamAccepted: false,
       deferralReason: '',
       medicalOfficerName: '',
-      medicalOfficerSignature: '',
       medicalOfficerDate: new Date().toISOString().substring(0, 10),
       donorNumber: '',
       bagType: 'Whole Blood',
@@ -934,7 +944,6 @@ export class DashboardComponent implements OnInit {
       donationEndTime: '',
       venipunctureSite: 'Right arm',
       phlebotomistName: '',
-      phlebotomistSignature: '',
       visualInspectionPassed: false,
       unitsDonated: 1,
       campName: ''
@@ -1309,9 +1318,7 @@ export class DashboardComponent implements OnInit {
     autoAntibodies: ['Negative'],
     crossmatchSaline: ['Compatible'],
     crossmatchAlbumin: ['Compatible'],
-    crossmatchAhg: ['Compatible'],
-    technicianSignature: ['Lab Tech'],
-    medicalOfficerSignature: ['M.O.']
+    crossmatchAhg: ['Compatible']
   });
 
   public showBagStockModal = false;
@@ -1334,8 +1341,6 @@ export class DashboardComponent implements OnInit {
     quantityUsed: [0, [Validators.required, Validators.min(0)]],
     wastage: [0, [Validators.required, Validators.min(0)]],
     balance: [0, [Validators.required, Validators.min(0)]],
-    techSign: ['Store Incharge'],
-    medicalOfficerSign: ['M.O.'],
     remarks: ['']
   });
 
@@ -1357,8 +1362,6 @@ export class DashboardComponent implements OnInit {
     controlsUsed: [0, [Validators.required, Validators.min(0)]],
     wastage: [0, [Validators.required, Validators.min(0)]],
     closingBalance: [0, [Validators.required, Validators.min(0)]],
-    techSign: ['Lab Tech'],
-    medicalOfficerSign: ['M.O.'],
     remarks: ['']
   });
 
@@ -1397,8 +1400,6 @@ export class DashboardComponent implements OnInit {
     totalVolumeAcdUsedMl: [310],
     adverseReaction: ['None'],
     qualityControlPassed: [true],
-    phlebotomistSignature: ['Phleb Tech'],
-    medicalOfficerSignature: ['Dr. Uddanam M.O.'],
     remarks: ['']
   });
 
@@ -1499,9 +1500,7 @@ export class DashboardComponent implements OnInit {
       autoAntibodies: 'Negative',
       crossmatchSaline: 'Compatible',
       crossmatchAlbumin: 'Compatible',
-      crossmatchAhg: 'Compatible',
-      technicianSignature: 'Lab Tech',
-      medicalOfficerSignature: 'M.O.'
+      crossmatchAhg: 'Compatible'
     });
     this.showGroupingModal = true;
   }
@@ -1533,9 +1532,7 @@ export class DashboardComponent implements OnInit {
       autoAntibodies: record.autoAntibodies,
       crossmatchSaline: record.crossmatchSaline,
       crossmatchAlbumin: record.crossmatchAlbumin,
-      crossmatchAhg: record.crossmatchAhg,
-      technicianSignature: record.technicianSignature || '',
-      medicalOfficerSignature: record.medicalOfficerSignature || ''
+      crossmatchAhg: record.crossmatchAhg
     });
     this.showGroupingModal = true;
   }
@@ -1589,8 +1586,6 @@ export class DashboardComponent implements OnInit {
       quantityUsed: 0,
       wastage: 0,
       balance: 50,
-      techSign: 'Store Incharge',
-      medicalOfficerSign: 'M.O.',
       remarks: ''
     });
     this.showBagStockModal = true;
@@ -1616,8 +1611,6 @@ export class DashboardComponent implements OnInit {
       quantityUsed: record.quantityUsed,
       wastage: record.wastage,
       balance: record.balance,
-      techSign: record.techSign || '',
-      medicalOfficerSign: record.medicalOfficerSign || '',
       remarks: record.remarks || ''
     });
     this.showBagStockModal = true;
@@ -1676,8 +1669,6 @@ export class DashboardComponent implements OnInit {
       controlsUsed: 2,
       wastage: 0,
       closingBalance: 5,
-      techSign: 'Lab Tech',
-      medicalOfficerSign: 'M.O.',
       remarks: ''
     });
     this.showDiagnosticKitModal = true;
@@ -1701,8 +1692,6 @@ export class DashboardComponent implements OnInit {
       controlsUsed: record.controlsUsed,
       wastage: record.wastage,
       closingBalance: record.closingBalance,
-      techSign: record.techSign || '',
-      medicalOfficerSign: record.medicalOfficerSign || '',
       remarks: record.remarks || ''
     });
     this.showDiagnosticKitModal = true;
@@ -1779,8 +1768,6 @@ export class DashboardComponent implements OnInit {
       totalVolumeAcdUsedMl: 310,
       adverseReaction: 'None',
       qualityControlPassed: true,
-      phlebotomistSignature: 'Phleb Tech',
-      medicalOfficerSignature: 'Dr. Uddanam M.O.',
       remarks: ''
     });
     this.showApheresisModal = true;
@@ -1821,8 +1808,6 @@ export class DashboardComponent implements OnInit {
       totalVolumeAcdUsedMl: record.totalVolumeAcdUsedMl,
       adverseReaction: record.adverseReaction || 'None',
       qualityControlPassed: record.qualityControlPassed,
-      phlebotomistSignature: record.phlebotomistSignature || '',
-      medicalOfficerSignature: record.medicalOfficerSignature || '',
       remarks: record.remarks || ''
     });
     this.showApheresisModal = true;

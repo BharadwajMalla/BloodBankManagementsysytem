@@ -24,7 +24,8 @@ public interface IBloodBankService
     Task<IEnumerable<BloodRequestResponseDto>> GetRequestsAsync(string? status);
     Task<BloodRequestResponseDto> CreateRequestAsync(Guid userId, CreateBloodRequestDto dto);
     Task<BloodRequestResponseDto?> UpdateRequestAsync(Guid id, UpdateBloodRequestDto dto);
-    Task<(BloodRequestResponseDto? Result, string? Error)> ProcessRequestAsync(Guid id, ProcessRequestDto dto);
+    Task<bool?> DeletePendingRequestAsync(Guid id);
+    Task<(BloodRequestResponseDto? Result, string? Error)> ProcessRequestAsync(Guid id, ProcessRequestDto dto, string? actor = null);
     Task<IEnumerable<ComponentCollectionDto>> GetComponentCollectionsAsync();
     Task<(ComponentCollectionDto? Result, string? Error)> CreateComponentCollectionAsync(CreateComponentCollectionDto dto);
     Task<(ComponentCollectionDto? Result, string? Error)> UpdateComponentCollectionAsync(Guid id, CreateComponentCollectionDto dto);
@@ -37,7 +38,6 @@ public interface IBloodBankService
     Task<IEnumerable<ComponentReturnDto>> GetComponentReturnsAsync();
     Task<(ComponentReturnDto? Result, string? Error)> CreateComponentReturnAsync(CreateComponentReturnDto dto);
     Task<(ComponentReturnDto? Result, string? Error)> UpdateComponentReturnAsync(Guid id, UpdateComponentReturnDto dto);
-    Task<bool> DeleteComponentReturnAsync(Guid id);
 
     // Uddanam Blood Centre Register Services
     Task<IEnumerable<TtiScreeningDto>> GetTtiScreeningsAsync(string? status = null);

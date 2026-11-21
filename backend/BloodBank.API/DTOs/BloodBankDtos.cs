@@ -71,6 +71,11 @@ public class BloodBagDto
     public string ComponentType { get; set; } = string.Empty;
     public int QuantityUnits { get; set; }
     public DateTime AddedDate { get; set; }
+    public string Status { get; set; } = "Available";
+    public DateTime? ExpiryDate { get; set; }
+    public string ScreeningStatus { get; set; } = "Unscreened";
+    public DateTime? IssuedAt { get; set; }
+    public string? IssuedBy { get; set; }
 }
 
 public class BloodStockDto
@@ -123,11 +128,19 @@ public class ProcessRequestDto
     public string? TransactionId { get; set; }
 
     public decimal? AmountPaid { get; set; }
+    public string? IssueSerial { get; set; }
+    public string? ReceiverName { get; set; }
+    public string? IssuedByName { get; set; }
+    public string? BloodBankOfficerSignOff { get; set; }
+    public string? CrossMatchingMethod { get; set; }
+    public string? CrossMatchingReport { get; set; }
+    public string? BillNumber { get; set; }
 }
 
 public class DonorDetailsDto
 {
     public Guid Id { get; set; }
+    public string DonorId { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? Phone { get; set; }
@@ -146,8 +159,9 @@ public class DonorDetailsDto
                 ? DateTime.UtcNow.Year - DateOfBirth.Value.Year -
                   (DateTime.UtcNow.Date < DateOfBirth.Value.Date.AddYears(DateTime.UtcNow.Year - DateOfBirth.Value.Year) ? 1 : 0)
                 : 0;
-            return age is >= 18 and <= 65 &&
-                   (!LastDonationDate.HasValue || (DateTime.UtcNow - LastDonationDate.Value).TotalDays >= 90);
+            var intervalDays = Sex?.Trim().StartsWith("Female", StringComparison.OrdinalIgnoreCase) == true ? 120 : 90;
+            return age is >= 18 and <= 60 &&
+                   (!LastDonationDate.HasValue || (DateTime.UtcNow - LastDonationDate.Value).TotalDays >= intervalDays);
         }
     }
     public string EligibilityStatus
@@ -158,9 +172,10 @@ public class DonorDetailsDto
                 ? DateTime.UtcNow.Year - DateOfBirth.Value.Year -
                   (DateTime.UtcNow.Date < DateOfBirth.Value.Date.AddYears(DateTime.UtcNow.Year - DateOfBirth.Value.Year) ? 1 : 0)
                 : 0;
-            if (age < 18 || age > 65)
+            if (age < 18 || age > 60)
                 return "Age restriction";
-            return LastDonationDate.HasValue && (DateTime.UtcNow - LastDonationDate.Value).TotalDays < 90
+            var intervalDays = Sex?.Trim().StartsWith("Female", StringComparison.OrdinalIgnoreCase) == true ? 120 : 90;
+            return LastDonationDate.HasValue && (DateTime.UtcNow - LastDonationDate.Value).TotalDays < intervalDays
                 ? "Cooldown Active"
                 : "Eligible to Donate";
         }
@@ -211,6 +226,15 @@ public class CreateDonorResponseDto
 
 public class CompleteDonationDto
 {
+    public string? BagNumber { get; set; }
+    public string? DonationCategory { get; set; }
+    public string? ReplacementPatientName { get; set; }
+    public string? ReplacementPatientHospital { get; set; }
+    public string? ReplacementPatientIpNo { get; set; }
+    public string? HbTestMethod { get; set; }
+    public string? HbEligibilityStatus { get; set; }
+    public string? DeferralRecords { get; set; }
+    public string? CpdaBatchNumber { get; set; }
     public bool DonorConfirmed { get; set; }
     public decimal? WeightKg { get; set; }
     public int? PulsePerMinute { get; set; }
@@ -354,6 +378,8 @@ public class CreateTtiScreeningDto
     [Required] public string BloodGroup { get; set; } = string.Empty;
     public DateTime TestingDate { get; set; } = DateTime.UtcNow;
     public string HivResult { get; set; } = "Non-Reactive";
+    public string HivIResult { get; set; } = "Non-Reactive";
+    public string HivIiResult { get; set; } = "Non-Reactive";
     public string HbsAgResult { get; set; } = "Non-Reactive";
     public string HcvResult { get; set; } = "Non-Reactive";
     public string VdrlResult { get; set; } = "Non-Reactive";
@@ -363,6 +389,9 @@ public class CreateTtiScreeningDto
     public string TestedBy { get; set; } = "Lab Technician";
     public string? ApprovedBy { get; set; }
     public string? Remarks { get; set; }
+    public string? ElisaKitBatch { get; set; }
+    public string? ElisaSignOffBy { get; set; }
+    public DateTime? ElisaSignOffAt { get; set; }
 }
 
 public class TtiScreeningDto : CreateTtiScreeningDto
@@ -525,6 +554,8 @@ public class ApheresisRecordDto : CreateApheresisRecordDto
 {
     public Guid Id { get; set; }
     public DateTime CreatedAt { get; set; }
+    public int? YearlySlNo { get; set; }
+    public int? MonthlySlNo { get; set; }
 }
 
 public class UpdateApheresisRecordDto : CreateApheresisRecordDto

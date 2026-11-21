@@ -5,6 +5,7 @@ export interface User {
   fullName: string;
   email: string;
   role: UserRole;
+  donorId?: string;
   phone?: string;
   bloodGroup?: string;
   hospitalName?: string;

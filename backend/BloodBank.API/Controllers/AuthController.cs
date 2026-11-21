@@ -15,19 +15,22 @@ public class AuthController : ControllerBase
     private readonly IBloodBankRepository _repo;
     private readonly ILoginAuditRepository _loginAuditRepository;
     private readonly ILogger<AuthController> _logger;
+    private readonly IHostEnvironment _environment;
 
     public AuthController(
         IAuthService authService,
         IEmailOtpService otpService,
         IBloodBankRepository repo,
         ILoginAuditRepository loginAuditRepository,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        IHostEnvironment environment)
     {
         _authService = authService;
         _otpService = otpService;
         _repo = repo;
         _loginAuditRepository = loginAuditRepository;
         _logger = logger;
+        _environment = environment;
     }
 
     /// <summary>
@@ -56,11 +59,15 @@ public class AuthController : ControllerBase
 
             var otp = await _otpService.GenerateAndSendOtpAsync(normalizedEmail, "Registration");
 
-            return Ok(new
+            var response = new Dictionary<string, object>
             {
-                message = $"Verification code sent to {dto.Email}.",
-                previewOtp = otp
-            });
+                ["message"] = $"Verification code sent to {dto.Email}."
+            };
+            if (_environment.IsDevelopment())
+            {
+                response["previewOtp"] = otp;
+            }
+            return Ok(response);
         }
         catch (Exception ex)
         {
@@ -77,7 +84,9 @@ public class AuthController : ControllerBase
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+    public async Task<IActionResult> Register(
+        [FromBody] RegisterDto dto,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
@@ -86,7 +95,7 @@ public class AuthController : ControllerBase
 
         try
         {
-            var result = await _authService.RegisterAsync(dto);
+            var result = await _authService.RegisterAsync(dto, cancellationToken);
             return StatusCode(StatusCodes.Status201Created, result);
         }
         catch (InvalidOperationException ex)
@@ -165,6 +174,43 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Return the authenticated current user's profile
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetCurrentUser()
+    {
+        var userIdClaim = User.FindFirst("sub")?.Value
+            ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized(new { message = "Invalid authentication token." });
+        }
+
+        var user = await _repo.FindUserAsync(userId);
+        if (user == null)
+        {
+            return Unauthorized(new { message = "Authenticated user no longer exists." });
+        }
+
+        return Ok(new UserDto
+        {
+            Id = user.Id,
+            FullName = user.FullName,
+            Email = user.Email,
+            Role = user.Role,
+            Phone = user.Phone,
+            BloodGroup = user.BloodGroup,
+            HospitalName = user.HospitalName,
+            HospitalRegNumber = user.HospitalRegNumber,
+            CreatedAt = user.CreatedAt
+        });
+    }
+
+    /// <summary>
     /// Send 6-digit email OTP for Forgot Password
     /// </summary>
     [HttpPost("forgot-password/send-otp")]
@@ -190,11 +236,15 @@ public class AuthController : ControllerBase
 
             var otp = await _otpService.GenerateAndSendOtpAsync(normalizedEmail, "PasswordReset");
 
-            return Ok(new
+            var response = new Dictionary<string, object>
             {
-                message = $"Password reset OTP sent to {dto.Email}.",
-                previewOtp = otp
-            });
+                ["message"] = $"Password reset OTP sent to {dto.Email}."
+            };
+            if (_environment.IsDevelopment())
+            {
+                response["previewOtp"] = otp;
+            }
+            return Ok(response);
         }
         catch (Exception ex)
         {

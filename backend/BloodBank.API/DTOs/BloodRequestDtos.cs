@@ -27,12 +27,37 @@ public class CreateBloodRequestDto
     public string? HospitalDepartment { get; set; }
 
     public string? MedicalReason { get; set; }
+    public string? Indication { get; set; }
+    public string? EmergencyUrgency { get; set; }
+    public string? RefDoctor { get; set; }
+    public string? IpNumber { get; set; }
+    public string? RoomNumber { get; set; }
+    public bool? PreviousTransfusion { get; set; }
+    public bool? TransfusionReactionHistory { get; set; }
+    public decimal? HbGdl { get; set; }
+    public decimal? PcvPercent { get; set; }
+    public decimal? PlateletCount { get; set; }
+    public string? IndicationDiagnosis { get; set; }
+    public string? CrossMatchingMethod { get; set; }
+    public string? CrossMatchingReport { get; set; }
+    public string? BillNumber { get; set; }
+    public string? RequiredResponseTime { get; set; }
+    public DateTime? RequiredDateTime { get; set; }
+    public string? IssueOrReserve { get; set; }
+    public bool ConsentForIssue { get; set; }
+    public string? ConsentTakenBy { get; set; }
+    public DateTime? ConsentDate { get; set; }
+    public bool BloodBankUseOnly { get; set; }
 }
 
 public class UpdateBloodRequestDto : CreateBloodRequestDto
 {
     public string? Status { get; set; }
     public string? AdminComments { get; set; }
+    public string? ReceiverName { get; set; }
+    public string? IssueSerial { get; set; }
+    public string? IssuedByName { get; set; }
+    public string? BloodBankOfficerSignOff { get; set; }
 }
 
 public class BloodRequestResponseDto
@@ -59,4 +84,26 @@ public class BloodRequestResponseDto
     public string PaymentStatus { get; set; } = "Pending";
     public string? TransactionId { get; set; }
     public decimal? AmountPaid { get; set; }
+    public string? Indication { get; set; }
+    public string? EmergencyUrgency { get; set; }
+    public string? RefDoctor { get; set; }
+    public string? IpNumber { get; set; }
+    public decimal? HbGdl { get; set; }
+    public decimal? PcvPercent { get; set; }
+    public decimal? PlateletCount { get; set; }
+    public string? IndicationDiagnosis { get; set; }
+    public string? RequiredResponseTime { get; set; }
+    public DateTime? RequiredDateTime { get; set; }
+    public string? IssueOrReserve { get; set; }
+    public string? CrossMatchingMethod { get; set; }
+    public string? CrossMatchingReport { get; set; }
+    public string? BillNumber { get; set; }
+    public bool ConsentForIssue { get; set; }
+    public string? ConsentTakenBy { get; set; }
+    public DateTime? ConsentDate { get; set; }
+    public bool BloodBankUseOnly { get; set; }
+    public string? IssueSerial { get; set; }
+    public string? ReceiverName { get; set; }
+    public string? IssuedByName { get; set; }
+    public string? BloodBankOfficerSignOff { get; set; }
 }

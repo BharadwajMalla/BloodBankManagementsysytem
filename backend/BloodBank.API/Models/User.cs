@@ -37,6 +37,9 @@ public class User
     [MaxLength(10)]
     public string? BloodGroup { get; set; } // For Donors
 
+    [MaxLength(50)]
+    public string? DonorId { get; set; }
+
     [MaxLength(150)]
     public string? HospitalName { get; set; } // For Hospitals
 
@@ -45,5 +48,14 @@ public class User
 
     public bool IsEmailVerified { get; set; } = false;
 
+    public bool IsActive { get; set; } = true;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+
+    [MaxLength(200)]
+    public string? CreatedBy { get; set; }
+
+    [MaxLength(200)]
+    public string? UpdatedBy { get; set; }
 }

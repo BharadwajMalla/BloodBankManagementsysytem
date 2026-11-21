@@ -31,8 +31,32 @@ public sealed class HospitalService : IHospitalService
             Status = "Pending",
             HospitalDepartment = dto.HospitalDepartment?.Trim(),
             MedicalReason = dto.MedicalReason?.Trim(),
+            Indication = dto.Indication?.Trim(),
+            EmergencyUrgency = dto.EmergencyUrgency?.Trim(),
+            RefDoctor = dto.RefDoctor?.Trim(),
+            IpNumber = dto.IpNumber?.Trim(),
+            RoomNumber = dto.RoomNumber?.Trim(),
+            PreviousTransfusion = dto.PreviousTransfusion,
+            TransfusionReactionHistory = dto.TransfusionReactionHistory,
+            HbGdl = dto.HbGdl,
+            PcvPercent = dto.PcvPercent,
+            PlateletCount = dto.PlateletCount,
+            IndicationDiagnosis = dto.IndicationDiagnosis?.Trim(),
+            CrossMatchingMethod = dto.CrossMatchingMethod?.Trim(),
+            CrossMatchingReport = dto.CrossMatchingReport?.Trim(),
+            BillNumber = dto.BillNumber?.Trim(),
+            RequiredResponseTime = dto.RequiredResponseTime?.Trim(),
+            RequiredDateTime = dto.RequiredDateTime,
+            IssueOrReserve = dto.IssueOrReserve?.Trim(),
+            ConsentForIssue = dto.ConsentForIssue,
+            ConsentTakenBy = dto.ConsentTakenBy?.Trim(),
+            ConsentDate = dto.ConsentDate,
+            BloodBankUseOnly = dto.BloodBankUseOnly,
             CreatedAt = DateTime.UtcNow
         };
+        var existing = await _r.GetRequestsAsync();
+        request.YearlySlNo = existing.Count(item => item.CreatedAt.Year == request.CreatedAt.Year) + 1;
+        request.MonthlySlNo = existing.Count(item => item.CreatedAt.Year == request.CreatedAt.Year && item.CreatedAt.Month == request.CreatedAt.Month) + 1;
 
         await _r.AddRequestAsync(request);
         await _r.SaveChangesAsync();
@@ -94,8 +118,32 @@ public sealed class DonorService : IDonorService
             Status = "Pending",
             HospitalDepartment = dto.HospitalDepartment,
             MedicalReason = dto.MedicalReason,
+            Indication = dto.Indication?.Trim(),
+            EmergencyUrgency = dto.EmergencyUrgency?.Trim(),
+            RefDoctor = dto.RefDoctor?.Trim(),
+            IpNumber = dto.IpNumber?.Trim(),
+            RoomNumber = dto.RoomNumber?.Trim(),
+            PreviousTransfusion = dto.PreviousTransfusion,
+            TransfusionReactionHistory = dto.TransfusionReactionHistory,
+            HbGdl = dto.HbGdl,
+            PcvPercent = dto.PcvPercent,
+            PlateletCount = dto.PlateletCount,
+            IndicationDiagnosis = dto.IndicationDiagnosis?.Trim(),
+            CrossMatchingMethod = dto.CrossMatchingMethod?.Trim(),
+            CrossMatchingReport = dto.CrossMatchingReport?.Trim(),
+            BillNumber = dto.BillNumber?.Trim(),
+            RequiredResponseTime = dto.RequiredResponseTime?.Trim(),
+            RequiredDateTime = dto.RequiredDateTime,
+            IssueOrReserve = dto.IssueOrReserve?.Trim(),
+            ConsentForIssue = dto.ConsentForIssue,
+            ConsentTakenBy = dto.ConsentTakenBy?.Trim(),
+            ConsentDate = dto.ConsentDate,
+            BloodBankUseOnly = dto.BloodBankUseOnly,
             CreatedAt = DateTime.UtcNow
         };
+        var existingDonorRequests = await _r.GetRequestsAsync();
+        request.YearlySlNo = existingDonorRequests.Count(item => item.CreatedAt.Year == request.CreatedAt.Year) + 1;
+        request.MonthlySlNo = existingDonorRequests.Count(item => item.CreatedAt.Year == request.CreatedAt.Year && item.CreatedAt.Month == request.CreatedAt.Month) + 1;
 
         await _r.AddRequestAsync(request);
         await _r.SaveChangesAsync();

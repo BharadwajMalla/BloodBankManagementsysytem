@@ -1,6 +1,8 @@
 using BloodBank.API.DTOs;
+using BloodBank.API.Mapping;
 using BloodBank.API.Models;
 using BloodBank.API.Repositories;
+using BloodBank.Application.Contracts;
 
 namespace BloodBank.API.Services;
 internal static class Mapping
@@ -30,16 +32,50 @@ internal static class Mapping
             PaymentMode = request.PaymentMode,
             PaymentStatus = request.PaymentStatus,
             TransactionId = request.TransactionId,
-            AmountPaid = request.AmountPaid
+            AmountPaid = request.AmountPaid,
+            Indication = request.Indication,
+            EmergencyUrgency = request.EmergencyUrgency,
+            RefDoctor = request.RefDoctor,
+            IpNumber = request.IpNumber,
+            HbGdl = request.HbGdl,
+            PcvPercent = request.PcvPercent,
+            PlateletCount = request.PlateletCount,
+            IndicationDiagnosis = request.IndicationDiagnosis,
+            RequiredResponseTime = request.RequiredResponseTime,
+            RequiredDateTime = request.RequiredDateTime,
+            IssueOrReserve = request.IssueOrReserve,
+            CrossMatchingMethod = request.CrossMatchingMethod,
+            CrossMatchingReport = request.CrossMatchingReport,
+            BillNumber = request.BillNumber,
+            ConsentForIssue = request.ConsentForIssue,
+            ConsentTakenBy = request.ConsentTakenBy,
+            ConsentDate = request.ConsentDate,
+            BloodBankUseOnly = request.BloodBankUseOnly,
+            IssueSerial = request.IssueSerial,
+            ReceiverName = request.ReceiverName,
+            IssuedByName = request.IssuedByName,
+            BloodBankOfficerSignOff = request.BloodBankOfficerSignOff
         };
     }
 }
 public sealed class BloodBankService : IBloodBankService
 {
     private readonly IBloodBankRepository _repo;
-    public BloodBankService(IBloodBankRepository repo)
+    private readonly IDonorDonationService _donorDonationService;
+
+    public BloodBankService(IBloodBankRepository repo, IDonorDonationService donorDonationService)
     {
         _repo = repo;
+        _donorDonationService = donorDonationService;
+    }
+
+    private static DateTime GetBagExpiry(string componentType, DateTime collectionDate)
+    {
+        var days = componentType.Contains("Platelet", StringComparison.OrdinalIgnoreCase) ? 5
+            : componentType.Contains("Whole", StringComparison.OrdinalIgnoreCase) ? 35
+            : componentType.Contains("Plasma", StringComparison.OrdinalIgnoreCase) ? 365
+            : 42;
+        return collectionDate.AddDays(days);
     }
 
     public async Task<IEnumerable<BloodStockDto>> GetStockAsync(string? group, string? component)
@@ -73,7 +109,10 @@ public sealed class BloodBankService : IBloodBankService
             BagNumber = bagNumber,
             BloodGroup = bloodGroup,
             ComponentType = componentType,
-            AddedDate = dto.AddedDate == default ? DateTime.UtcNow : dto.AddedDate
+            AddedDate = dto.AddedDate == default ? DateTime.UtcNow : dto.AddedDate,
+            ExpiryDate = GetBagExpiry(componentType, dto.AddedDate == default ? DateTime.UtcNow : dto.AddedDate),
+            Status = "Available",
+            ScreeningStatus = "Unscreened"
         });
 
         var stock = await _repo.FindStockAsync(bloodGroup, componentType);
@@ -133,7 +172,10 @@ public sealed class BloodBankService : IBloodBankService
                 BloodGroup = g,
                 ComponentType = c,
                 QuantityUnits = 1,
-                AddedDate = DateTime.UtcNow
+                AddedDate = DateTime.UtcNow,
+                ExpiryDate = GetBagExpiry(c, DateTime.UtcNow),
+                Status = "Available",
+                ScreeningStatus = "Unscreened"
             });
         }
 
@@ -162,7 +204,12 @@ public sealed class BloodBankService : IBloodBankService
             BloodGroup = bag.BloodGroup,
             ComponentType = bag.ComponentType,
             QuantityUnits = bag.QuantityUnits,
-            AddedDate = bag.AddedDate
+            AddedDate = bag.AddedDate,
+            Status = bag.Status,
+            ExpiryDate = bag.ExpiryDate,
+            ScreeningStatus = bag.ScreeningStatus,
+            IssuedAt = bag.IssuedAt,
+            IssuedBy = bag.IssuedBy
         });
     }
 
@@ -231,160 +278,29 @@ public sealed class BloodBankService : IBloodBankService
 
     public async Task<IEnumerable<DonorDetailsDto>> GetDonorsAsync()
     {
-        var donors = await _repo.GetDonorsAsync();
-        var donations = await _repo.GetDonationsAsync(donors.Select(donor => donor.Id));
-
-        return donors.Select(donor =>
-        {
-            var donorDonations = donations
-                .Where(donation => donation.DonorId == donor.Id)
-                .OrderByDescending(donation => donation.DonationDate)
-                .ToList();
-
-            return new DonorDetailsDto
-            {
-                Id = donor.Id,
-                FullName = donor.FullName,
-                Email = donor.Email,
-                Phone = donor.Phone,
-                DateOfBirth = donor.DateOfBirth,
-                Sex = donor.Sex,
-                Address = donor.Address,
-                BloodGroup = donor.BloodGroup,
-                RegisteredDate = donor.CreatedAt,
-                TotalDonations = donorDonations.Count,
-                LastDonationDate = donorDonations.FirstOrDefault()?.DonationDate
-            };
-        });
+        var donors = await _donorDonationService.GetDonorsAsync(CancellationToken.None);
+        return donors.Select(donor => DonorDonationApiMapper.ToApi(donor)).ToList();
     }
     public async Task<CreateDonorResponseDto?> CreateDonorAsync(CreateDonorDto d)
     {
-        var email = d.Email.Trim().ToLowerInvariant();
-        if (await _repo.FindUserByEmailAsync(email) != null)
-            return null;
-        var fullName = $"{d.FirstName.Trim()} {d.LastName.Trim()}";
-        var lastName = d.LastName.Trim().ToUpperInvariant();
-        var generatedPassword = $"{lastName}@{d.DateOfBirth!.Value.Year}";
-        var donor = new User
-        {
-            Id = Guid.NewGuid(), FullName = fullName, Email = email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(generatedPassword, workFactor: 11),
-            Role = "Donor", Phone = d.Phone.Trim(),
-            DateOfBirth = d.DateOfBirth!.Value, Sex = d.Sex.Trim(), Address = d.Address.Trim(),
-            BloodGroup = d.BloodGroup.Trim().ToUpperInvariant(),
-            CreatedAt = DateTime.UtcNow
-        };
-        await _repo.AddUserAsync(donor);
-        await _repo.SaveChangesAsync();
-        var donorDetails = new DonorDetailsDto
-        {
-            Id = donor.Id, FullName = donor.FullName, Email = donor.Email,
-            Phone = donor.Phone, DateOfBirth = donor.DateOfBirth, Sex = donor.Sex,
-            Address = donor.Address, BloodGroup = donor.BloodGroup,
-            RegisteredDate = donor.CreatedAt, TotalDonations = 0
-        };
-        return new CreateDonorResponseDto { Donor = donorDetails, GeneratedPassword = generatedPassword };
+        var result = await _donorDonationService.CreateDonorAsync(
+            DonorDonationApiMapper.ToCommand(d),
+            CancellationToken.None);
+        return result is null ? null : DonorDonationApiMapper.ToApi(result);
     }
 
     public async Task<DonationCompletionResultDto> CompleteDonationAsync(Guid donorId, CompleteDonationDto d)
     {
-        var donor = await _repo.FindUserAsync(donorId);
-        if (donor == null || donor.Role != "Donor")
-            return new DonationCompletionResultDto { Message = "Donor not found." };
-
-        var donations = await _repo.GetDonationsAsync(new[] { donorId });
-        var lastDonation = donations.OrderByDescending(x => x.DonationDate).FirstOrDefault();
-        var age = donor.DateOfBirth.HasValue
-            ? DateTime.UtcNow.Year - donor.DateOfBirth.Value.Year -
-              (DateTime.UtcNow.Date < donor.DateOfBirth.Value.Date.AddYears(DateTime.UtcNow.Year - donor.DateOfBirth.Value.Year) ? 1 : 0)
-            : 0;
-
-        if (age < 18 || age > 65)
-            return new DonationCompletionResultDto { Message = "Donor must be between 18 and 65 years old." };
-        if (lastDonation != null && (DateTime.UtcNow - lastDonation.DonationDate).TotalDays < 90)
-            return new DonationCompletionResultDto { Message = "Donor must wait 90 days between donations." };
-        if (!d.FeelsHealthyToday)
-            return new DonationCompletionResultDto { Message = "Donor must confirm they feel healthy today." };
-        if (d.DonatedRecently || d.HadDonationDiscomfort || !d.AteRecently || !d.SleptWell ||
-            d.HasInfectionRisk || d.HasColdFeverOrSinusitis || d.TookAntibioticsRecently ||
-            d.TookAlcoholRecently || d.SmokesFrequently || d.TookMedicationRecently ||
-            d.HadRecentVaccination || d.HadRecentIllness || d.HadRecentSurgeryOrTattoo ||
-            d.HadRecentMalariaOrEndemicExposure || d.HasChronicDisease ||
-            d.IsPregnantOrBreastfeeding || d.HadRecentAbortion ||
-            d.HasUnsafeSexualExposure || d.HasHivOrHepatitisRisk)
-            return new DonationCompletionResultDto { Message = "Donor has a temporary deferral and cannot donate yet." };
-        if (d.HasPermanentDisqualification)
-            return new DonationCompletionResultDto { Message = "Donor has a permanent disqualification." };
-        if (!d.DonorConfirmed)
-            return new DonationCompletionResultDto { Message = "Donor confirmation is required before completing the donation." };
-        if (!d.MedicalExamAccepted)
-            return new DonationCompletionResultDto { Message = "Medical examination must be accepted by blood-bank staff." };
-
-        var donation = new DonationRecord
-        {
-            DonorId = donor.Id,
-            DonorName = donor.FullName,
-            BloodGroup = donor.BloodGroup ?? string.Empty,
-            UnitsDonated = Math.Clamp(d.UnitsDonated, 1, 10),
-            DonationDate = DateTime.UtcNow,
-            CampName = d.CampName?.Trim(),
-            WeightKg = d.WeightKg, PulsePerMinute = d.PulsePerMinute, Hemoglobin = d.Hemoglobin,
-            Hematocrit = d.Hematocrit, PlateletCount = d.PlateletCount, BloodPressure = d.BloodPressure,
-            TemperatureCelsius = d.TemperatureCelsius, ScreeningStaffName = d.ScreeningStaffName,
-            ScreeningStaffSignature = d.ScreeningStaffSignature, ScreeningDate = d.ScreeningDate,
-            ScreeningTime = d.ScreeningTime, MedicalExamAccepted = d.MedicalExamAccepted,
-            DeferralReason = d.DeferralReason, MedicalOfficerName = d.MedicalOfficerName,
-            MedicalOfficerSignature = d.MedicalOfficerSignature, MedicalOfficerDate = d.MedicalOfficerDate,
-            DonorNumber = d.DonorNumber, BagType = d.BagType, SegmentNumber = d.SegmentNumber,
-            DonationStartTime = d.DonationStartTime, DonationEndTime = d.DonationEndTime,
-            VenipunctureSite = d.VenipunctureSite, PhlebotomistName = d.PhlebotomistName,
-            PhlebotomistSignature = d.PhlebotomistSignature, VisualInspectionPassed = d.VisualInspectionPassed,
-            DonorConfirmed = d.DonorConfirmed, FeelsHealthyToday = d.FeelsHealthyToday,
-            DonatedRecently = d.DonatedRecently, HadDonationDiscomfort = d.HadDonationDiscomfort,
-            AteRecently = d.AteRecently, SleptWell = d.SleptWell, HasInfectionRisk = d.HasInfectionRisk,
-            HasColdFeverOrSinusitis = d.HasColdFeverOrSinusitis, TookAntibioticsRecently = d.TookAntibioticsRecently,
-            TookAlcoholRecently = d.TookAlcoholRecently, SmokesFrequently = d.SmokesFrequently,
-            TookMedicationRecently = d.TookMedicationRecently, HadRecentVaccination = d.HadRecentVaccination,
-            HadRecentIllness = d.HadRecentIllness, HadRecentSurgeryOrTattoo = d.HadRecentSurgeryOrTattoo,
-            HadRecentMalariaOrEndemicExposure = d.HadRecentMalariaOrEndemicExposure,
-            HasChronicDisease = d.HasChronicDisease, IsPregnantOrBreastfeeding = d.IsPregnantOrBreastfeeding,
-            HadRecentAbortion = d.HadRecentAbortion, HasUnsafeSexualExposure = d.HasUnsafeSexualExposure,
-            HasHivOrHepatitisRisk = d.HasHivOrHepatitisRisk, HasPermanentDisqualification = d.HasPermanentDisqualification
-        };
-        await _repo.AddDonationAsync(donation);
-        await _repo.SaveChangesAsync();
-
-        var updatedDonor = (await GetDonorsAsync()).First(x => x.Id == donor.Id);
-        return new DonationCompletionResultDto { IsEligible = true, Message = "Donation completed successfully.", Donor = updatedDonor };
+        var result = await _donorDonationService.CompleteDonationAsync(
+            donorId,
+            DonorDonationApiMapper.ToCommand(d),
+            CancellationToken.None);
+        return DonorDonationApiMapper.ToApi(result);
     }
     public async Task<IEnumerable<DonationHistoryDto>> GetDonationHistoryAsync(Guid donorId)
     {
-        return (await _repo.GetDonationsForDonorAsync(donorId)).Select(r => new DonationHistoryDto
-        {
-            Id = r.Id, DonorId = r.DonorId, DonorName = r.DonorName, BloodGroup = r.BloodGroup,
-            UnitsDonated = r.UnitsDonated, DonationDate = r.DonationDate, CampName = r.CampName,
-            BloodBankName = r.BloodBankName, WeightKg = r.WeightKg, PulsePerMinute = r.PulsePerMinute,
-            Hemoglobin = r.Hemoglobin, Hematocrit = r.Hematocrit, PlateletCount = r.PlateletCount,
-            BloodPressure = r.BloodPressure, TemperatureCelsius = r.TemperatureCelsius,
-            ScreeningStaffName = r.ScreeningStaffName, ScreeningDate = r.ScreeningDate,
-            ScreeningTime = r.ScreeningTime, MedicalExamAccepted = r.MedicalExamAccepted,
-            MedicalOfficerName = r.MedicalOfficerName, MedicalOfficerDate = r.MedicalOfficerDate,
-            DonorNumber = r.DonorNumber, BagType = r.BagType, SegmentNumber = r.SegmentNumber,
-            DonationStartTime = r.DonationStartTime, DonationEndTime = r.DonationEndTime,
-            VenipunctureSite = r.VenipunctureSite, PhlebotomistName = r.PhlebotomistName,
-            VisualInspectionPassed = r.VisualInspectionPassed, DonorConfirmed = r.DonorConfirmed,
-            FeelsHealthyToday = r.FeelsHealthyToday, DonatedRecently = r.DonatedRecently,
-            HadDonationDiscomfort = r.HadDonationDiscomfort, AteRecently = r.AteRecently,
-            SleptWell = r.SleptWell, HasInfectionRisk = r.HasInfectionRisk,
-            HasColdFeverOrSinusitis = r.HasColdFeverOrSinusitis, TookAntibioticsRecently = r.TookAntibioticsRecently,
-            TookAlcoholRecently = r.TookAlcoholRecently, SmokesFrequently = r.SmokesFrequently,
-            TookMedicationRecently = r.TookMedicationRecently, HadRecentVaccination = r.HadRecentVaccination,
-            HadRecentIllness = r.HadRecentIllness, HadRecentSurgeryOrTattoo = r.HadRecentSurgeryOrTattoo,
-            HadRecentMalariaOrEndemicExposure = r.HadRecentMalariaOrEndemicExposure,
-            HasChronicDisease = r.HasChronicDisease, IsPregnantOrBreastfeeding = r.IsPregnantOrBreastfeeding,
-            HadRecentAbortion = r.HadRecentAbortion, HasUnsafeSexualExposure = r.HasUnsafeSexualExposure,
-            HasHivOrHepatitisRisk = r.HasHivOrHepatitisRisk, HasPermanentDisqualification = r.HasPermanentDisqualification
-        });
+        var donations = await _donorDonationService.GetDonationHistoryAsync(donorId, CancellationToken.None);
+        return donations.Select(donation => DonorDonationApiMapper.ToApi(donation)).ToList();
     }
     public async Task<IEnumerable<BloodRequestResponseDto>> GetRequestsAsync(string? status)
     {
@@ -402,6 +318,10 @@ public sealed class BloodBankService : IBloodBankService
             user?.FullName ?? "Blood Bank A",
             user?.Phone ?? user?.Email,
             dto);
+        var existing = await _repo.GetRequestsAsync();
+        var now = DateTime.UtcNow;
+        request.YearlySlNo = existing.Count(item => item.CreatedAt.Year == now.Year) + 1;
+        request.MonthlySlNo = existing.Count(item => item.CreatedAt.Year == now.Year && item.CreatedAt.Month == now.Month) + 1;
 
         await _repo.AddRequestAsync(request);
         await _repo.SaveChangesAsync();
@@ -431,10 +351,31 @@ public sealed class BloodBankService : IBloodBankService
             Status = "Pending",
             HospitalDepartment = dto.HospitalDepartment,
             MedicalReason = dto.MedicalReason,
+            Indication = dto.Indication?.Trim(),
+            EmergencyUrgency = dto.EmergencyUrgency?.Trim(),
+            RefDoctor = dto.RefDoctor?.Trim(),
+            IpNumber = dto.IpNumber?.Trim(),
+            RoomNumber = dto.RoomNumber?.Trim(),
+            PreviousTransfusion = dto.PreviousTransfusion,
+            TransfusionReactionHistory = dto.TransfusionReactionHistory,
+            HbGdl = dto.HbGdl,
+            PcvPercent = dto.PcvPercent,
+            PlateletCount = dto.PlateletCount,
+            IndicationDiagnosis = dto.IndicationDiagnosis?.Trim(),
+            CrossMatchingMethod = dto.CrossMatchingMethod?.Trim(),
+            CrossMatchingReport = dto.CrossMatchingReport?.Trim(),
+            BillNumber = dto.BillNumber?.Trim(),
+            RequiredResponseTime = dto.RequiredResponseTime?.Trim(),
+            RequiredDateTime = dto.RequiredDateTime,
+            IssueOrReserve = dto.IssueOrReserve?.Trim(),
+            ConsentForIssue = dto.ConsentForIssue,
+            ConsentTakenBy = dto.ConsentTakenBy?.Trim(),
+            ConsentDate = dto.ConsentDate,
+            BloodBankUseOnly = dto.BloodBankUseOnly,
             CreatedAt = DateTime.UtcNow
         };
     }
-    public async Task<(BloodRequestResponseDto?, string?)> ProcessRequestAsync(Guid id, ProcessRequestDto d)
+    public async Task<(BloodRequestResponseDto?, string?)> ProcessRequestAsync(Guid id, ProcessRequestDto d, string? actor = null)
     {
         var r = await _repo.FindRequestAsync(id);
         if (r == null) return (null, "Request not found.");
@@ -450,65 +391,12 @@ public sealed class BloodBankService : IBloodBankService
             if (s == null || s.QuantityUnits < r.QuantityUnits)
                 return (null, $"Insufficient stock of {r.BloodGroup} ({r.ComponentType}). Available: {s?.QuantityUnits ?? 0} units, Requested: {r.QuantityUnits} units.");
 
-            // Get existing available bags for this component and blood group
-            var bags = await _repo.GetAvailableBagsAsync(r.BloodGroup, r.ComponentType, r.QuantityUnits);
-            var issuedBagList = new List<string>();
+            var (issuedBagNumbers, issueError) =
+                await _repo.TryIssueBagsAtomicallyAsync(r.BloodGroup, r.ComponentType, r.QuantityUnits, actor);
+            if (issueError != null)
+                return (null, issueError);
 
-            // Mark existing bags as Issued in both BloodBags and ComponentCollections
-            foreach (var b in bags)
-            {
-                b.IsIssued = true;
-                b.IssuedDate = DateTime.UtcNow;
-                issuedBagList.Add(b.BagNumber);
-
-                var collectionItem = await _repo.FindComponentCollectionByBarcodeAsync(b.BagNumber);
-                if (collectionItem != null)
-                {
-                    collectionItem.Status = "Issued";
-                }
-            }
-
-            // If more units were requested than pre-barcoded bags in DB, generate tracked issued bags
-            for (int i = bags.Count; i < r.QuantityUnits; i++)
-            {
-                var prefix = r.ComponentType.Contains("Whole") ? "WB" :
-                             r.ComponentType.Contains("PRBC") ? "PRBC" :
-                             r.ComponentType.Contains("Platelet") ? "PLT" :
-                             r.ComponentType.Contains("Plasma") ? "FFP" : "CRYO";
-                var cleanGroup = r.BloodGroup.Replace("+", "P").Replace("-", "N");
-                var autoBarcode = $"BAG-{prefix}-{cleanGroup}-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}";
-
-                await _repo.AddBagAsync(new BloodBag
-                {
-                    Id = Guid.NewGuid(),
-                    BagNumber = autoBarcode,
-                    BloodGroup = r.BloodGroup,
-                    ComponentType = r.ComponentType,
-                    QuantityUnits = 1,
-                    AddedDate = DateTime.UtcNow,
-                    IsIssued = true,
-                    IssuedDate = DateTime.UtcNow
-                });
-
-                await _repo.AddComponentCollectionAsync(new ComponentCollection
-                {
-                    Id = Guid.NewGuid(),
-                    BagBarcode = autoBarcode,
-                    ComponentType = r.ComponentType,
-                    BloodGroup = r.BloodGroup,
-                    BagType = r.ComponentType.Contains("Platelet") ? "Single Bag (250ml)" : r.ComponentType.Contains("Whole") ? "Triple Bag (450ml)" : "Double Bag (350ml)",
-                    VolumeMl = r.ComponentType.Contains("Platelet") ? 250 : r.ComponentType.Contains("Whole") ? 450 : 350,
-                    CollectionDate = DateTime.UtcNow,
-                    ExpiryDate = DateTime.UtcNow.AddDays(r.ComponentType.Contains("Platelet") ? 5 : r.ComponentType.Contains("Whole") ? 35 : 42),
-                    Status = "Issued"
-                });
-
-                issuedBagList.Add(autoBarcode);
-            }
-
-            r.IssuedBagNumbers = string.Join(", ", issuedBagList);
-            s.QuantityUnits = Math.Max(0, s.QuantityUnits - r.QuantityUnits);
-            s.LastUpdated = DateTime.UtcNow;
+            r.IssuedBagNumbers = string.Join(", ", issuedBagNumbers);
 
             r.PaymentMode = d.PaymentMode;
             r.PaymentStatus = "Completed";
@@ -519,6 +407,13 @@ public sealed class BloodBankService : IBloodBankService
         r.Status = d.Status;
         r.AdminComments = d.AdminComments;
         r.ProcessedAt = DateTime.UtcNow;
+        if (d.IssueSerial != null) r.IssueSerial = d.IssueSerial.Trim();
+        if (d.ReceiverName != null) r.ReceiverName = d.ReceiverName.Trim();
+        if (d.IssuedByName != null) r.IssuedByName = d.IssuedByName.Trim();
+        if (d.BloodBankOfficerSignOff != null) r.BloodBankOfficerSignOff = d.BloodBankOfficerSignOff.Trim();
+        if (d.CrossMatchingMethod != null) r.CrossMatchingMethod = d.CrossMatchingMethod.Trim();
+        if (d.CrossMatchingReport != null) r.CrossMatchingReport = d.CrossMatchingReport.Trim();
+        if (d.BillNumber != null) r.BillNumber = d.BillNumber.Trim();
         await _repo.SaveChangesAsync();
         return (Mapping.Request(r), null);
     }
@@ -828,19 +723,6 @@ public sealed class BloodBankService : IBloodBankService
         return (MapReturn(returned), null);
     }
 
-    public async Task<bool> DeleteComponentReturnAsync(Guid id)
-    {
-        var item = await _repo.FindComponentReturnAsync(id);
-        if (item == null)
-        {
-            return false;
-        }
-
-        _repo.RemoveComponentReturn(item);
-        await _repo.SaveChangesAsync();
-        return true;
-    }
-
     public async Task<BloodStockDto?> UpdateStockAsync(Guid id, UpdateStockDto d)
     {
         var s = await _repo.FindStockByIdAsync(id);
@@ -853,39 +735,11 @@ public sealed class BloodBankService : IBloodBankService
 
     public async Task<DonorDetailsDto?> UpdateDonorAsync(Guid id, UpdateDonorDto d)
     {
-        var donor = await _repo.FindUserAsync(id);
-        if (donor == null || donor.Role != "Donor") return null;
-
-        var email = d.Email.Trim().ToLowerInvariant();
-        var existing = await _repo.FindUserByEmailAsync(email);
-        if (existing != null && existing.Id != id)
-            return null;
-
-        donor.FullName = $"{d.FirstName.Trim()} {d.LastName.Trim()}";
-        donor.Email = email;
-        donor.Phone = d.Phone.Trim();
-        donor.DateOfBirth = d.DateOfBirth;
-        donor.Sex = d.Sex?.Trim();
-        donor.Address = d.Address?.Trim();
-        donor.BloodGroup = d.BloodGroup.Trim().ToUpperInvariant();
-
-        await _repo.SaveChangesAsync();
-
-        var donations = (await _repo.GetDonationsAsync(new[] { donor.Id })).ToList();
-        return new DonorDetailsDto
-        {
-            Id = donor.Id,
-            FullName = donor.FullName,
-            Email = donor.Email,
-            Phone = donor.Phone,
-            DateOfBirth = donor.DateOfBirth,
-            Sex = donor.Sex,
-            Address = donor.Address,
-            BloodGroup = donor.BloodGroup,
-            RegisteredDate = donor.CreatedAt,
-            TotalDonations = donations.Count,
-            LastDonationDate = donations.OrderByDescending(r => r.DonationDate).FirstOrDefault()?.DonationDate
-        };
+        var donor = await _donorDonationService.UpdateDonorAsync(
+            id,
+            DonorDonationApiMapper.ToCommand(d),
+            CancellationToken.None);
+        return donor is null ? null : DonorDonationApiMapper.ToApi(donor);
     }
 
     public async Task<BloodRequestResponseDto?> UpdateRequestAsync(Guid id, UpdateBloodRequestDto d)
@@ -903,9 +757,49 @@ public sealed class BloodBankService : IBloodBankService
         if (d.MedicalReason != null) req.MedicalReason = d.MedicalReason.Trim();
         if (!string.IsNullOrWhiteSpace(d.Status) && req.Status != "Fulfilled") req.Status = d.Status.Trim();
         if (!string.IsNullOrWhiteSpace(d.AdminComments)) req.AdminComments = d.AdminComments.Trim();
+        if (d.Indication != null) req.Indication = d.Indication.Trim();
+        if (d.EmergencyUrgency != null) req.EmergencyUrgency = d.EmergencyUrgency.Trim();
+        if (d.RefDoctor != null) req.RefDoctor = d.RefDoctor.Trim();
+        if (d.IpNumber != null) req.IpNumber = d.IpNumber.Trim();
+        if (d.RoomNumber != null) req.RoomNumber = d.RoomNumber.Trim();
+        if (d.PreviousTransfusion.HasValue) req.PreviousTransfusion = d.PreviousTransfusion;
+        if (d.TransfusionReactionHistory.HasValue) req.TransfusionReactionHistory = d.TransfusionReactionHistory;
+        if (d.HbGdl.HasValue) req.HbGdl = d.HbGdl;
+        if (d.PcvPercent.HasValue) req.PcvPercent = d.PcvPercent;
+        if (d.PlateletCount.HasValue) req.PlateletCount = d.PlateletCount;
+        if (d.IndicationDiagnosis != null) req.IndicationDiagnosis = d.IndicationDiagnosis.Trim();
+        if (d.CrossMatchingMethod != null) req.CrossMatchingMethod = d.CrossMatchingMethod.Trim();
+        if (d.CrossMatchingReport != null) req.CrossMatchingReport = d.CrossMatchingReport.Trim();
+        if (d.BillNumber != null) req.BillNumber = d.BillNumber.Trim();
+        if (d.RequiredResponseTime != null) req.RequiredResponseTime = d.RequiredResponseTime.Trim();
+        if (d.RequiredDateTime.HasValue) req.RequiredDateTime = d.RequiredDateTime;
+        if (d.IssueOrReserve != null) req.IssueOrReserve = d.IssueOrReserve.Trim();
+        req.ConsentForIssue = d.ConsentForIssue;
+        if (d.ConsentTakenBy != null) req.ConsentTakenBy = d.ConsentTakenBy.Trim();
+        if (d.ConsentDate.HasValue) req.ConsentDate = d.ConsentDate;
+        req.BloodBankUseOnly = d.BloodBankUseOnly;
+        if (d.IssueSerial != null) req.IssueSerial = d.IssueSerial.Trim();
+        if (d.ReceiverName != null) req.ReceiverName = d.ReceiverName.Trim();
+        if (d.IssuedByName != null) req.IssuedByName = d.IssuedByName.Trim();
+        if (d.BloodBankOfficerSignOff != null) req.BloodBankOfficerSignOff = d.BloodBankOfficerSignOff.Trim();
 
         await _repo.SaveChangesAsync();
         return Mapping.Request(req);
+    }
+
+    public async Task<bool?> DeletePendingRequestAsync(Guid id)
+    {
+        var request = await _repo.FindRequestAsync(id);
+        if (request is null) return null;
+        if (request.Status != "Pending"
+            || request.ProcessedAt.HasValue
+            || !string.IsNullOrWhiteSpace(request.IssuedBagNumbers)
+            || request.PaymentStatus != "Pending")
+        {
+            return false;
+        }
+
+        return await _repo.DeletePendingRequestAsync(id);
     }
 
     public async Task<(ComponentDiscardDto? Result, string? Error)> UpdateComponentDiscardAsync(Guid id, UpdateComponentDiscardDto d)
@@ -943,6 +837,8 @@ public sealed class BloodBankService : IBloodBankService
             BloodGroup = record.BloodGroup,
             TestingDate = record.TestingDate,
             HivResult = record.HivResult,
+            HivIResult = record.HivIResult,
+            HivIiResult = record.HivIiResult,
             HbsAgResult = record.HbsAgResult,
             HcvResult = record.HcvResult,
             VdrlResult = record.VdrlResult,
@@ -952,6 +848,9 @@ public sealed class BloodBankService : IBloodBankService
             TestedBy = record.TestedBy,
             ApprovedBy = record.ApprovedBy,
             Remarks = record.Remarks,
+            ElisaKitBatch = record.ElisaKitBatch,
+            ElisaSignOffBy = record.ElisaSignOffBy,
+            ElisaSignOffAt = record.ElisaSignOffAt,
             CreatedAt = record.CreatedAt
         };
     }
@@ -965,6 +864,8 @@ public sealed class BloodBankService : IBloodBankService
     public async Task<TtiScreeningDto> CreateTtiScreeningAsync(CreateTtiScreeningDto d)
     {
         bool isReactive = d.HivResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
+            || d.HivIResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
+            || d.HivIiResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
             || d.HbsAgResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
             || d.HcvResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
             || d.VdrlResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
@@ -980,6 +881,8 @@ public sealed class BloodBankService : IBloodBankService
             BloodGroup = d.BloodGroup.Trim().ToUpperInvariant(),
             TestingDate = d.TestingDate == default ? DateTime.UtcNow : d.TestingDate,
             HivResult = d.HivResult.Trim(),
+            HivIResult = d.HivIResult.Trim(),
+            HivIiResult = d.HivIiResult.Trim(),
             HbsAgResult = d.HbsAgResult.Trim(),
             HcvResult = d.HcvResult.Trim(),
             VdrlResult = d.VdrlResult.Trim(),
@@ -989,6 +892,9 @@ public sealed class BloodBankService : IBloodBankService
             TestedBy = d.TestedBy.Trim(),
             ApprovedBy = d.ApprovedBy?.Trim(),
             Remarks = d.Remarks?.Trim(),
+            ElisaKitBatch = d.ElisaKitBatch?.Trim(),
+            ElisaSignOffBy = d.ElisaSignOffBy?.Trim(),
+            ElisaSignOffAt = d.ElisaSignOffAt,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -996,6 +902,13 @@ public sealed class BloodBankService : IBloodBankService
 
         if (isReactive)
         {
+            var bag = await _repo.FindBagByNumberAsync(record.BagBarcode);
+            if (bag != null)
+            {
+                bag.ScreeningStatus = "Reactive";
+                bag.Status = "Quarantined";
+                await _repo.UpdateBagAsync(bag);
+            }
             var colItem = await _repo.FindComponentCollectionByBarcodeAsync(record.BagBarcode);
             if (colItem != null)
             {
@@ -1016,6 +929,16 @@ public sealed class BloodBankService : IBloodBankService
             };
             await _repo.AddComponentDiscardAsync(discard);
         }
+        else
+        {
+            var bag = await _repo.FindBagByNumberAsync(record.BagBarcode);
+            if (bag != null)
+            {
+                bag.ScreeningStatus = "Passed";
+                bag.Status = "Available";
+                await _repo.UpdateBagAsync(bag);
+            }
+        }
 
         await _repo.SaveChangesAsync();
         return MapTti(record);
@@ -1030,6 +953,8 @@ public sealed class BloodBankService : IBloodBankService
         record.BloodGroup = d.BloodGroup.Trim().ToUpperInvariant();
         record.TestingDate = d.TestingDate;
         record.HivResult = d.HivResult.Trim();
+        record.HivIResult = d.HivIResult.Trim();
+        record.HivIiResult = d.HivIiResult.Trim();
         record.HbsAgResult = d.HbsAgResult.Trim();
         record.HcvResult = d.HcvResult.Trim();
         record.VdrlResult = d.VdrlResult.Trim();
@@ -1039,8 +964,28 @@ public sealed class BloodBankService : IBloodBankService
         record.TestedBy = d.TestedBy.Trim();
         record.ApprovedBy = d.ApprovedBy?.Trim();
         record.Remarks = d.Remarks?.Trim();
+        record.ElisaKitBatch = d.ElisaKitBatch?.Trim();
+        record.ElisaSignOffBy = d.ElisaSignOffBy?.Trim();
+        record.ElisaSignOffAt = d.ElisaSignOffAt;
+
+        var isReactive = d.HivResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
+            || d.HivIResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
+            || d.HivIiResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
+            || d.HbsAgResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
+            || d.HcvResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
+            || d.VdrlResult.Contains("Reactive", StringComparison.OrdinalIgnoreCase)
+            || d.MalariaResult.Contains("Positive", StringComparison.OrdinalIgnoreCase)
+            || d.AtypicalAntibodies.Contains("Positive", StringComparison.OrdinalIgnoreCase);
+        record.OverallStatus = isReactive ? "Failed - Reactive" : (string.IsNullOrWhiteSpace(d.OverallStatus) ? "Passed" : d.OverallStatus.Trim());
 
         await _repo.UpdateTtiScreeningAsync(record);
+        var bag = await _repo.FindBagByNumberAsync(record.BagBarcode);
+        if (bag != null)
+        {
+            bag.ScreeningStatus = isReactive ? "Reactive" : "Passed";
+            bag.Status = isReactive ? "Quarantined" : "Available";
+            await _repo.UpdateBagAsync(bag);
+        }
         await _repo.SaveChangesAsync();
         return MapTti(record);
     }
@@ -1450,7 +1395,9 @@ public sealed class BloodBankService : IBloodBankService
             PhlebotomistSignature = record.PhlebotomistSignature,
             MedicalOfficerSignature = record.MedicalOfficerSignature,
             Remarks = record.Remarks,
-            CreatedAt = record.CreatedAt
+            CreatedAt = record.CreatedAt,
+            YearlySlNo = record.YearlySlNo,
+            MonthlySlNo = record.MonthlySlNo
         };
     }
 
@@ -1460,8 +1407,49 @@ public sealed class BloodBankService : IBloodBankService
         return records.Select(MapApheresis);
     }
 
+    private async Task<string?> ValidateApheresisAsync(
+        DateTime date,
+        string donorName,
+        string registrationNo,
+        string? ageSex,
+        decimal weightKg,
+        decimal haemoglobin,
+        decimal plateletLakhs,
+        Guid? excludeId = null)
+    {
+        var ageMatch = System.Text.RegularExpressions.Regex.Match(ageSex ?? "", @"\d+");
+        var age = ageMatch.Success ? int.Parse(ageMatch.Value) : 0;
+        if (age is < 18 or > 60)
+            return "Apheresis donor must be between 18 and 60 years old.";
+        if (weightKg < 45m)
+            return "Apheresis donor weight must be at least 45 kg.";
+        if (haemoglobin < 12.5m)
+            return "Apheresis donor hemoglobin must be at least 12.5 g/dL.";
+        if (plateletLakhs < 2m)
+            return "Apheresis platelet count must be at least 2.0 lakhs/cu mm.";
+
+        var records = await _repo.GetApheresisRecordsAsync();
+        var previous = records
+            .Where(item => (!excludeId.HasValue || item.Id != excludeId.Value)
+                && (string.Equals(item.RegistrationNo, registrationNo.Trim(), StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(item.DonorName, donorName.Trim(), StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(item => item.Date)
+            .FirstOrDefault();
+        if (previous != null && date - previous.Date < TimeSpan.FromHours(48))
+            return "Apheresis donor must wait at least 48 hours between procedures.";
+        return null;
+    }
+
     public async Task<ApheresisRecordDto> CreateApheresisRecordAsync(CreateApheresisRecordDto d)
     {
+        var validationError = await ValidateApheresisAsync(d.Date, d.DonorName, d.RegistrationNo, d.AgeSex,
+            d.WeightKg, d.HaemoglobinGms, d.PlateletCountLakhs);
+        if (validationError != null)
+            throw new InvalidOperationException(validationError);
+
+        var existing = await _repo.GetApheresisRecordsAsync();
+        var monthlyCount = existing.Count(item => item.Date.Year == d.Date.Year && item.Date.Month == d.Date.Month);
+        var yearlyCount = existing.Count(item => item.Date.Year == d.Date.Year);
         var item = new ApheresisRecord
         {
             Id = Guid.NewGuid(),
@@ -1500,7 +1488,9 @@ public sealed class BloodBankService : IBloodBankService
             PhlebotomistSignature = d.PhlebotomistSignature?.Trim(),
             MedicalOfficerSignature = d.MedicalOfficerSignature?.Trim(),
             Remarks = d.Remarks?.Trim(),
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            YearlySlNo = yearlyCount + 1,
+            MonthlySlNo = monthlyCount + 1
         };
 
         await _repo.AddApheresisRecordAsync(item);
@@ -1512,6 +1502,11 @@ public sealed class BloodBankService : IBloodBankService
     {
         var item = await _repo.FindApheresisRecordAsync(id);
         if (item == null) return null;
+
+        var validationError = await ValidateApheresisAsync(d.Date, d.DonorName, d.RegistrationNo, d.AgeSex,
+            d.WeightKg, d.HaemoglobinGms, d.PlateletCountLakhs, id);
+        if (validationError != null)
+            throw new InvalidOperationException(validationError);
 
         item.RegistrationNo = d.RegistrationNo.Trim();
         item.DonorName = d.DonorName.Trim();

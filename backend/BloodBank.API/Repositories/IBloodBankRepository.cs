@@ -27,6 +27,8 @@ public interface IBloodBankRepository
     Task UpdateBagAsync(BloodBag bag);
     void RemoveBag(BloodBag bag);
     Task<List<BloodBag>> GetAvailableBagsAsync(string bloodGroup, string componentType, int count);
+    Task<(IReadOnlyList<string> BagNumbers, string? Error)> TryIssueBagsAtomicallyAsync(
+        string bloodGroup, string componentType, int count, string? issuedBy);
 
     // Donation Camps
     Task<List<DonationCamp>> GetCampsAsync(bool upcoming = false);
@@ -46,6 +48,7 @@ public interface IBloodBankRepository
     Task<BloodRequest?> FindRequestAsync(Guid id);
     Task AddRequestAsync(BloodRequest request);
     Task UpdateRequestAsync(BloodRequest request);
+    Task<bool> DeletePendingRequestAsync(Guid id);
 
     // Blood Inventory
     Task<BloodInventory?> FindInventoryAsync(string bloodGroup, string bankName);
@@ -73,7 +76,6 @@ public interface IBloodBankRepository
     Task<ComponentReturn?> FindComponentReturnAsync(Guid id);
     Task AddComponentReturnAsync(ComponentReturn item);
     Task UpdateComponentReturnAsync(ComponentReturn item);
-    void RemoveComponentReturn(ComponentReturn item);
 
     // Uddanam Register 1: TTI Screening
     Task<List<TtiScreeningRecord>> GetTtiScreeningsAsync(string? status = null);
