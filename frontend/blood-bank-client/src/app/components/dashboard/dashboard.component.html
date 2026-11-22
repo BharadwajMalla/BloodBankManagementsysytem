@@ -18,7 +18,9 @@
         @for (category of paperRegisterCategories; track category.key) {
           <a [routerLink]="['/registers', category.key]"
             routerLinkActive="active" class="dashboard-route-tab">
-            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="category.icon"/>
+            </svg>
             <span>{{ category.label }}</span>
           </a>
         }
@@ -701,8 +703,18 @@
                       </p>
                     }
                     <div class="flex justify-end gap-2 border-t border-slate-100 pt-3">
-                      <button type="button" (click)="openEditCampModal(camp)" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50">Edit</button>
-                      <button type="button" (click)="deleteCamp(camp.id)" class="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50">Delete</button>
+                      <button type="button" (click)="openEditCampModal(camp)" title="Edit donation camp" [attr.aria-label]="'Edit donation camp ' + camp.campName"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16 4 4 4M4 20l4-.8L19 8a2.1 2.1 0 0 0-3-3L5 16l-1 4z"/>
+                        </svg>
+                      </button>
+                      <button type="button" (click)="deleteCamp(camp.id)" title="Delete donation camp" [attr.aria-label]="'Delete donation camp ' + camp.campName"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16m-10 4v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"/>
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 }
@@ -975,7 +987,13 @@
                             </span>
                           </td>
                           <td class="py-3.5 px-6 text-right">
-                            <button (click)="deleteComponentCollection(item.id)" class="text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors">Delete</button>
+                            <button type="button" (click)="deleteComponentCollection(item.id)" title="Delete component collection"
+                              [attr.aria-label]="'Delete component collection ' + item.bagBarcode"
+                              class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-800">
+                              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16m-10 4v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"/>
+                              </svg>
+                            </button>
                           </td>
                         </tr>
                       }
