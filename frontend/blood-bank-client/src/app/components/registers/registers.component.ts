@@ -342,21 +342,21 @@ const columns: Record<RegisterKey, RegisterColumn[]> = {
   ]
 };
 
-export const registerList: { key: RegisterKey; label: string; description: string }[] = [
-  { key: 'tti', label: 'TTI screening', description: 'Transfusion-transmitted infection screening results.' },
-  { key: 'grouping', label: 'Patient grouping', description: 'Blood grouping, antibody screening and crossmatch register.' },
-  { key: 'bag-stock', label: 'Blood-bag stock register', description: 'Supplier, batch, expiry and balance ledger.' },
-  { key: 'bags', label: 'Bag inventory', description: 'Individual collected / stocked blood bags.' },
-  { key: 'diagnostic-kits', label: 'Diagnostic kits & reagents', description: 'Kit receipts, tests performed and reagent balances.' },
-  { key: 'apheresis', label: 'Apheresis', description: 'Donor assessment and procedure records.' },
-  { key: 'master-record', label: 'Master record', description: 'Consolidated bag, donor, TTI and utilization register.' },
-  { key: 'requisitions', label: 'Requisitions', description: 'Hospital blood/component requests and processing.' },
-  { key: 'issues', label: 'Issue records', description: 'Fulfillment and bag issue details on requests.' },
-  { key: 'collections', label: 'Component collection', description: 'Collected components and expiry tracking.' },
-  { key: 'discards', label: 'Component discard', description: 'Discard reports and approval status.' },
-  { key: 'returns', label: 'Component returns', description: 'Returned component records.' },
-  { key: 'donors', label: 'Donors', description: 'Donor directory, eligibility and donation history.' },
-  { key: 'donations', label: 'Donations', description: 'Donation screening and collection records.' }
+export const registerList: { key: RegisterKey; label: string; description: string; icon: string }[] = [
+  { key: 'tti', label: 'TTI screening', description: 'Transfusion-transmitted infection screening results.', icon: 'M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4zm-3 9 2 2 4-4' },
+  { key: 'grouping', label: 'Patient grouping', description: 'Blood grouping, antibody screening and crossmatch register.', icon: 'M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm7-3a4 4 0 0 1 0 8m5 5v-2a4 4 0 0 0-3-3.87' },
+  { key: 'bag-stock', label: 'Blood-bag stock register', description: 'Supplier, batch, expiry and balance ledger.', icon: 'M20 7l-8-4-8 4 8 4 8-4zm-16 0v10l8 4 8-4V7m-8 4v10' },
+  { key: 'bags', label: 'Bag inventory', description: 'Individual collected / stocked blood bags.', icon: 'M6 3h12l1 5-2 2v10a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V10L5 8l1-5zm1 5h10M9 14h6' },
+  { key: 'diagnostic-kits', label: 'Diagnostic kits & reagents', description: 'Kit receipts, tests performed and reagent balances.', icon: 'M9 3h6m-5 0v7l-5 8a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-8V3m-7 11h12' },
+  { key: 'apheresis', label: 'Apheresis', description: 'Donor assessment and procedure records.', icon: 'M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11zm-2 12a2 2 0 0 0 2 2' },
+  { key: 'master-record', label: 'Master record', description: 'Consolidated bag, donor, TTI and utilization register.', icon: 'M6 3h9l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm8 1v4h4m-9 4h6m-6 4h6' },
+  { key: 'requisitions', label: 'Requisitions', description: 'Hospital blood/component requests and processing.', icon: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2 2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2zm0 8h6m-6 4h6' },
+  { key: 'issues', label: 'Issue records', description: 'Fulfillment and bag issue details on requests.', icon: 'M4 12h11m0 0-4-4m4 4-4 4m5-10h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3' },
+  { key: 'collections', label: 'Component collection', description: 'Collected components and expiry tracking.', icon: 'M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11zm0 7v8m-4-4h8' },
+  { key: 'discards', label: 'Component discard', description: 'Discard reports and approval status.', icon: 'M4 7h16m-10 4v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3' },
+  { key: 'returns', label: 'Component returns', description: 'Returned component records.', icon: 'M9 14 4 9l5-5m-5 5h10a6 6 0 0 1 0 12h-2' },
+  { key: 'donors', label: 'Donors', description: 'Donor directory, eligibility and donation history.', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m8-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+  { key: 'donations', label: 'Donations', description: 'Donation screening and collection records.', icon: 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8z' }
 ];
 
 @Component({
