@@ -6,13 +6,16 @@ using BloodBank.Application.Models;
 using BloodBank.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using BloodBank.API.Services;
 
 namespace BloodBank.API.Controllers;
 
 [ApiController]
 [Route("api/master-data")]
 [Authorize(Roles = "Admin,BloodBank")]
-public sealed class MasterDataController(IMasterDataService service) : ControllerBase
+public sealed class MasterDataController(
+    IMasterDataService service,
+    ISqlExceptionLogger exceptionLogger) : ControllerBase
 {
     [HttpGet("{type}")]
     public async Task<IActionResult> Get(
@@ -45,10 +48,12 @@ public sealed class MasterDataController(IMasterDataService service) : Controlle
         }
         catch (ArgumentException exception)
         {
+            await exceptionLogger.LogAsync(exception, nameof(Create));
             return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid master-data record", detail: exception.Message);
         }
         catch (MasterDataConflictException exception)
         {
+            await exceptionLogger.LogAsync(exception, nameof(Create));
             return Problem(statusCode: StatusCodes.Status409Conflict, title: "Master-data conflict", detail: exception.Message);
         }
     }
@@ -72,14 +77,17 @@ public sealed class MasterDataController(IMasterDataService service) : Controlle
         }
         catch (ArgumentException exception)
         {
+            await exceptionLogger.LogAsync(exception, nameof(Update));
             return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid master-data record", detail: exception.Message);
         }
         catch (MasterDataConflictException exception)
         {
+            await exceptionLogger.LogAsync(exception, nameof(Update));
             return Problem(statusCode: StatusCodes.Status409Conflict, title: "Master-data conflict", detail: exception.Message);
         }
         catch (MasterDataNotFoundException exception)
         {
+            await exceptionLogger.LogAsync(exception, nameof(Update));
             return Problem(statusCode: StatusCodes.Status404NotFound, title: "Master-data record not found", detail: exception.Message);
         }
     }
@@ -103,6 +111,7 @@ public sealed class MasterDataController(IMasterDataService service) : Controlle
         }
         catch (MasterDataNotFoundException exception)
         {
+            await exceptionLogger.LogAsync(exception, nameof(SetActive));
             return Problem(statusCode: StatusCodes.Status404NotFound, title: "Master-data record not found", detail: exception.Message);
         }
     }

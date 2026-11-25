@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using BloodBank.API.Models;
 using BloodBank.API.Repositories;
+using BloodBank.API.Services;
 
 namespace BloodBank.API.Data;
 
@@ -26,7 +27,11 @@ public static class DbInitializer
                 catch (Exception migEx)
                 {
                     logger.LogWarning("MigrateAsync encountered warning, ensuring schema via idempotent DDL: {Message}", migEx.Message);
+                    await EnsureExceptionLogTableAsync(context);
+                    await scope.ServiceProvider.GetRequiredService<ISqlExceptionLogger>()
+                        .LogAsync(migEx, "Database migration");
                 }
+                await EnsureExceptionLogTableAsync(context);
 
                 // 2. Execute idempotent DDL to ensure all new Blood Bank A tables and columns exist
                 await context.Database.ExecuteSqlRawAsync(@"
@@ -492,6 +497,7 @@ public static class DbInitializer
             else
             {
                 await context.Database.EnsureCreatedAsync();
+                await EnsureExceptionLogTableAsync(context);
                 await context.Database.ExecuteSqlRawAsync(@"
                     CREATE TABLE IF NOT EXISTS ComponentCollections (
                         Id TEXT NOT NULL PRIMARY KEY,
@@ -692,8 +698,38 @@ public static class DbInitializer
         }
         catch (Exception ex)
         {
+            await scope.ServiceProvider.GetRequiredService<ISqlExceptionLogger>()
+                .LogAsync(ex, "Database initialization");
             logger.LogError(ex, "DbInitializer encountered error: {Message}", ex.Message);
         }
+    }
+
+    private static Task EnsureExceptionLogTableAsync(ApplicationDbContext context)
+    {
+        var sql = context.Database.IsSqlServer()
+            ? @"
+                IF OBJECT_ID(N'dbo.ExceptionLogs', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [dbo].[ExceptionLogs] (
+                        [Id] nvarchar(36) NOT NULL PRIMARY KEY,
+                        [Context] nvarchar(512) NOT NULL,
+                        [ExceptionType] nvarchar(512) NOT NULL,
+                        [Message] nvarchar(max) NOT NULL,
+                        [Details] nvarchar(max) NOT NULL,
+                        [OccurredAtUtc] datetime2 NOT NULL
+                    );
+                END"
+            : @"
+                CREATE TABLE IF NOT EXISTS ExceptionLogs (
+                    Id TEXT NOT NULL PRIMARY KEY,
+                    Context TEXT NOT NULL,
+                    ExceptionType TEXT NOT NULL,
+                    Message TEXT NOT NULL,
+                    Details TEXT NOT NULL,
+                    OccurredAtUtc TEXT NOT NULL
+                );";
+
+        return context.Database.ExecuteSqlRawAsync(sql);
     }
 
     public static async Task SeedLiveDataAsync(IBloodBankRepository repository, ILogger? logger = null)

@@ -10,15 +10,18 @@ public class EmailOtpService : IEmailOtpService
     private readonly IDbConnectionFactory _factory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<EmailOtpService> _logger;
+    private readonly ISqlExceptionLogger _exceptionLogger;
 
     public EmailOtpService(
         IDbConnectionFactory factory,
         IConfiguration configuration,
-        ILogger<EmailOtpService> logger)
+        ILogger<EmailOtpService> logger,
+        ISqlExceptionLogger exceptionLogger)
     {
         _factory = factory;
         _configuration = configuration;
         _logger = logger;
+        _exceptionLogger = exceptionLogger;
     }
 
     public async Task<string> GenerateAndSendOtpAsync(string email, string purpose)
@@ -94,6 +97,7 @@ Blood Bank Management System";
             }
             catch (Exception ex)
             {
+                await _exceptionLogger.LogAsync(ex, "EmailOtpService.SendOtpEmail");
                 _logger.LogWarning(ex, "Failed to send OTP email via SMTP. Falling back to log stream: {Message}", ex.Message);
             }
         }

@@ -16,6 +16,7 @@ public class AuthController : ControllerBase
     private readonly ILoginAuditRepository _loginAuditRepository;
     private readonly ILogger<AuthController> _logger;
     private readonly IHostEnvironment _environment;
+    private readonly ISqlExceptionLogger _exceptionLogger;
 
     public AuthController(
         IAuthService authService,
@@ -23,7 +24,8 @@ public class AuthController : ControllerBase
         IBloodBankRepository repo,
         ILoginAuditRepository loginAuditRepository,
         ILogger<AuthController> logger,
-        IHostEnvironment environment)
+        IHostEnvironment environment,
+        ISqlExceptionLogger exceptionLogger)
     {
         _authService = authService;
         _otpService = otpService;
@@ -31,6 +33,7 @@ public class AuthController : ControllerBase
         _loginAuditRepository = loginAuditRepository;
         _logger = logger;
         _environment = environment;
+        _exceptionLogger = exceptionLogger;
     }
 
     /// <summary>
@@ -71,6 +74,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            await _exceptionLogger.LogAsync(ex, nameof(SendRegistrationOtp));
             _logger.LogError(ex, "Failed to send registration OTP to {Email}", dto.Email);
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to dispatch verification OTP: " + ex.Message });
         }
@@ -100,10 +104,12 @@ public class AuthController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            await _exceptionLogger.LogAsync(ex, nameof(Register));
             return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
         {
+            await _exceptionLogger.LogAsync(ex, nameof(Register));
             _logger.LogError(ex, "Registration failed for {Email}", dto.Email);
             return StatusCode(StatusCodes.Status500InternalServerError, new { 
                 message = "Registration failed: " + ex.Message,
@@ -135,11 +141,13 @@ public class AuthController : ControllerBase
         }
         catch (UnauthorizedAccessException ex)
         {
+            await _exceptionLogger.LogAsync(ex, nameof(Login));
             await RecordLoginAttemptAsync(dto.Email, user: null, succeeded: false);
             return Unauthorized(new { message = ex.Message });
         }
         catch (Exception ex)
         {
+            await _exceptionLogger.LogAsync(ex, nameof(Login));
             _logger.LogError(ex, "Login failed for {Email}", dto.Email);
             return StatusCode(StatusCodes.Status500InternalServerError, new { 
                 message = "Authentication failed: " + ex.Message,
@@ -169,6 +177,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            await _exceptionLogger.LogAsync(ex, nameof(RecordLoginAttemptAsync));
             _logger.LogError(ex, "Failed to store login audit record for {Email}", email);
         }
     }
@@ -248,6 +257,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            await _exceptionLogger.LogAsync(ex, nameof(SendForgotPasswordOtp));
             _logger.LogError(ex, "Failed to send password reset OTP to {Email}", dto.Email);
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to dispatch password reset OTP: " + ex.Message });
         }
@@ -274,10 +284,12 @@ public class AuthController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            await _exceptionLogger.LogAsync(ex, nameof(ResetPassword));
             return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
         {
+            await _exceptionLogger.LogAsync(ex, nameof(ResetPassword));
             _logger.LogError(ex, "Password reset failed for {Email}", dto.Email);
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Password reset failed: " + ex.Message });
         }

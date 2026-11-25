@@ -15,6 +15,7 @@ using BloodBank.API.Services;
 using BloodBank.Infrastructure.Repositories;
 using BloodBank.Infrastructure.Security;
 using BloodBank.Infrastructure.Migrations;
+using BloodBank.API.Middleware;
 
 // 1. MUST EXECUTE BEFORE BUILDER INITIALIZATION:
 // Disables ASP.NET Core legacy WS-Federation/Identity claim mapping so 'role' remains 'role'
@@ -72,6 +73,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // 3. Register Dapper SQL Factory, Repositories & Domain Services
 var dapperConnectionString = useSqlite ? "Data Source=bloodbank.db" : rawConnectionString;
 builder.Services.AddSingleton<IDbConnectionFactory>(new DbConnectionFactory(dapperConnectionString, useSqlite));
+builder.Services.AddSingleton<ISqlExceptionLogger, SqlExceptionLogger>();
 builder.Services.AddScoped<IBloodBankRepository, DapperBloodBankRepository>();
 builder.Services.AddScoped<ILoginAuditRepository, DapperLoginAuditRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -152,11 +154,12 @@ builder.Services.AddAuthentication(options =>
             }
             return Task.CompletedTask;
         },
-        OnAuthenticationFailed = context =>
+        OnAuthenticationFailed = async context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
             logger.LogWarning("Authentication failed: {Message}", context.Exception.Message);
-            return Task.CompletedTask;
+            var exceptionLogger = context.HttpContext.RequestServices.GetRequiredService<ISqlExceptionLogger>();
+            await exceptionLogger.LogAsync(context.Exception, "JwtBearer authentication");
         }
     };
 });
@@ -221,10 +224,21 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+app.UseMiddleware<SqlExceptionHandlingMiddleware>();
+
 // 8. Auto-Migrations and Seeding on application startup
 await DbInitializer.InitializeAsync(app.Services, app.Logger);
-await app.Services.GetRequiredService<MasterDataSchemaInitializer>()
-    .InitializeAsync(app.Lifetime.ApplicationStopping);
+try
+{
+    await app.Services.GetRequiredService<MasterDataSchemaInitializer>()
+        .InitializeAsync(app.Lifetime.ApplicationStopping);
+}
+catch (Exception ex)
+{
+    await app.Services.GetRequiredService<ISqlExceptionLogger>()
+        .LogAsync(ex, "Master data schema initialization");
+    throw;
+}
 
 // 9. HTTP Request Pipeline Configuration
 app.UseSwagger();
@@ -241,7 +255,9 @@ app.UseCors("AllowFrontendApp");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/api/health", async (IDbConnectionFactory connectionFactory) =>
+app.MapGet("/api/health", async (
+    IDbConnectionFactory connectionFactory,
+    ISqlExceptionLogger exceptionLogger) =>
 {
     string? connectionError = null;
     bool canConnect = false;
@@ -256,6 +272,7 @@ app.MapGet("/api/health", async (IDbConnectionFactory connectionFactory) =>
     }
     catch (Exception ex)
     {
+        await exceptionLogger.LogAsync(ex, "Health check");
         connectionError = $"{ex.GetType().Name}: {ex.Message}" + (ex.InnerException != null ? $" | Inner: {ex.InnerException.Message}" : "");
     }
 
@@ -276,7 +293,16 @@ if (args.Contains("--seed-data"))
 {
     using var seedScope = app.Services.CreateScope();
     var seedRepository = seedScope.ServiceProvider.GetRequiredService<IBloodBankRepository>();
-    await DbInitializer.SeedLiveDataAsync(seedRepository);
+    try
+    {
+        await DbInitializer.SeedLiveDataAsync(seedRepository);
+    }
+    catch (Exception ex)
+    {
+        await app.Services.GetRequiredService<ISqlExceptionLogger>()
+            .LogAsync(ex, "Seed live data");
+        throw;
+    }
     Console.WriteLine("SEED_COMPLETE_SUCCESS");
     return;
 }

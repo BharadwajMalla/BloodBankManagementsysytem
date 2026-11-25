@@ -14,7 +14,8 @@ namespace BloodBank.API.Controllers;
 [Authorize(Roles = "BloodBank,Admin,TechnicalSupervisor,Technician")]
 public class BloodBankController(
     IBloodBankService service,
-    IDonorDonationService donorDonationService) : ControllerBase
+    IDonorDonationService donorDonationService,
+    ISqlExceptionLogger exceptionLogger) : ControllerBase
 {
     private Guid UserId()
     {
@@ -624,6 +625,7 @@ public class BloodBankController(
         }
         catch (InvalidOperationException ex)
         {
+            await exceptionLogger.LogAsync(ex, nameof(CreateApheresisRecord));
             return BadRequest(new { message = ex.Message });
         }
     }
@@ -645,6 +647,7 @@ public class BloodBankController(
         }
         catch (InvalidOperationException ex)
         {
+            await exceptionLogger.LogAsync(ex, nameof(UpdateApheresisRecord));
             return BadRequest(new { message = ex.Message });
         }
     }
