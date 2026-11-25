@@ -119,8 +119,25 @@ export class BloodBankService {
     return this.http.delete<void>(`${this.baseUrl}/requests/${id}`);
   }
 
-  public processRequest(id: string, status: 'Approved' | 'Fulfilled' | 'Rejected', adminComments?: string, paymentMode?: 'Cash' | 'UPI', transactionId?: string, amountPaid?: number): Observable<BloodRequest> {
-    return this.http.put<BloodRequest>(`${this.baseUrl}/requests/${id}/process`, { status, adminComments, paymentMode, transactionId, amountPaid });
+  public processRequest(
+    id: string,
+    status: 'Approved' | 'Fulfilled' | 'Rejected',
+    adminComments?: string,
+    paymentMode?: 'Cash' | 'UPI',
+    transactionId?: string,
+    amountPaid?: number,
+    isThalassemiaPatient = false,
+    discountDonorId?: string
+  ): Observable<BloodRequest> {
+    return this.http.put<BloodRequest>(`${this.baseUrl}/requests/${id}/process`, {
+      status,
+      adminComments,
+      paymentMode,
+      transactionId,
+      amountPaid,
+      isThalassemiaPatient,
+      discountDonorId
+    });
   }
 
   public getComponentCollections(): Observable<ComponentCollection[]> { return this.http.get<ComponentCollection[]>(`${this.baseUrl}/components/collections`); }
@@ -159,6 +176,16 @@ export class BloodBankService {
   }
   public updatePatientGrouping(id: string, payload: CreatePatientGroupingPayload): Observable<PatientGroupingRecord> {
     return this.http.put<PatientGroupingRecord>(`${this.baseUrl}/registers/grouping/${id}`, payload);
+  }
+  public reviewPatientGrouping(
+    id: string,
+    status: 'Approved' | 'Rejected',
+    rejectionReason?: string
+  ): Observable<PatientGroupingRecord> {
+    return this.http.put<PatientGroupingRecord>(`${this.baseUrl}/registers/grouping/${id}/review`, {
+      status,
+      rejectionReason
+    });
   }
   public deletePatientGrouping(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/registers/grouping/${id}`);

@@ -9,7 +9,7 @@ import { NotificationService } from '../../core/services/notification.service';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { registerList } from '../registers/registers.component';
 import {
-  BloodBag, BloodGroup, BloodRequest, BloodStock, ComponentCollection, ComponentDiscard,
+  BLOOD_GROUPS, BloodBag, BloodGroup, BloodRequest, BloodStock, ComponentCollection, ComponentDiscard,
   ComponentReturn, ComponentType, DonationCamp, DonationHistory, DonorDetails,
   TtiScreeningRecord, CreateTtiScreeningPayload,
   PatientGroupingRecord, CreatePatientGroupingPayload,
@@ -64,6 +64,8 @@ export class DashboardComponent implements OnInit {
   public selectedDonor: DonorDetails | null = null;
   public selectedPaymentRequest: BloodRequest | null = null;
   public showPaymentModal = false;
+  public isPaymentDonorRegistration = false;
+  public paymentFormError: string | null = null;
   public showReceiptModal = signal<boolean>(false);
   public selectedReceiptRequest = signal<BloodRequest | null>(null);
   public showDonationHistoryModal = false;
@@ -80,11 +82,16 @@ export class DashboardComponent implements OnInit {
   public paymentForm: FormGroup = this.fb.group({
     paymentMode: ['Cash', Validators.required],
     transactionId: [''],
-    amountPaid: [1500, [Validators.required, Validators.min(0)]]
+    amountPaid: [1500, [Validators.required, Validators.min(0)]],
+    isThalassemiaPatient: [false],
+    hasDonor: [false],
+    donorRegistered: [false],
+    discountDonorId: ['']
   });
 
   // Domain Constants
-  public bloodGroups: BloodGroup[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  public readonly donorProvidedDiscountAmount = 450;
+  public bloodGroups: BloodGroup[] = BLOOD_GROUPS;
   public componentTypes: ComponentType[] = [
     'Whole Blood', 
     'Red Blood Cells (PRBC)', 
@@ -117,7 +124,9 @@ export class DashboardComponent implements OnInit {
   public filteredBankRequests = computed<BloodRequest[]>(() => {
     const filter = this.requestFilterStatus();
     if (filter === 'Active') {
-      return this.bankRequests().filter(r => r.status === 'Pending' || r.status === 'Approved');
+      return this.bankRequests().filter(r =>
+        r.status === 'Pending' || r.status === 'Processing' || r.status === 'Approved'
+      );
     }
     if (filter === 'Fulfilled') {
       return this.bankRequests().filter(r => r.status === 'Fulfilled');
@@ -241,12 +250,18 @@ export class DashboardComponent implements OnInit {
   public donorCamps = signal<DonationCamp[]>([]);
 
   public pendingRequestsCount = computed<number>(() => {
-    return this.bankRequests().filter(r => r.status === 'Pending').length;
+    return this.bankRequests().filter(r =>
+      r.status === 'Pending' || r.status === 'Processing' || r.status === 'Approved'
+    ).length;
   });
 
   // Reactive Forms
   public hospitalForm: FormGroup = this.fb.group({
     patientName: ['', [Validators.required, Validators.minLength(2)]],
+    patientAge: [null, [Validators.required, Validators.min(0), Validators.max(1440)]],
+    patientAgeUnit: ['Years', Validators.required],
+    patientSex: ['', Validators.required],
+    isThalassemiaPatient: [false],
     hospitalDepartment: [''],
     bloodGroup: ['O-', [Validators.required]],
     componentType: ['Red Blood Cells (PRBC)', [Validators.required]],
@@ -257,6 +272,10 @@ export class DashboardComponent implements OnInit {
 
   public donorForm: FormGroup = this.fb.group({
     patientName: ['', [Validators.required, Validators.minLength(2)]],
+    patientAge: [null, [Validators.required, Validators.min(0), Validators.max(1440)]],
+    patientAgeUnit: ['Years', Validators.required],
+    patientSex: ['', Validators.required],
+    isThalassemiaPatient: [false],
     hospitalDepartment: [''],
     bloodGroup: ['O+', [Validators.required]],
     componentType: ['Whole Blood', [Validators.required]],
@@ -347,6 +366,10 @@ export class DashboardComponent implements OnInit {
   public bloodBankRequestForm: FormGroup = this.fb.group({
     hospitalName: ['', [Validators.required, Validators.minLength(2)]],
     patientName: ['', [Validators.required, Validators.minLength(2)]],
+    patientAge: [null, [Validators.required, Validators.min(0), Validators.max(1440)]],
+    patientAgeUnit: ['Years', Validators.required],
+    patientSex: ['', Validators.required],
+    isThalassemiaPatient: [false],
     bloodGroup: ['O-', [Validators.required]],
     componentType: ['Whole Blood', [Validators.required]],
     quantityUnits: [1, [Validators.required, Validators.min(1)]],
@@ -376,6 +399,10 @@ export class DashboardComponent implements OnInit {
   public editRequestForm: FormGroup = this.fb.group({
     hospitalName: ['', [Validators.required]],
     patientName: ['', [Validators.required]],
+    patientAge: [null, [Validators.required, Validators.min(0), Validators.max(1440)]],
+    patientAgeUnit: ['Years', Validators.required],
+    patientSex: ['', Validators.required],
+    isThalassemiaPatient: [false],
     bloodGroup: ['O-', [Validators.required]],
     componentType: ['Whole Blood', [Validators.required]],
     quantityUnits: [1, [Validators.required, Validators.min(1)]],
@@ -746,32 +773,97 @@ export class DashboardComponent implements OnInit {
       const request = this.bankRequests().find(item => item.id === id);
       if (request) {
         this.selectedPaymentRequest = request;
+        this.paymentFormError = null;
         const autoAmount = this.getRequestAmount(request);
-        this.paymentForm.reset({ paymentMode: 'Cash', transactionId: '', amountPaid: autoAmount });
+        this.paymentForm.reset({
+          paymentMode: request.isThalassemiaPatient ? '' : 'Cash',
+          transactionId: '',
+          amountPaid: request.isThalassemiaPatient ? 0 : autoAmount,
+          isThalassemiaPatient: request.isThalassemiaPatient === true,
+          hasDonor: false,
+          donorRegistered: false,
+          discountDonorId: ''
+        });
+        if (!request.isThalassemiaPatient) this.setPaymentMode('Cash');
         this.showPaymentModal = true;
       }
       return;
     }
-    this.bloodBankService.processRequest(id, status).subscribe({
+    const rejectionReason = status === 'Rejected'
+      ? window.prompt('Enter the reason for rejecting this request.')?.trim()
+      : undefined;
+    if (status === 'Rejected' && !rejectionReason) return;
+
+    this.bloodBankService.processRequest(id, status, rejectionReason).subscribe({
       next: () => this.loadBankData(),
-      error: (err) => alert(err.error?.message || 'Failed to process request.')
+      error: err => alert(this.getApiErrorMessage(err, 'Failed to process request.'))
     });
   }
 
   public submitPaymentAndFulfill(): void {
     if (!this.selectedPaymentRequest) return;
-    const paymentMode = this.paymentForm.get('paymentMode')?.value as 'Cash' | 'UPI';
+    const isThalassemiaPatient = this.selectedPaymentRequest.isThalassemiaPatient === true;
+    const hasDonor = this.paymentForm.get('hasDonor')?.value === true;
+    const donorRegistered = this.paymentForm.get('donorRegistered')?.value === true;
+    const donorId = isThalassemiaPatient || !hasDonor || !donorRegistered
+      ? undefined
+      : String(this.paymentForm.get('discountDonorId')?.value || '').trim() || undefined;
+    const paymentMode = isThalassemiaPatient
+      ? undefined
+      : this.paymentForm.get('paymentMode')?.value as 'Cash' | 'UPI';
     const transactionId = String(this.paymentForm.get('transactionId')?.value || '').trim();
-    const amountPaid = Number(this.paymentForm.get('amountPaid')?.value || this.getRequestAmount(this.selectedPaymentRequest));
+    const baseAmount = this.getRequestAmount(this.selectedPaymentRequest);
+    const amountPaid = isThalassemiaPatient
+      ? 0
+      : donorId
+        ? Math.max(0, baseAmount - this.donorProvidedDiscountAmount)
+        : Number(this.paymentForm.get('amountPaid')?.value ?? baseAmount);
 
+    this.paymentFormError = null;
+    if (!isThalassemiaPatient && !paymentMode) {
+      this.paymentFormError = 'Select a payment mode before issuing components.';
+      return;
+    }
+    if (hasDonor && !donorRegistered) {
+      this.paymentFormError = 'Register the donor before applying the donor discount.';
+      return;
+    }
+    if (hasDonor && donorRegistered && !donorId) {
+      this.paymentFormError = 'Select a registered donor before applying the discount.';
+      return;
+    }
     if (paymentMode === 'UPI' && !transactionId) {
-      this.paymentForm.get('transactionId')?.setErrors({ required: true });
+      this.paymentForm.get('transactionId')?.markAsTouched();
+      this.paymentFormError = 'Enter the UPI transaction ID before issuing components.';
+      return;
+    }
+    if (paymentMode === 'UPI' && !/^\d{12}$/.test(transactionId)) {
+      this.paymentForm.get('transactionId')?.markAsTouched();
+      this.paymentFormError = 'UPI transaction ID must contain exactly 12 digits.';
       return;
     }
 
-    const fulfilledRequest = { ...this.selectedPaymentRequest, paymentMode, transactionId, amountPaid, paymentStatus: 'Completed' as const };
+    const fulfilledRequest = {
+      ...this.selectedPaymentRequest,
+      paymentMode,
+      transactionId: transactionId || undefined,
+      amountPaid,
+      paymentStatus: isThalassemiaPatient ? 'Waived' as const : 'Completed' as const,
+      discountAmount: isThalassemiaPatient
+        ? baseAmount
+        : donorId ? this.donorProvidedDiscountAmount : 0
+    };
 
-    this.bloodBankService.processRequest(this.selectedPaymentRequest.id, 'Fulfilled', undefined, paymentMode, transactionId || undefined, amountPaid).subscribe({
+    this.bloodBankService.processRequest(
+      this.selectedPaymentRequest.id,
+      'Fulfilled',
+      undefined,
+      paymentMode,
+      transactionId || undefined,
+      amountPaid,
+      isThalassemiaPatient,
+      donorId
+    ).subscribe({
       next: (updated) => {
         this.showPaymentModal = false;
         this.selectedPaymentRequest = null;
@@ -779,8 +871,65 @@ export class DashboardComponent implements OnInit {
         // Immediately present the official invoice/receipt
         this.openReceiptModal(updated || fulfilledRequest);
       },
-      error: (err) => alert(err.error?.message || 'Payment or component issue could not be completed.')
+      error: err => this.paymentFormError = this.getApiErrorMessage(err, 'Payment or component issue could not be completed.')
     });
+  }
+
+  public setPaymentMode(paymentMode: 'Cash' | 'UPI'): void {
+    if (this.selectedPaymentRequest?.isThalassemiaPatient === true) return;
+    const paymentModeControl = this.paymentForm.get('paymentMode');
+    paymentModeControl?.setValidators(Validators.required);
+    paymentModeControl?.setValue(paymentMode);
+    paymentModeControl?.updateValueAndValidity();
+    const transactionIdControl = this.paymentForm.get('transactionId');
+    transactionIdControl?.setValidators(
+      paymentMode === 'UPI'
+        ? [Validators.required, Validators.pattern(/^\d{12}$/)]
+        : []
+    );
+    transactionIdControl?.updateValueAndValidity();
+  }
+
+  public setPaymentDonorRequested(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const hasDonor = target.checked;
+    this.paymentForm.patchValue({
+      hasDonor,
+      donorRegistered: false,
+      discountDonorId: ''
+    });
+    this.updatePaymentAmount();
+  }
+
+  public openDonorRegistrationForPayment(): void {
+    this.isPaymentDonorRegistration = true;
+    this.createDonorError = null;
+    this.createDonorForm.reset({ bloodGroup: 'O+' });
+    this.showCreateDonorModal = true;
+  }
+
+  public closeCreateDonorModal(): void {
+    this.showCreateDonorModal = false;
+    this.isPaymentDonorRegistration = false;
+  }
+
+  public updatePaymentAmount(event?: Event): void {
+    if (!this.selectedPaymentRequest) return;
+    const isThalassemiaPatient = this.selectedPaymentRequest.isThalassemiaPatient === true;
+    const target = event?.target;
+    const donorId = target instanceof HTMLInputElement
+      ? target.value.trim()
+      : String(this.paymentForm.get('discountDonorId')?.value || '').trim();
+    const baseAmount = this.getRequestAmount(this.selectedPaymentRequest);
+    const hasRegisteredDonor = this.paymentForm.get('hasDonor')?.value === true &&
+      this.paymentForm.get('donorRegistered')?.value === true &&
+      !!donorId;
+    const amountPaid = isThalassemiaPatient
+      ? 0
+      : Math.max(0, baseAmount - (hasRegisteredDonor ? this.donorProvidedDiscountAmount : 0));
+
+    this.paymentForm.get('amountPaid')?.setValue(amountPaid);
   }
 
   public openReceiptModal(request: BloodRequest): void {
@@ -861,6 +1010,10 @@ export class DashboardComponent implements OnInit {
       next: () => {
         this.isSubmittingBloodBankRequest = false;
         this.bloodBankRequestForm.reset({
+          patientAge: null,
+          patientAgeUnit: 'Years',
+          patientSex: '',
+          isThalassemiaPatient: false,
           bloodGroup: 'O-',
           componentType: 'Whole Blood',
           quantityUnits: 1,
@@ -870,7 +1023,7 @@ export class DashboardComponent implements OnInit {
       },
       error: (err) => {
         this.isSubmittingBloodBankRequest = false;
-        this.bloodBankRequestError = err.error?.message || 'Failed to create request.';
+        this.bloodBankRequestError = this.getApiErrorMessage(err, 'Failed to create request.');
       }
     });
   }
@@ -885,12 +1038,21 @@ export class DashboardComponent implements OnInit {
         this.isCreatingDonor = false;
         this.showCreateDonorModal = false;
         this.generatedPassword = result.generatedPassword;
+        if (this.isPaymentDonorRegistration && this.selectedPaymentRequest) {
+          this.paymentForm.patchValue({
+            hasDonor: true,
+            donorRegistered: true,
+            discountDonorId: result.donor.donorId
+          });
+          this.isPaymentDonorRegistration = false;
+          this.updatePaymentAmount();
+        }
         this.createDonorForm.reset({ bloodGroup: 'O+' });
         this.loadBankData();
       },
       error: (err) => {
         this.isCreatingDonor = false;
-        this.createDonorError = err.error?.message || 'Failed to create donor details.';
+        this.createDonorError = this.getApiErrorMessage(err, 'Failed to create donor details.');
       }
     });
   }
@@ -1006,10 +1168,14 @@ export class DashboardComponent implements OnInit {
     this.hospitalService.submitRequisition(this.hospitalForm.value).subscribe({
       next: () => {
         this.hospitalSubmitSuccess = true;
-        this.hospitalForm.reset({ bloodGroup: 'O-', componentType: 'Red Blood Cells (PRBC)', quantityUnits: 2, urgency: 'Critical' });
+        this.hospitalForm.reset({
+          patientAge: null, patientAgeUnit: 'Years', patientSex: '', isThalassemiaPatient: false,
+          bloodGroup: 'O-', componentType: 'Red Blood Cells (PRBC)', quantityUnits: 2, urgency: 'Critical'
+        });
         this.loadHospitalData();
         setTimeout(() => this.hospitalSubmitSuccess = false, 5000);
-      }
+      },
+      error: error => this.componentError = this.getApiErrorMessage(error, 'Unable to submit the requisition.')
     });
   }
 
@@ -1018,10 +1184,14 @@ export class DashboardComponent implements OnInit {
     this.donorService.submitRequest(this.donorForm.value).subscribe({
       next: () => {
         this.donorSubmitSuccess = true;
-        this.donorForm.reset({ bloodGroup: 'O+', componentType: 'Whole Blood', quantityUnits: 1, urgency: 'Urgent' });
+        this.donorForm.reset({
+          patientAge: null, patientAgeUnit: 'Years', patientSex: '', isThalassemiaPatient: false,
+          bloodGroup: 'O+', componentType: 'Whole Blood', quantityUnits: 1, urgency: 'Urgent'
+        });
         this.loadDonorData();
         setTimeout(() => this.donorSubmitSuccess = false, 5000);
-      }
+      },
+      error: error => this.componentError = this.getApiErrorMessage(error, 'Unable to submit the request.')
     });
   }
 
@@ -1082,6 +1252,10 @@ export class DashboardComponent implements OnInit {
     this.editRequestForm.patchValue({
       hospitalName: req.hospitalName || '',
       patientName: req.patientName || '',
+      patientAge: req.patientAge ?? null,
+      patientAgeUnit: req.patientAgeUnit || 'Years',
+      patientSex: req.patientSex || '',
+      isThalassemiaPatient: req.isThalassemiaPatient === true,
       bloodGroup: req.bloodGroup || 'O-',
       componentType: req.componentType || 'Whole Blood',
       quantityUnits: req.quantityUnits || 1,
@@ -1100,7 +1274,8 @@ export class DashboardComponent implements OnInit {
         this.showEditRequestModal = false;
         this.editingRequest = null;
         this.loadBankData();
-      }
+      },
+      error: error => this.componentError = this.getApiErrorMessage(error, 'Unable to update the request.')
     });
   }
 
@@ -1852,6 +2027,31 @@ export class DashboardComponent implements OnInit {
     this.bloodBankService.deleteApheresisRecord(id).subscribe({
       next: () => this.loadBankData()
     });
+  }
+
+  private getApiErrorMessage(error: unknown, fallback: string): string {
+    if (!error || typeof error !== 'object') return fallback;
+    const response = error as { error?: unknown };
+    const body = response.error;
+    if (typeof body === 'string' && body.trim()) return body;
+    if (!body || typeof body !== 'object') return fallback;
+
+    const problem = body as {
+      detail?: unknown;
+      message?: unknown;
+      title?: unknown;
+      errors?: Record<string, unknown>;
+    };
+    const directMessage = [problem.detail, problem.message, problem.title]
+      .find(value => typeof value === 'string' && value.trim());
+    if (typeof directMessage === 'string') return directMessage;
+    if (problem.errors) {
+      const messages = Object.values(problem.errors).flatMap(value =>
+        Array.isArray(value) ? value : [value]
+      ).filter((value): value is string => typeof value === 'string' && !!value.trim());
+      if (messages.length) return messages.join(' ');
+    }
+    return fallback;
   }
 
 }

@@ -48,6 +48,8 @@ public interface IBloodBankService
     Task<IEnumerable<PatientGroupingDto>> GetPatientGroupingsAsync();
     Task<PatientGroupingDto> CreatePatientGroupingAsync(CreatePatientGroupingDto dto);
     Task<PatientGroupingDto?> UpdatePatientGroupingAsync(Guid id, UpdatePatientGroupingDto dto);
+    Task<(PatientGroupingDto? Result, string? Error)> ReviewPatientGroupingAsync(
+        Guid id, ReviewPatientGroupingDto dto, string? reviewer = null);
     Task<bool> DeletePatientGroupingAsync(Guid id);
 
     Task<IEnumerable<BloodBagStockRegisterDto>> GetBloodBagStockRegistersAsync();

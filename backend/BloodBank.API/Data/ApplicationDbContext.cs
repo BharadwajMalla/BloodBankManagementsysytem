@@ -112,6 +112,8 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.RequesterType).IsRequired().HasMaxLength(50);
             entity.Property(e => e.PatientName).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.PatientAgeUnit).HasMaxLength(10);
+            entity.Property(e => e.PatientSex).HasMaxLength(20);
             entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
             entity.Property(e => e.ComponentType).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Status).HasMaxLength(30).HasDefaultValue("Pending");
@@ -121,6 +123,9 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.PaymentMode).HasMaxLength(20);
             entity.Property(e => e.PaymentStatus).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
             entity.Property(e => e.TransactionId).HasMaxLength(100);
+            entity.Property(e => e.IsThalassemiaPatient).HasDefaultValue(false);
+            entity.Property(e => e.DiscountDonorId).HasMaxLength(50);
+            entity.Property(e => e.DiscountAmount).HasPrecision(18, 2).HasDefaultValue(0m);
         });
 
         modelBuilder.Entity<ComponentCollection>(entity =>
@@ -186,7 +191,11 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.PatientName).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.AgeSex).HasMaxLength(50);
             entity.Property(e => e.BloodGroup).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.BagNumber).HasMaxLength(2000);
+            entity.HasOne<BloodRequest>().WithMany().HasForeignKey(e => e.BloodRequestId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => e.BloodRequestId).IsUnique().HasFilter("[BloodRequestId] IS NOT NULL");
         });
 
         modelBuilder.Entity<BloodBagStockRegister>(entity =>

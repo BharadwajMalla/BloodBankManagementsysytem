@@ -32,6 +32,7 @@ public static class DbInitializer
                         .LogAsync(migEx, "Database migration");
                 }
                 await EnsureExceptionLogTableAsync(context);
+                await EnsureBloodRequestColumnsAsync(context);
 
                 // 2. Execute idempotent DDL to ensure all new Blood Bank A tables and columns exist
                 await context.Database.ExecuteSqlRawAsync(@"
@@ -117,6 +118,9 @@ public static class DbInitializer
                             [RequesterName] nvarchar(150) NOT NULL,
                             [RequesterContact] nvarchar(50) NULL,
                             [PatientName] nvarchar(150) NOT NULL,
+                            [PatientAge] int NULL,
+                            [PatientAgeUnit] nvarchar(10) NULL,
+                            [PatientSex] nvarchar(20) NULL,
                             [BloodGroup] nvarchar(10) NOT NULL,
                             [ComponentType] nvarchar(50) NOT NULL DEFAULT 'Whole Blood',
                             [QuantityUnits] int NOT NULL DEFAULT 1,
@@ -128,7 +132,11 @@ public static class DbInitializer
                             [HospitalName] nvarchar(150) NULL,
                             [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE(),
                             [ProcessedAt] datetime2 NULL,
-                            [IssuedBagNumbers] nvarchar(2000) NULL
+                            [IssuedBagNumbers] nvarchar(2000) NULL,
+                            [IssuedBagDetailsJson] nvarchar(max) NULL,
+                            [IsThalassemiaPatient] bit NOT NULL DEFAULT 0,
+                            [DiscountDonorId] nvarchar(50) NULL,
+                            [DiscountAmount] decimal(18,2) NOT NULL DEFAULT 0
                         );
                     END
 
@@ -203,11 +211,12 @@ public static class DbInitializer
                             [SlNo] int NOT NULL DEFAULT 1,
                             [Date] datetime2 NOT NULL DEFAULT GETUTCDATE(),
                             [PatientName] nvarchar(150) NOT NULL,
-                            [AgeSex] nvarchar(20) NULL,
+                            [AgeSex] nvarchar(50) NULL,
                             [HospitalName] nvarchar(150) NULL,
                             [IpNumber] nvarchar(50) NULL,
-                            [BagNumber] nvarchar(50) NULL,
+                            [BagNumber] nvarchar(2000) NULL,
                             [BagType] nvarchar(50) NULL,
+                            [IssuedBagDetailsJson] nvarchar(max) NULL,
                             [BloodGroup] nvarchar(10) NOT NULL,
                             [RhType] nvarchar(10) NOT NULL DEFAULT 'Positive',
                             [AntiA] nvarchar(10) NOT NULL DEFAULT '+',
@@ -227,9 +236,45 @@ public static class DbInitializer
                             [CrossmatchAhg] nvarchar(30) NOT NULL DEFAULT 'Compatible',
                             [TechnicianSignature] nvarchar(150) NULL,
                             [MedicalOfficerSignature] nvarchar(150) NULL,
+                            [BloodRequestId] uniqueidentifier NULL,
+                            [RequestedComponentType] nvarchar(50) NULL,
+                            [RequestedQuantityUnits] int NULL,
+                            [ReviewStatus] nvarchar(20) NOT NULL DEFAULT 'Not Required',
+                            [RejectionReason] nvarchar(500) NULL,
+                            [ReviewedBy] nvarchar(150) NULL,
+                            [ReviewedAt] datetime2 NULL,
                             [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE()
                         );
                     END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'IssuedBagDetailsJson')
+                        ALTER TABLE [BloodRequests] ADD [IssuedBagDetailsJson] nvarchar(max) NULL;
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'BloodRequestId')
+                        ALTER TABLE [PatientGroupingRecords] ADD [BloodRequestId] uniqueidentifier NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'RequestedComponentType')
+                        ALTER TABLE [PatientGroupingRecords] ADD [RequestedComponentType] nvarchar(50) NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'RequestedQuantityUnits')
+                        ALTER TABLE [PatientGroupingRecords] ADD [RequestedQuantityUnits] int NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'IssuedBagDetailsJson')
+                        ALTER TABLE [PatientGroupingRecords] ADD [IssuedBagDetailsJson] nvarchar(max) NULL;
+                    IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'BagNumber' AND max_length < 4000)
+                    BEGIN
+                        ALTER TABLE [PatientGroupingRecords] ALTER COLUMN [BagNumber] nvarchar(2000) NULL;
+                    END
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'ReviewStatus')
+                        ALTER TABLE [PatientGroupingRecords] ADD [ReviewStatus] nvarchar(20) NOT NULL CONSTRAINT [DF_PatientGroupingRecords_ReviewStatus] DEFAULT 'Not Required';
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'RejectionReason')
+                        ALTER TABLE [PatientGroupingRecords] ADD [RejectionReason] nvarchar(500) NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'ReviewedBy')
+                        ALTER TABLE [PatientGroupingRecords] ADD [ReviewedBy] nvarchar(150) NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'ReviewedAt')
+                        ALTER TABLE [PatientGroupingRecords] ADD [ReviewedAt] datetime2 NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'IX_PatientGroupingRecords_BloodRequestId')
+                        CREATE UNIQUE INDEX [IX_PatientGroupingRecords_BloodRequestId] ON [PatientGroupingRecords] ([BloodRequestId]) WHERE [BloodRequestId] IS NOT NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_PatientGroupingRecords_BloodRequests')
+                        ALTER TABLE [PatientGroupingRecords] ADD CONSTRAINT [FK_PatientGroupingRecords_BloodRequests]
+                            FOREIGN KEY ([BloodRequestId]) REFERENCES [BloodRequests] ([Id]);
 
                     IF OBJECT_ID('BloodBagStockRegisters') IS NULL
                     BEGIN
@@ -462,6 +507,46 @@ public static class DbInitializer
                         ALTER TABLE [BloodRequests] ADD [AmountPaid] decimal(18,2) NULL;
                     END
 
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'PatientAge')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [PatientAge] int NULL;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'PatientAgeUnit')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [PatientAgeUnit] nvarchar(10) NULL;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'PatientSex')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [PatientSex] nvarchar(20) NULL;
+                    END
+
+                    IF EXISTS (
+                        SELECT 1 FROM sys.columns
+                        WHERE object_id = OBJECT_ID('PatientGroupingRecords')
+                          AND name = 'AgeSex'
+                          AND max_length < 100
+                    )
+                    BEGIN
+                        ALTER TABLE [PatientGroupingRecords] ALTER COLUMN [AgeSex] nvarchar(50) NULL;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'IsThalassemiaPatient')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [IsThalassemiaPatient] bit NOT NULL CONSTRAINT [DF_BloodRequests_IsThalassemiaPatient] DEFAULT 0;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'DiscountDonorId')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [DiscountDonorId] nvarchar(50) NULL;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'DiscountAmount')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [DiscountAmount] decimal(18,2) NOT NULL CONSTRAINT [DF_BloodRequests_DiscountAmount] DEFAULT 0;
+                    END
+
                     IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'EmailOtps')
                     BEGIN
                         CREATE TABLE [EmailOtps] (
@@ -524,7 +609,35 @@ public static class DbInitializer
             await scope.ServiceProvider.GetRequiredService<ISqlExceptionLogger>()
                 .LogAsync(ex, "Database initialization");
             logger.LogError(ex, "DbInitializer encountered error: {Message}", ex.Message);
+            throw;
         }
+    }
+
+    private static Task EnsureBloodRequestColumnsAsync(ApplicationDbContext context)
+    {
+        return context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.BloodRequests', N'U') IS NULL
+            BEGIN
+                RAISERROR('BloodRequests table is missing after migrations; database initialization cannot continue.', 16, 1);
+                RETURN;
+            END
+
+            IF COL_LENGTH(N'dbo.BloodRequests', N'PatientAge') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [PatientAge] int NULL;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'PatientAgeUnit') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [PatientAgeUnit] nvarchar(10) NULL;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'PatientSex') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [PatientSex] nvarchar(20) NULL;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'IssuedBagDetailsJson') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [IssuedBagDetailsJson] nvarchar(max) NULL;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'IsThalassemiaPatient') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [IsThalassemiaPatient] bit NOT NULL
+                    CONSTRAINT [DF_BloodRequests_IsThalassemiaPatient] DEFAULT 0;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'DiscountDonorId') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [DiscountDonorId] nvarchar(50) NULL;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'DiscountAmount') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [DiscountAmount] decimal(18,2) NOT NULL
+                    CONSTRAINT [DF_BloodRequests_DiscountAmount] DEFAULT 0;");
     }
 
     private static Task EnsureExceptionLogTableAsync(ApplicationDbContext context)

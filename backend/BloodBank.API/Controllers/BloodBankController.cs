@@ -517,6 +517,25 @@ public class BloodBankController(
             : Ok(result);
     }
 
+    [HttpPut("registers/grouping/{id:guid}/review")]
+    public async Task<IActionResult> ReviewPatientGrouping(Guid id, ReviewPatientGroupingDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var (result, error) = await service.ReviewPatientGroupingAsync(id, dto, User.Identity?.Name);
+        if (result != null)
+        {
+            return Ok(result);
+        }
+
+        return error == "Patient grouping record not found."
+            ? NotFound(new { message = error })
+            : BadRequest(new { message = error });
+    }
+
     [HttpDelete("registers/grouping/{id:guid}")]
     public async Task<IActionResult> DeletePatientGrouping(Guid id)
     {

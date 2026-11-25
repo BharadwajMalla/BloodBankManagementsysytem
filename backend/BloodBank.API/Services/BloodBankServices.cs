@@ -3,6 +3,7 @@ using BloodBank.API.Mapping;
 using BloodBank.API.Models;
 using BloodBank.API.Repositories;
 using BloodBank.Application.Contracts;
+using System.Text.Json;
 
 namespace BloodBank.API.Services;
 internal static class Mapping
@@ -18,6 +19,10 @@ internal static class Mapping
             RequesterContact = request.RequesterContact,
             HospitalName = request.HospitalName,
             PatientName = request.PatientName,
+            PatientAge = request.PatientAge,
+            PatientAgeUnit = request.PatientAgeUnit,
+            PatientSex = request.PatientSex,
+            IsThalassemiaPatient = request.IsThalassemiaPatient,
             BloodGroup = request.BloodGroup,
             ComponentType = request.ComponentType,
             QuantityUnits = request.QuantityUnits,
@@ -29,10 +34,15 @@ internal static class Mapping
             CreatedAt = request.CreatedAt,
             ProcessedAt = request.ProcessedAt,
             IssuedBagNumbers = request.IssuedBagNumbers,
+            IssuedBags = string.IsNullOrWhiteSpace(request.IssuedBagDetailsJson)
+                ? new List<IssuedBloodBagDto>()
+                : JsonSerializer.Deserialize<List<IssuedBloodBagDto>>(request.IssuedBagDetailsJson) ?? new List<IssuedBloodBagDto>(),
             PaymentMode = request.PaymentMode,
             PaymentStatus = request.PaymentStatus,
             TransactionId = request.TransactionId,
             AmountPaid = request.AmountPaid,
+            DiscountAmount = request.DiscountAmount,
+            DiscountDonorId = request.DiscountDonorId,
             Indication = request.Indication,
             EmergencyUrgency = request.EmergencyUrgency,
             RefDoctor = request.RefDoctor,
@@ -344,6 +354,10 @@ public sealed class BloodBankService : IBloodBankService
             RequesterContact = contact,
             HospitalName = dto.HospitalName?.Trim(),
             PatientName = dto.PatientName.Trim(),
+            PatientAge = dto.PatientAge,
+            PatientAgeUnit = dto.PatientAgeUnit.Trim(),
+            PatientSex = dto.PatientSex.Trim(),
+            IsThalassemiaPatient = dto.IsThalassemiaPatient ?? false,
             BloodGroup = dto.BloodGroup.Trim().ToUpperInvariant(),
             ComponentType = dto.ComponentType.Trim(),
             QuantityUnits = dto.QuantityUnits,
@@ -375,37 +389,139 @@ public sealed class BloodBankService : IBloodBankService
             CreatedAt = DateTime.UtcNow
         };
     }
+
+    private static string? FormatPatientAgeSex(BloodRequest request)
+    {
+        if (!request.PatientAge.HasValue || string.IsNullOrWhiteSpace(request.PatientAgeUnit))
+            return request.PatientSex;
+
+        var unit = request.PatientAgeUnit == "Months"
+            ? request.PatientAge.Value == 1 ? "month" : "months"
+            : request.PatientAge.Value == 1 ? "year" : "years";
+        var age = $"{request.PatientAge.Value} {unit}";
+        return string.IsNullOrWhiteSpace(request.PatientSex)
+            ? age
+            : $"{age} / {request.PatientSex}";
+    }
+
     public async Task<(BloodRequestResponseDto?, string?)> ProcessRequestAsync(Guid id, ProcessRequestDto d, string? actor = null)
     {
         var r = await _repo.FindRequestAsync(id);
         if (r == null) return (null, "Request not found.");
 
-        if (d.Status == "Fulfilled" && r.Status != "Fulfilled")
+        if (d.Status == "Approved")
+        {
+            if (r.Status != "Pending")
+                return (null, "Only pending requests can be approved for patient grouping.");
+
+            if (await _repo.FindPatientGroupingByRequestIdAsync(r.Id) != null)
+                return (null, "A patient grouping record already exists for this request.");
+
+            var groupingRecords = await _repo.GetPatientGroupingsAsync();
+            var rhType = r.BloodGroup.EndsWith("-", StringComparison.Ordinal) ? "Negative" : "Positive";
+            var grouping = new PatientGroupingRecord
+            {
+                Id = Guid.NewGuid(),
+                BloodRequestId = r.Id,
+                SlNo = groupingRecords.Count + 1,
+                Date = DateTime.UtcNow,
+                PatientName = r.PatientName,
+                AgeSex = FormatPatientAgeSex(r),
+                HospitalName = r.HospitalName,
+                IpNumber = r.IpNumber,
+                BloodGroup = r.BloodGroup,
+                RequestedComponentType = r.ComponentType,
+                RequestedQuantityUnits = r.QuantityUnits,
+                RhType = rhType,
+                AntiA = "Not tested",
+                AntiB = "Not tested",
+                AntiAb = "Not tested",
+                AntiD = "Not tested",
+                LectinA1 = "Not tested",
+                LectinH = "Not tested",
+                ACells = "Not tested",
+                BCells = "Not tested",
+                OCells = "Not tested",
+                DuTest = "Not tested",
+                IrregularAntibodies = "Not tested",
+                AutoAntibodies = "Not tested",
+                CrossmatchSaline = "Not tested",
+                CrossmatchAlbumin = "Not tested",
+                CrossmatchAhg = "Not tested",
+                ReviewStatus = "Pending",
+                CreatedAt = DateTime.UtcNow
+            };
+            r.Status = "Processing";
+            if (d.AdminComments != null) r.AdminComments = d.AdminComments.Trim();
+            r.ProcessedAt = null;
+            await _repo.AddPatientGroupingAsync(grouping);
+            await _repo.UpdateRequestAsync(r);
+            await _repo.SaveChangesAsync();
+            return (Mapping.Request(r), null);
+        }
+
+        if (d.Status == "Rejected")
+        {
+            if (r.Status != "Pending")
+                return (null, "Only pending requests can be rejected at the initial review stage.");
+            if (string.IsNullOrWhiteSpace(d.AdminComments))
+                return (null, "A rejection reason is required.");
+
+            r.Status = "Rejected";
+            r.AdminComments = d.AdminComments.Trim();
+            r.ProcessedAt = DateTime.UtcNow;
+            await _repo.UpdateRequestAsync(r);
+            await _repo.SaveChangesAsync();
+            return (Mapping.Request(r), null);
+        }
+
+        if (d.Status != "Fulfilled")
+            return (null, "Unsupported request status transition.");
+
+        if (r.Status != "Approved")
+            return (null, "The request must pass patient grouping and crossmatch approval before components can be issued.");
+
+        var approvedGrouping = await _repo.FindPatientGroupingByRequestIdAsync(r.Id);
+        if (approvedGrouping == null || approvedGrouping.ReviewStatus != "Approved")
+            return (null, "Patient grouping and crossmatch approval is required before issuing components.");
+
+        var baseAmount = GetDefaultComponentPrice(r.ComponentType) * r.QuantityUnits;
+        var isThalassemiaPatient = r.IsThalassemiaPatient;
+        var donorId = string.IsNullOrWhiteSpace(d.DiscountDonorId)
+            ? null
+            : d.DiscountDonorId.Trim();
+        if (!isThalassemiaPatient)
         {
             if (d.PaymentMode is not ("Cash" or "UPI"))
                 return (null, "Select Cash or UPI payment before fulfilling the request.");
+            if (!string.IsNullOrWhiteSpace(donorId) && !await _repo.DonorIdExistsAsync(donorId))
+                return (null, "The donor ID for the discount was not found or is inactive.");
             if (d.PaymentMode == "UPI" && string.IsNullOrWhiteSpace(d.TransactionId))
                 return (null, "UPI transaction ID is required before completing payment.");
-
-            var s = await _repo.FindStockAsync(r.BloodGroup, r.ComponentType);
-            if (s == null || s.QuantityUnits < r.QuantityUnits)
-                return (null, $"Insufficient stock of {r.BloodGroup} ({r.ComponentType}). Available: {s?.QuantityUnits ?? 0} units, Requested: {r.QuantityUnits} units.");
-
-            var (issuedBagNumbers, issueError) =
-                await _repo.TryIssueBagsAtomicallyAsync(r.BloodGroup, r.ComponentType, r.QuantityUnits, actor);
-            if (issueError != null)
-                return (null, issueError);
-
-            r.IssuedBagNumbers = string.Join(", ", issuedBagNumbers);
-
-            r.PaymentMode = d.PaymentMode;
-            r.PaymentStatus = "Completed";
-            r.TransactionId = d.PaymentMode == "UPI" ? d.TransactionId!.Trim() : null;
-            r.AmountPaid = d.AmountPaid ?? (GetDefaultComponentPrice(r.ComponentType) * r.QuantityUnits);
+            if (d.PaymentMode == "UPI"
+                && (d.TransactionId!.Trim().Length != 12 || d.TransactionId.Trim().Any(character => !char.IsAsciiDigit(character))))
+                return (null, "UPI transaction ID must contain exactly 12 digits.");
         }
 
-        r.Status = d.Status;
-        r.AdminComments = d.AdminComments;
+        var stock = await _repo.FindStockAsync(r.BloodGroup, r.ComponentType);
+        if (stock == null || stock.QuantityUnits < r.QuantityUnits)
+            return (null, $"Insufficient stock of {r.BloodGroup} ({r.ComponentType}). Available: {stock?.QuantityUnits ?? 0} units, Requested: {r.QuantityUnits} units.");
+
+        r.DiscountDonorId = isThalassemiaPatient ? null : donorId;
+        r.DiscountAmount = isThalassemiaPatient
+            ? baseAmount
+            : donorId is null ? 0m : Math.Min(baseAmount, DonorProvidedDiscountAmount);
+        r.PaymentMode = isThalassemiaPatient ? null : d.PaymentMode;
+        r.PaymentStatus = isThalassemiaPatient ? "Waived" : "Completed";
+        r.TransactionId = isThalassemiaPatient || d.PaymentMode != "UPI"
+            ? null
+            : d.TransactionId!.Trim();
+        r.AmountPaid = isThalassemiaPatient
+            ? 0m
+            : !string.IsNullOrWhiteSpace(donorId)
+                ? Math.Max(0m, baseAmount - r.DiscountAmount)
+                : d.AmountPaid ?? baseAmount;
+        if (d.AdminComments != null) r.AdminComments = d.AdminComments.Trim();
         r.ProcessedAt = DateTime.UtcNow;
         if (d.IssueSerial != null) r.IssueSerial = d.IssueSerial.Trim();
         if (d.ReceiverName != null) r.ReceiverName = d.ReceiverName.Trim();
@@ -414,9 +530,16 @@ public sealed class BloodBankService : IBloodBankService
         if (d.CrossMatchingMethod != null) r.CrossMatchingMethod = d.CrossMatchingMethod.Trim();
         if (d.CrossMatchingReport != null) r.CrossMatchingReport = d.CrossMatchingReport.Trim();
         if (d.BillNumber != null) r.BillNumber = d.BillNumber.Trim();
-        await _repo.SaveChangesAsync();
+
+        var (_, issueError) = await _repo.TryIssueBagsAtomicallyAsync(r, approvedGrouping, actor);
+        if (issueError != null)
+            return (null, issueError);
+
         return (Mapping.Request(r), null);
     }
+
+    private const decimal DonorProvidedDiscountAmount = 450m;
+
     private static decimal GetDefaultComponentPrice(string componentType)
     {
         return componentType switch
@@ -746,16 +869,20 @@ public sealed class BloodBankService : IBloodBankService
     {
         var req = await _repo.FindRequestAsync(id);
         if (req == null) return null;
+        if (req.Status != "Pending") return null;
 
         if (!string.IsNullOrWhiteSpace(d.HospitalName)) req.HospitalName = d.HospitalName.Trim();
         if (!string.IsNullOrWhiteSpace(d.PatientName)) req.PatientName = d.PatientName.Trim();
+        if (d.PatientAge.HasValue) req.PatientAge = d.PatientAge;
+        if (!string.IsNullOrWhiteSpace(d.PatientAgeUnit)) req.PatientAgeUnit = d.PatientAgeUnit.Trim();
+        if (!string.IsNullOrWhiteSpace(d.PatientSex)) req.PatientSex = d.PatientSex.Trim();
+        if (d.IsThalassemiaPatient.HasValue) req.IsThalassemiaPatient = d.IsThalassemiaPatient.Value;
         if (!string.IsNullOrWhiteSpace(d.BloodGroup)) req.BloodGroup = d.BloodGroup.Trim().ToUpperInvariant();
         if (!string.IsNullOrWhiteSpace(d.ComponentType)) req.ComponentType = d.ComponentType.Trim();
         if (d.QuantityUnits > 0) req.QuantityUnits = d.QuantityUnits;
         if (!string.IsNullOrWhiteSpace(d.Urgency)) req.Urgency = d.Urgency.Trim();
         if (d.HospitalDepartment != null) req.HospitalDepartment = d.HospitalDepartment.Trim();
         if (d.MedicalReason != null) req.MedicalReason = d.MedicalReason.Trim();
-        if (!string.IsNullOrWhiteSpace(d.Status) && req.Status != "Fulfilled") req.Status = d.Status.Trim();
         if (!string.IsNullOrWhiteSpace(d.AdminComments)) req.AdminComments = d.AdminComments.Trim();
         if (d.Indication != null) req.Indication = d.Indication.Trim();
         if (d.EmergencyUrgency != null) req.EmergencyUrgency = d.EmergencyUrgency.Trim();
@@ -1009,6 +1136,16 @@ public sealed class BloodBankService : IBloodBankService
             Id = record.Id,
             SlNo = record.SlNo,
             Date = record.Date,
+            BloodRequestId = record.BloodRequestId,
+            RequestedComponentType = record.RequestedComponentType,
+            RequestedQuantityUnits = record.RequestedQuantityUnits,
+            IssuedBags = string.IsNullOrWhiteSpace(record.IssuedBagDetailsJson)
+                ? new List<IssuedBloodBagDto>()
+                : JsonSerializer.Deserialize<List<IssuedBloodBagDto>>(record.IssuedBagDetailsJson) ?? new List<IssuedBloodBagDto>(),
+            ReviewStatus = record.ReviewStatus,
+            RejectionReason = record.RejectionReason,
+            ReviewedBy = record.ReviewedBy,
+            ReviewedAt = record.ReviewedAt,
             PatientName = record.PatientName,
             AgeSex = record.AgeSex,
             HospitalName = record.HospitalName,
@@ -1091,6 +1228,7 @@ public sealed class BloodBankService : IBloodBankService
     {
         var item = await _repo.FindPatientGroupingAsync(id);
         if (item == null) return null;
+        if (item.BloodRequestId.HasValue && item.ReviewStatus != "Pending") return null;
 
         item.PatientName = d.PatientName.Trim();
         item.AgeSex = d.AgeSex?.Trim();
@@ -1123,10 +1261,60 @@ public sealed class BloodBankService : IBloodBankService
         return MapGrouping(item);
     }
 
+    public async Task<(PatientGroupingDto? Result, string? Error)> ReviewPatientGroupingAsync(
+        Guid id, ReviewPatientGroupingDto d, string? reviewer = null)
+    {
+        var item = await _repo.FindPatientGroupingAsync(id);
+        if (item == null) return (null, "Patient grouping record not found.");
+        if (!item.BloodRequestId.HasValue)
+            return (null, "Only request-linked patient grouping records can approve or reject a request.");
+        if (item.ReviewStatus != "Pending")
+            return (null, "This patient grouping record has already been reviewed.");
+
+        var request = await _repo.FindRequestAsync(item.BloodRequestId.Value);
+        if (request == null) return (null, "The blood request linked to this grouping record was not found.");
+        if (request.Status != "Processing")
+            return (null, "The linked request is not awaiting patient grouping review.");
+
+        var reviewedAt = DateTime.UtcNow;
+        if (d.Status == "Rejected")
+        {
+            if (string.IsNullOrWhiteSpace(d.RejectionReason))
+                return (null, "A rejection reason is required.");
+
+            item.ReviewStatus = "Rejected";
+            item.RejectionReason = d.RejectionReason.Trim();
+            request.Status = "Rejected";
+            request.AdminComments = item.RejectionReason;
+            request.ProcessedAt = reviewedAt;
+        }
+        else if (d.Status == "Approved")
+        {
+            if (!PatientGroupingCompatibility.IsCompatible(item, request.BloodGroup))
+                return (null, "Complete all grouping tests, ensure saline, albumin, and AHG crossmatches are Compatible, and verify the patient blood group matches the request.");
+
+            item.ReviewStatus = "Approved";
+            item.RejectionReason = null;
+            request.Status = "Approved";
+        }
+        else
+        {
+            return (null, "Unsupported patient grouping review decision.");
+        }
+
+        item.ReviewedBy = reviewer;
+        item.ReviewedAt = reviewedAt;
+        await _repo.UpdatePatientGroupingAsync(item);
+        await _repo.UpdateRequestAsync(request);
+        await _repo.SaveChangesAsync();
+        return (MapGrouping(item), null);
+    }
+
     public async Task<bool> DeletePatientGroupingAsync(Guid id)
     {
         var item = await _repo.FindPatientGroupingAsync(id);
         if (item == null) return false;
+        if (item.BloodRequestId.HasValue) return false;
         _repo.RemovePatientGrouping(item);
         await _repo.SaveChangesAsync();
         return true;

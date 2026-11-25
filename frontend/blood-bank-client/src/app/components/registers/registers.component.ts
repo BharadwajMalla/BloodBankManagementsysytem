@@ -7,6 +7,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable, of } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 import {
+  BLOOD_GROUPS,
   AddStockPayload,
   CreateApheresisRecordPayload,
   CreateBloodBagStockRegisterPayload,
@@ -38,6 +39,7 @@ interface RegisterField {
   type?: FieldType;
   required?: boolean;
   min?: number;
+  max?: number;
   step?: number;
   options?: string[];
   initial?: string | number | boolean;
@@ -59,7 +61,7 @@ const groupingResult = ['+', '-', 'Positive', 'Negative', 'Not tested'];
 const fieldSets: Partial<Record<RegisterKey, RegisterField[]>> = {
   tti: [
     { key: 'bagBarcode', label: 'Bag barcode', required: true },
-    { key: 'bloodGroup', label: 'Blood group', required: true },
+    { key: 'bloodGroup', label: 'Blood group', type: 'select', required: true, options: BLOOD_GROUPS },
     { key: 'testingDate', label: 'Testing date', type: 'date', required: true },
     { key: 'hivResult', label: 'HIV result', type: 'select', required: true, options: yesNo, initial: 'Non-Reactive' },
     { key: 'hbsAgResult', label: 'HBsAg result', type: 'select', required: true, options: yesNo, initial: 'Non-Reactive' },
@@ -81,14 +83,14 @@ const fieldSets: Partial<Record<RegisterKey, RegisterField[]>> = {
     { key: 'ipNumber', label: 'IP number' },
     { key: 'bagNumber', label: 'Bag number' },
     { key: 'bagType', label: 'Bag type' },
-    { key: 'bloodGroup', label: 'Blood group', required: true },
+    { key: 'bloodGroup', label: 'Blood group', type: 'select', required: true, options: BLOOD_GROUPS },
     { key: 'rhType', label: 'Rh type', type: 'select', required: true, options: ['Positive', 'Negative'] },
     ...['antiA', 'antiB', 'antiAb', 'antiD', 'lectinA1', 'lectinH', 'aCells', 'bCells', 'oCells'].map(key => ({
       key, label: labelFor(key), type: 'select' as const, options: groupingResult
     })),
-    { key: 'duTest', label: 'Du test', type: 'select', options: yesNo },
-    { key: 'irregularAntibodies', label: 'Irregular antibodies', type: 'select', options: yesNo },
-    { key: 'autoAntibodies', label: 'Auto antibodies', type: 'select', options: yesNo },
+    { key: 'duTest', label: 'Du test', type: 'select', options: ['Not tested', ...yesNo] },
+    { key: 'irregularAntibodies', label: 'Irregular antibodies', type: 'select', options: ['Not tested', ...yesNo] },
+    { key: 'autoAntibodies', label: 'Auto antibodies', type: 'select', options: ['Not tested', ...yesNo] },
     { key: 'crossmatchSaline', label: 'Crossmatch saline', type: 'select', options: ['Compatible', 'Incompatible', 'Not tested'] },
     { key: 'crossmatchAlbumin', label: 'Crossmatch albumin', type: 'select', options: ['Compatible', 'Incompatible', 'Not tested'] },
     { key: 'crossmatchAhg', label: 'Crossmatch AHG', type: 'select', options: ['Compatible', 'Incompatible', 'Not tested'] }
@@ -132,14 +134,14 @@ const fieldSets: Partial<Record<RegisterKey, RegisterField[]>> = {
     { key: 'donorName', label: 'Donor name', required: true },
     { key: 'ageSex', label: 'Age / sex' },
     { key: 'weightKg', label: 'Weight (kg)', type: 'number', min: 0, step: 0.1 },
-    { key: 'bloodGroup', label: 'Blood group', required: true },
+    { key: 'bloodGroup', label: 'Blood group', type: 'select', required: true, options: BLOOD_GROUPS },
     { key: 'phone', label: 'Phone', type: 'tel' },
     { key: 'email', label: 'Email', type: 'email' },
     { key: 'timeOfMeal', label: 'Time of meal', type: 'time' },
     { key: 'patientName', label: 'Patient name' },
     { key: 'patientIpNo', label: 'Patient IP number' },
     { key: 'patientBedNo', label: 'Patient bed number' },
-    { key: 'patientBloodGroup', label: 'Patient blood group' },
+    { key: 'patientBloodGroup', label: 'Patient blood group', type: 'select', options: BLOOD_GROUPS },
     { key: 'takenAspirinLast3Days', label: 'Took aspirin in last 3 days', type: 'checkbox' },
     { key: 'haemoglobinGms', label: 'Haemoglobin (g/dL)', type: 'number', min: 0, step: 0.1 },
     { key: 'plateletCountLakhs', label: 'Platelet count (lakhs)', type: 'number', min: 0, step: 0.01 },
@@ -163,13 +165,13 @@ const fieldSets: Partial<Record<RegisterKey, RegisterField[]>> = {
   ],
   bags: [
     { key: 'bagNumber', label: 'Bag number', required: true },
-    { key: 'bloodGroup', label: 'Blood group', required: true },
+    { key: 'bloodGroup', label: 'Blood group', type: 'select', required: true, options: BLOOD_GROUPS },
     { key: 'componentType', label: 'Component type', type: 'select', required: true, options: ['Whole Blood', 'Red Blood Cells (PRBC)', 'Platelets', 'Fresh Frozen Plasma (FFP)', 'Cryoprecipitate'] },
     { key: 'addedDate', label: 'Date added', type: 'date', required: true }
   ],
   collections: [
     { key: 'componentType', label: 'Component type', required: true },
-    { key: 'bloodGroup', label: 'Blood group', required: true },
+    { key: 'bloodGroup', label: 'Blood group', type: 'select', required: true, options: BLOOD_GROUPS },
     { key: 'bagType', label: 'Bag type', required: true },
     { key: 'volumeMl', label: 'Volume (mL)', type: 'number', required: true, min: 0.1, step: 0.1 },
     { key: 'bagBarcode', label: 'Bag barcode', required: true },
@@ -188,8 +190,12 @@ const fieldSets: Partial<Record<RegisterKey, RegisterField[]>> = {
   ],
   requisitions: [
     { key: 'patientName', label: 'Patient name', required: true },
+    { key: 'patientAge', label: 'Patient age', type: 'number', required: true, min: 0, max: 1440 },
+    { key: 'patientAgeUnit', label: 'Age unit', type: 'select', required: true, options: ['Years', 'Months'], initial: 'Years' },
+    { key: 'patientSex', label: 'Patient sex', type: 'select', required: true, options: ['Male', 'Female', 'Other', 'Unknown'] },
+    { key: 'isThalassemiaPatient', label: 'Thalassemia patient', type: 'checkbox' },
     { key: 'hospitalName', label: 'Hospital name' },
-    { key: 'bloodGroup', label: 'Blood group', required: true },
+    { key: 'bloodGroup', label: 'Blood group', type: 'select', required: true, options: BLOOD_GROUPS },
     { key: 'componentType', label: 'Component type', type: 'select', required: true, options: ['Whole Blood', 'Red Blood Cells (PRBC)', 'Platelets', 'Fresh Frozen Plasma (FFP)', 'Cryoprecipitate'] },
     { key: 'quantityUnits', label: 'Units', type: 'number', required: true, min: 1 },
     { key: 'urgency', label: 'Urgency', type: 'select', required: true, options: ['Normal', 'Urgent', 'Critical'] },
@@ -249,7 +255,7 @@ const fieldSets: Partial<Record<RegisterKey, RegisterField[]>> = {
     { key: 'dateOfBirth', label: 'Date of birth', type: 'date', required: true },
     { key: 'sex', label: 'Sex', required: true },
     { key: 'address', label: 'Address', type: 'textarea', required: true },
-    { key: 'bloodGroup', label: 'Blood group', required: true }
+    { key: 'bloodGroup', label: 'Blood group', type: 'select', required: true, options: BLOOD_GROUPS }
   ]
 };
 
@@ -297,8 +303,11 @@ const columns: Record<RegisterKey, RegisterColumn[]> = {
   ],
   requisitions: [
     { key: 'createdAt', label: 'Requested' }, { key: 'patientName', label: 'Patient' },
+    { key: 'patientAge', label: 'Age' }, { key: 'patientAgeUnit', label: 'Age unit' },
+    { key: 'patientSex', label: 'Sex' }, { key: 'isThalassemiaPatient', label: 'Thalassemia' },
     { key: 'hospitalName', label: 'Hospital' }, { key: 'bloodGroup', label: 'Blood group' },
     { key: 'componentType', label: 'Component' }, { key: 'quantityUnits', label: 'Units' },
+    { key: 'adminComments', label: 'Review notes' },
     { key: 'urgency', label: 'Urgency' }, { key: 'status', label: 'Status' }
   ],
   collections: [
@@ -318,8 +327,13 @@ const columns: Record<RegisterKey, RegisterColumn[]> = {
   ],
   issues: [
     { key: 'createdAt', label: 'Date' }, { key: 'patientName', label: 'Patient' },
+    { key: 'patientAge', label: 'Age' }, { key: 'patientAgeUnit', label: 'Age unit' },
+    { key: 'patientSex', label: 'Sex' }, { key: 'isThalassemiaPatient', label: 'Thalassemia' },
     { key: 'hospitalName', label: 'Hospital' }, { key: 'bloodGroup', label: 'Blood group' },
-    { key: 'componentType', label: 'Component' }, { key: 'issuedBagNumbers', label: 'Issued bag numbers' },
+    { key: 'componentType', label: 'Component' }, { key: 'issuedBags', label: 'Issued bags / expiry' },
+    { key: 'paymentMode', label: 'Payment mode' }, { key: 'paymentStatus', label: 'Payment status' },
+    { key: 'transactionId', label: 'Transaction ID' }, { key: 'discountDonorId', label: 'Donor ID' },
+    { key: 'discountAmount', label: 'Discount' }, { key: 'amountPaid', label: 'Amount paid' },
     { key: 'status', label: 'Status' }, { key: 'processedAt', label: 'Processed' }
   ],
   bags: [
@@ -391,9 +405,12 @@ export class RegistersComponent implements OnInit {
   public editingId: string | null = null;
   public errorMessage = '';
   public successMessage = '';
+  public processFormError = '';
   public form: Record<string, string | number | boolean | undefined> = {};
   public processForm: Record<string, string | number | boolean | undefined> = {};
   public processingId: string | null = null;
+  public groupingReviewId: string | null = null;
+  public groupingRejectionReason = '';
 
   public ngOnInit(): void {
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
@@ -443,6 +460,16 @@ export class RegistersComponent implements OnInit {
       selectedColumns = columns.donors;
     } else if (this.selectedKey === 'master-record' || this.selectedKey === 'issues' || this.selectedKey === 'donors') {
       selectedColumns = columns[this.selectedKey];
+    } else if (this.selectedKey === 'grouping') {
+      selectedColumns = [
+        ...this.fields.map(({ key, label }) => ({ key, label })),
+        { key: 'bloodRequestId', label: 'Linked request' },
+        { key: 'requestedComponentType', label: 'Requested component' },
+        { key: 'requestedQuantityUnits', label: 'Requested units' },
+        { key: 'reviewStatus', label: 'Review status' },
+        { key: 'rejectionReason', label: 'Rejection reason' },
+        { key: 'issuedBags', label: 'Issued bag ID / expiry' }
+      ];
     } else if (fieldSets[this.selectedKey]) {
       selectedColumns = this.fields.map(({ key, label }) => ({ key, label }));
     } else {
@@ -455,7 +482,9 @@ export class RegistersComponent implements OnInit {
     let rows = this.rows;
     if (this.selectedKey === 'requisitions') {
       if (this.requestFilterStatus === 'Active') {
-        rows = rows.filter(row => row['status'] === 'Pending' || row['status'] === 'Approved');
+        rows = rows.filter(row =>
+          row['status'] === 'Pending' || row['status'] === 'Processing' || row['status'] === 'Approved'
+        );
       } else if (this.requestFilterStatus === 'Fulfilled') {
         rows = rows.filter(row => row['status'] === 'Fulfilled');
       }
@@ -467,11 +496,17 @@ export class RegistersComponent implements OnInit {
   }
 
   public get activeRequestCount(): number {
-    return this.rows.filter(row => row['status'] === 'Pending' || row['status'] === 'Approved').length;
+    return this.rows.filter(row =>
+      row['status'] === 'Pending' || row['status'] === 'Processing' || row['status'] === 'Approved'
+    ).length;
   }
 
   public get fulfilledRequestCount(): number {
     return this.rows.filter(row => row['status'] === 'Fulfilled').length;
+  }
+
+  public get processingRequestStatus(): unknown {
+    return this.rows.find(row => row.id === this.processingId)?.['status'];
   }
 
   public get issueUnitTotal(): number {
@@ -632,34 +667,115 @@ export class RegistersComponent implements OnInit {
 
   public startProcessing(row: RegisterRow): void {
     this.processingId = row.id;
+    this.processFormError = '';
     this.processForm = {
-      status: 'Approved',
+      status: row['status'] === 'Approved' ? 'Fulfilled' : 'Approved',
       adminComments: '',
       paymentMode: '',
       transactionId: '',
+      isThalassemiaPatient: row['isThalassemiaPatient'] === true,
+      hasDonor: false,
+      donorRegistered: false,
+      discountDonorId: '',
       amountPaid: undefined
     };
+    if (row['status'] === 'Approved') {
+      this.refreshDonorsForProcessing();
+    }
+  }
+
+  public refreshDonorsForProcessing(): void {
+    this.bloodBankService.getDonors().subscribe({
+      next: donors => this.donors = donors,
+      error: error => this.processFormError = this.getErrorMessage(error)
+    });
+  }
+
+  public updateProcessDiscountAmount(): void {
+    this.processFormError = '';
+    const request = this.rows.find(row => row.id === this.processingId);
+    if (!request) return;
+
+    const quantity = Number(request['quantityUnits']);
+    const componentType = String(request['componentType'] ?? '');
+    const amount = this.getComponentPrice(componentType) * quantity;
+    const hasRegisteredDonor = this.processForm['hasDonor'] === true &&
+      this.processForm['donorRegistered'] === true &&
+      !!this.textValue('processForm', 'discountDonorId');
+    this.processForm['amountPaid'] = hasRegisteredDonor ? Math.max(0, amount - 450) : amount;
   }
 
   public processRequest(): void {
     if (!this.processingId) return;
     const status = String(this.processForm['status']) as 'Approved' | 'Fulfilled' | 'Rejected';
+    const request = this.rows.find(row => row.id === this.processingId);
+    const isThalassemiaPatient = request?.['isThalassemiaPatient'] === true;
+    const hasDonor = this.processForm['hasDonor'] === true;
+    const donorRegistered = this.processForm['donorRegistered'] === true;
+    const paymentMode = isThalassemiaPatient ? undefined : this.textValue('processForm', 'paymentMode');
+    const transactionId = isThalassemiaPatient ? undefined : this.textValue('processForm', 'transactionId');
+    const donorId = isThalassemiaPatient || !hasDonor || !donorRegistered
+      ? undefined
+      : this.textValue('processForm', 'discountDonorId');
     this.errorMessage = '';
+    this.processFormError = '';
+    if (status === 'Fulfilled' && !isThalassemiaPatient && !paymentMode) {
+      this.processFormError = 'Select a payment mode before fulfilling the request.';
+      return;
+    }
+    if (status === 'Fulfilled' && hasDonor && !donorRegistered) {
+      this.processFormError = 'Register the donor before applying the donor discount.';
+      return;
+    }
+    if (status === 'Fulfilled' && hasDonor && donorRegistered && !donorId) {
+      this.processFormError = 'Select the registered donor before applying the discount.';
+      return;
+    }
+    if (status === 'Fulfilled' && paymentMode === 'UPI' && !/^\d{12}$/.test(transactionId ?? '')) {
+      this.processFormError = 'Enter a valid 12-digit UPI transaction ID / UTR.';
+      return;
+    }
+    if (status === 'Rejected' && !this.textValue('processForm', 'adminComments')) {
+      this.processFormError = 'A rejection reason is required.';
+      return;
+    }
+
     this.bloodBankService.processRequest(
       this.processingId,
       status,
       this.textValue('processForm', 'adminComments'),
-      this.textValue('processForm', 'paymentMode') as 'Cash' | 'UPI' | undefined,
-      this.textValue('processForm', 'transactionId'),
-      this.numberValue('processForm', 'amountPaid')
+      status === 'Fulfilled' ? paymentMode as 'Cash' | 'UPI' | undefined : undefined,
+      status === 'Fulfilled' ? transactionId : undefined,
+      status === 'Fulfilled'
+        ? isThalassemiaPatient ? 0 : donorId ? undefined : this.numberValue('processForm', 'amountPaid')
+        : undefined,
+      status === 'Fulfilled' && isThalassemiaPatient,
+      status === 'Fulfilled' ? donorId : undefined
     ).subscribe({
-      next: () => {
+      next: request => {
         this.processingId = null;
-        this.successMessage = 'Requisition processed.';
+        this.successMessage = status === 'Approved'
+          ? 'Request approved and moved to Patient Grouping for crossmatch.'
+          : status === 'Rejected'
+            ? 'Request rejected with the reason recorded.'
+            : request.paymentStatus === 'Waived'
+              ? 'Requisition fulfilled free of cost for a verified thalassemia patient.'
+              : `Requisition fulfilled. Amount paid: ₹${request.amountPaid ?? 0}.`;
         this.loadRecords();
       },
       error: error => this.errorMessage = this.getErrorMessage(error)
     });
+  }
+
+  private getComponentPrice(componentType: string): number {
+    switch (componentType) {
+      case 'Whole Blood': return 1500;
+      case 'Red Blood Cells (PRBC)': return 1450;
+      case 'Platelets': return 850;
+      case 'Fresh Frozen Plasma (FFP)': return 600;
+      case 'Cryoprecipitate': return 500;
+      default: return 1000;
+    }
   }
 
   public reviewDiscard(row: RegisterRow, approve: boolean): void {
@@ -672,12 +788,50 @@ export class RegistersComponent implements OnInit {
     });
   }
 
+  public reviewGrouping(row: RegisterRow, status: 'Approved' | 'Rejected'): void {
+    if (status === 'Rejected') {
+      this.groupingReviewId = row.id;
+      this.groupingRejectionReason = '';
+      return;
+    }
+    this.submitGroupingReview(row.id, status);
+  }
+
+  public confirmGroupingRejection(): void {
+    const reason = this.groupingRejectionReason.trim();
+    if (!this.groupingReviewId || !reason) return;
+    this.submitGroupingReview(this.groupingReviewId, 'Rejected', reason);
+  }
+
+  private submitGroupingReview(id: string, status: 'Approved' | 'Rejected', rejectionReason?: string): void {
+    this.errorMessage = '';
+    this.processFormError = '';
+    this.bloodBankService.reviewPatientGrouping(id, status, rejectionReason).subscribe({
+      next: () => {
+        this.groupingReviewId = null;
+        this.groupingRejectionReason = '';
+        this.successMessage = status === 'Approved'
+          ? 'Crossmatch approved. The request is now eligible for component issue.'
+          : 'Crossmatch rejected and the reason recorded on the request.';
+        this.loadRecords();
+      },
+      error: error => this.errorMessage = this.getErrorMessage(error)
+    });
+  }
+
   public printRegister(): void {
     window.print();
   }
 
   public displayValue(key: string, value: unknown): string {
     if (value === null || value === undefined || value === '') return '—';
+    if (key === 'issuedBags' && Array.isArray(value)) {
+      return value.map(item => {
+        const bag = item as Record<string, unknown>;
+        const expiry = bag['expiryDate'] ? this.displayValue('expiryDate', bag['expiryDate']) : 'expiry unknown';
+        return `${String(bag['bagNumber'] ?? 'Bag')} (expires ${expiry})`;
+      }).join(', ');
+    }
     if (key.toLowerCase().includes('date') || key === 'createdAt' || key === 'processedAt' || key === 'returnDate') {
       const date = new Date(String(value));
       return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString();
@@ -691,6 +845,7 @@ export class RegistersComponent implements OnInit {
   }
 
   public canDelete(row: RegisterRow): boolean {
+    if (this.selectedKey === 'grouping' && row['bloodRequestId']) return false;
     if (this.supportsDelete()) return true;
     if (this.selectedKey === 'donors') return true;
     return this.selectedKey === 'requisitions' && row['status'] === 'Pending' &&
@@ -702,8 +857,8 @@ export class RegistersComponent implements OnInit {
   }
 
   public canEditRow(row: RegisterRow): boolean {
-    return this.canEdit() &&
-      (this.selectedKey !== 'requisitions' || row['status'] === 'Pending');
+    if (this.selectedKey === 'grouping' && row['bloodRequestId'] && row['reviewStatus'] !== 'Pending') return false;
+    return this.canEdit() && (this.selectedKey !== 'requisitions' || row['status'] === 'Pending');
   }
 
   public labelFor = labelFor;
@@ -854,7 +1009,22 @@ export class RegistersComponent implements OnInit {
 
   private getErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
-      return error.error?.detail ?? error.error?.message ?? error.message;
+      const body = error.error as {
+        detail?: unknown;
+        message?: unknown;
+        title?: unknown;
+        errors?: Record<string, unknown>;
+      } | null;
+      const directMessage = [body?.detail, body?.message, body?.title]
+        .find(value => typeof value === 'string' && value.trim());
+      if (typeof directMessage === 'string') return directMessage;
+      if (body?.errors) {
+        const messages = Object.values(body.errors).flatMap(value =>
+          Array.isArray(value) ? value : [value]
+        ).filter((value): value is string => typeof value === 'string' && !!value.trim());
+        if (messages.length) return messages.join(' ');
+      }
+      return error.message;
     }
     return 'An unexpected error occurred while loading or saving register data.';
   }

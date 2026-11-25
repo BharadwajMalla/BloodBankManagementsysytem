@@ -1,4 +1,5 @@
 export type BloodGroup = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+export const BLOOD_GROUPS: BloodGroup[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export type ComponentType = 
   | 'Whole Blood' 
@@ -7,7 +8,7 @@ export type ComponentType =
   | 'Fresh Frozen Plasma (FFP)' 
   | 'Cryoprecipitate';
 
-export type RequestStatus = 'Pending' | 'Approved' | 'Fulfilled' | 'Rejected';
+export type RequestStatus = 'Pending' | 'Processing' | 'Approved' | 'Fulfilled' | 'Rejected';
 export type UrgencyLevel = 'Normal' | 'Urgent' | 'Critical';
 
 export interface BloodStock {
@@ -53,6 +54,10 @@ export interface BloodRequest {
   requesterContact?: string;
   hospitalName?: string;
   patientName: string;
+  patientAge?: number;
+  patientAgeUnit?: 'Years' | 'Months';
+  patientSex?: 'Male' | 'Female' | 'Other' | 'Unknown';
+  isThalassemiaPatient?: boolean;
   bloodGroup: BloodGroup;
   componentType: ComponentType;
   quantityUnits: number;
@@ -64,10 +69,18 @@ export interface BloodRequest {
   createdAt: string;
   processedAt?: string;
   issuedBagNumbers?: string;
+  issuedBags?: IssuedBloodBag[];
   paymentMode?: 'Cash' | 'UPI';
-  paymentStatus: 'Pending' | 'Completed';
+  paymentStatus: 'Pending' | 'Completed' | 'Waived';
   transactionId?: string;
   amountPaid?: number;
+  discountAmount?: number;
+  discountDonorId?: string;
+}
+
+export interface IssuedBloodBag {
+  bagNumber: string;
+  expiryDate: string;
 }
 
 export interface DonorDetails {
@@ -247,6 +260,10 @@ export interface DonationHistory {
 export interface CreateBloodRequestPayload {
   hospitalName?: string;
   patientName: string;
+  patientAge: number;
+  patientAgeUnit: 'Years' | 'Months';
+  patientSex: 'Male' | 'Female' | 'Other' | 'Unknown';
+  isThalassemiaPatient: boolean;
   bloodGroup: BloodGroup;
   componentType: ComponentType;
   quantityUnits: number;
@@ -364,6 +381,14 @@ export interface PatientGroupingRecord {
   id: string;
   slNo: number;
   date: string;
+  bloodRequestId?: string;
+  requestedComponentType?: string;
+  requestedQuantityUnits?: number;
+  issuedBags?: IssuedBloodBag[];
+  reviewStatus: 'Pending' | 'Approved' | 'Rejected' | 'Not Required';
+  rejectionReason?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
   patientName: string;
   ageSex?: string;
   hospitalName?: string;

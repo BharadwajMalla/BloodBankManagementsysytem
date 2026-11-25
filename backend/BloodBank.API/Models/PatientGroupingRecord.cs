@@ -13,11 +13,28 @@ public class PatientGroupingRecord
 
     public int SlNo { get; set; }
     public DateTime Date { get; set; } = DateTime.UtcNow;
+    public Guid? BloodRequestId { get; set; }
+
+    [MaxLength(50)]
+    public string? RequestedComponentType { get; set; }
+
+    public int? RequestedQuantityUnits { get; set; }
+
+    [MaxLength(20)]
+    public string ReviewStatus { get; set; } = "Not Required";
+
+    [MaxLength(500)]
+    public string? RejectionReason { get; set; }
+
+    [MaxLength(150)]
+    public string? ReviewedBy { get; set; }
+
+    public DateTime? ReviewedAt { get; set; }
 
     [Required, MaxLength(150)]
     public string PatientName { get; set; } = string.Empty;
 
-    [MaxLength(20)]
+    [MaxLength(50)]
     public string? AgeSex { get; set; }
 
     [MaxLength(150)]
@@ -26,8 +43,10 @@ public class PatientGroupingRecord
     [MaxLength(50)]
     public string? IpNumber { get; set; }
 
-    [MaxLength(50)]
+    [MaxLength(2000)]
     public string? BagNumber { get; set; }
+
+    public string? IssuedBagDetailsJson { get; set; }
 
     [MaxLength(50)]
     public string? BagType { get; set; }

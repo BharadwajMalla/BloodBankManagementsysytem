@@ -128,6 +128,11 @@ public class ProcessRequestDto
     public string? TransactionId { get; set; }
 
     public decimal? AmountPaid { get; set; }
+    public bool IsThalassemiaPatient { get; set; }
+
+    [StringLength(50)]
+    public string? DiscountDonorId { get; set; }
+
     public string? IssueSerial { get; set; }
     public string? ReceiverName { get; set; }
     public string? IssuedByName { get; set; }
@@ -438,11 +443,29 @@ public class CreatePatientGroupingDto
 public class PatientGroupingDto : CreatePatientGroupingDto
 {
     public Guid Id { get; set; }
+    public Guid? BloodRequestId { get; set; }
+    public string? RequestedComponentType { get; set; }
+    public int? RequestedQuantityUnits { get; set; }
+    public List<IssuedBloodBagDto> IssuedBags { get; set; } = new();
+    public string ReviewStatus { get; set; } = "Not Required";
+    public string? RejectionReason { get; set; }
+    public string? ReviewedBy { get; set; }
+    public DateTime? ReviewedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
 public class UpdatePatientGroupingDto : CreatePatientGroupingDto
 {
+}
+
+public class ReviewPatientGroupingDto
+{
+    [Required]
+    [RegularExpression("^(Approved|Rejected)$")]
+    public string Status { get; set; } = string.Empty;
+
+    [StringLength(500)]
+    public string? RejectionReason { get; set; }
 }
 
 public class CreateBloodBagStockRegisterDto

@@ -90,6 +90,11 @@
           <span class="text-xs text-slate-500">Showing {{ visibleRows.length }} request(s)</span>
         </div>
       }
+      @if (selectedKey === 'grouping') {
+        <p class="mt-3 rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
+          Requests approved for testing appear here as linked records. Enter the patient grouping and crossmatch results, then approve only compatible results or reject with a reason.
+        </p>
+      }
       @if (selectedKey === 'issues') {
         <div class="mt-4 grid gap-3 sm:grid-cols-3">
           <div class="rounded-xl bg-slate-50 p-4"><p class="text-xs text-slate-500">Issued requests</p><p class="text-xl font-black text-slate-900">{{ rows.length }}</p></div>
@@ -132,7 +137,9 @@
                     </select>
                   } @else {
                     <input [name]="field.key" [type]="field.type ?? 'text'" [(ngModel)]="form[field.key]"
-                      [required]="field.required ?? false" [min]="field.min ?? null" [step]="field.step ?? null"
+                      [required]="field.required ?? false" [min]="field.min ?? null"
+                      [max]="field.key === 'patientAge' && form['patientAgeUnit'] === 'Years' ? 120 : field.max ?? null"
+                      [step]="field.step ?? null"
                       class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" />
                   }
                 </label>
@@ -152,31 +159,112 @@
 
       @if (processingId) {
         <form class="screen-only mt-5 grid gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:grid-cols-2 lg:grid-cols-4" (ngSubmit)="processRequest()">
-          <label class="text-xs font-bold text-slate-600">Status
-            <select name="status" [(ngModel)]="processForm['status']" required class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
-              <option>Approved</option><option>Fulfilled</option><option>Rejected</option>
+          @if (processingRequestStatus === 'Pending') {
+          <label class="text-xs font-bold text-slate-600">Decision
+            <select name="status" [(ngModel)]="processForm['status']" (ngModelChange)="processFormError = ''" required class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
+              <option value="Approved">Approve and send to patient grouping</option><option value="Rejected">Reject request</option>
             </select>
           </label>
-          <label class="text-xs font-bold text-slate-600">Payment mode
-            <select name="paymentMode" [(ngModel)]="processForm['paymentMode']"
-              [required]="processForm['status'] === 'Fulfilled'" class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
-              <option value="">Not specified</option><option>Cash</option><option>UPI</option>
-            </select>
-          </label>
-          <label class="text-xs font-bold text-slate-600">Transaction ID
-            <input name="transactionId" [(ngModel)]="processForm['transactionId']"
-              [required]="processForm['status'] === 'Fulfilled' && processForm['paymentMode'] === 'UPI'"
+          } @else {
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900 sm:col-span-2 lg:col-span-4">
+              Crossmatch approved. Complete payment and issue only after confirming the component recipient.
+            </div>
+          }
+          @if (processForm['status'] === 'Fulfilled') {
+          @if (processForm['isThalassemiaPatient'] === true) {
+            <div role="status" class="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-800">
+              This request is marked as a thalassemia patient. It will be issued free of cost; no payment mode or transaction ID is needed.
+            </div>
+          } @else {
+            <label class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 sm:col-span-2">
+              <input type="checkbox" name="hasDonor" [(ngModel)]="processForm['hasDonor']"
+                (ngModelChange)="updateProcessDiscountAmount()" class="h-4 w-4 rounded border-slate-300 text-rose-600" />
+              Donor discount requested (₹450)
+            </label>
+            @if (processForm['hasDonor'] === true) {
+              <label class="text-xs font-bold text-slate-600">Is the donor registered?
+                <select name="donorRegistered" [(ngModel)]="processForm['donorRegistered']"
+                  (ngModelChange)="updateProcessDiscountAmount()"
+                  class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
+                  <option [ngValue]="false">No</option>
+                  <option [ngValue]="true">Yes</option>
+                </select>
+              </label>
+              @if (processForm['donorRegistered'] === true) {
+                <label class="text-xs font-bold text-slate-600">Registered donor
+                  <select name="discountDonorId" [(ngModel)]="processForm['discountDonorId']"
+                    (ngModelChange)="updateProcessDiscountAmount()"
+                    class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
+                    <option value="">Select donor</option>
+                    @for (donor of donors; track donor.id) {
+                      <option [value]="donor.donorId">{{ donor.donorId }} · {{ donor.fullName }}</option>
+                    }
+                  </select>
+                </label>
+              } @else {
+                <div class="rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-amber-900">
+                  Register the donor first, then return to this request.
+                  <a routerLink="/registers/donors" target="_blank" rel="noopener" class="ml-1 font-bold underline">Open donor registration</a>
+                </div>
+              }
+              @if (processForm['donorRegistered'] === true) {
+                <button type="button" (click)="refreshDonorsForProcessing()" class="text-left text-xs font-bold text-blue-700 underline">
+                  Refresh registered donors
+                </button>
+              }
+            }
+            <label class="text-xs font-bold text-slate-600">Payment mode
+              <select name="paymentMode" [(ngModel)]="processForm['paymentMode']"
+                (ngModelChange)="processFormError = ''"
+                [required]="processForm['status'] === 'Fulfilled'" class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
+                <option value="">Not specified</option><option>Cash</option><option>UPI</option>
+              </select>
+            </label>
+            @if (processForm['paymentMode'] === 'UPI') {
+              <label class="text-xs font-bold text-slate-600">Transaction ID *
+                <input name="transactionId" [(ngModel)]="processForm['transactionId']"
+                  (ngModelChange)="processFormError = ''"
+                  [required]="processForm['status'] === 'Fulfilled'"
+                  pattern="^[0-9]{12}$" inputmode="numeric" maxlength="12"
+                  class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" />
+              </label>
+            }
+            <label class="text-xs font-bold text-slate-600">Amount paid
+              <input name="amountPaid" type="number" min="0" [(ngModel)]="processForm['amountPaid']"
+                [readOnly]="processForm['hasDonor'] === true && processForm['donorRegistered'] === true && !!processForm['discountDonorId']"
+                class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" />
+            </label>
+          }
+          }
+          @if (processFormError) {
+            <p role="alert" class="text-xs font-semibold text-rose-600 sm:col-span-2 lg:col-span-4">{{ processFormError }}</p>
+          }
+          <label class="text-xs font-bold text-slate-600 sm:col-span-2 lg:col-span-3">
+            {{ processForm['status'] === 'Rejected' ? 'Rejection reason *' : 'Processing notes' }}
+            <input name="adminComments" [(ngModel)]="processForm['adminComments']"
+              [required]="processForm['status'] === 'Rejected'"
               class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" />
-          </label>
-          <label class="text-xs font-bold text-slate-600">Amount paid
-            <input name="amountPaid" type="number" min="0" [(ngModel)]="processForm['amountPaid']" class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" />
-          </label>
-          <label class="text-xs font-bold text-slate-600 sm:col-span-2 lg:col-span-3">Processing notes
-            <input name="adminComments" [(ngModel)]="processForm['adminComments']" class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm" />
           </label>
           <div class="flex items-end gap-2">
             <button type="submit" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white">Save status</button>
             <button type="button" (click)="processingId = null" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600">Cancel</button>
+          </div>
+        </form>
+      }
+
+      @if (groupingReviewId) {
+        <form class="screen-only mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4" (ngSubmit)="confirmGroupingRejection()">
+          <label class="block text-xs font-bold text-rose-900">
+            Reason for rejecting this patient grouping / crossmatch *
+            <textarea name="groupingRejectionReason" [(ngModel)]="groupingRejectionReason"
+              required maxlength="500" rows="3"
+              class="mt-1 w-full rounded-lg border border-rose-200 bg-white p-2 text-sm"></textarea>
+          </label>
+          <div class="mt-3 flex gap-2">
+            <button type="submit" [disabled]="!groupingRejectionReason.trim()"
+              class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Confirm rejection</button>
+            <button type="button" (click)="groupingReviewId = null"
+              class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600">Cancel</button>
           </div>
         </form>
       }
@@ -223,7 +311,17 @@
                         <button type="button" (click)="openDonations(row)" class="font-bold text-blue-700" [attr.aria-label]="'View donations for ' + row['fullName']">History</button>
                       }
                       @if (selectedKey === 'requisitions') {
-                        <button type="button" (click)="startProcessing(row)" class="font-bold text-blue-700" [attr.aria-label]="'Process requisition ' + row.id">Process</button>
+                        @if (row['status'] === 'Pending' || row['status'] === 'Approved') {
+                          <button type="button" (click)="startProcessing(row)" class="font-bold text-blue-700" [attr.aria-label]="'Process requisition ' + row.id">
+                            {{ row['status'] === 'Pending' ? 'Review request' : 'Issue components' }}
+                          </button>
+                        } @else if (row['status'] === 'Processing') {
+                          <a routerLink="/registers/grouping" class="font-bold text-violet-700">Open patient grouping</a>
+                        }
+                      }
+                      @if (selectedKey === 'grouping' && row['bloodRequestId'] && row['reviewStatus'] === 'Pending') {
+                        <button type="button" (click)="reviewGrouping(row, 'Approved')" class="mr-3 font-bold text-emerald-700">Approve crossmatch</button>
+                        <button type="button" (click)="reviewGrouping(row, 'Rejected')" class="font-bold text-rose-700">Reject</button>
                       }
                       @if (selectedKey === 'discards' && authService.isAdmin() && row['approvalStatus'] === 'Pending') {
                         <button type="button" (click)="reviewDiscard(row, true)" class="mr-3 font-bold text-emerald-700">Approve</button>

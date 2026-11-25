@@ -7,6 +7,7 @@ public interface IBloodBankRepository
     // Users
     Task<User?> FindUserAsync(Guid id);
     Task<User?> FindUserByEmailAsync(string email);
+    Task<bool> DonorIdExistsAsync(string donorId);
     Task<bool> HasUsersAsync();
     Task DeleteUsersByRoleAsync(string role);
     Task AddUserAsync(User user);
@@ -27,8 +28,8 @@ public interface IBloodBankRepository
     Task UpdateBagAsync(BloodBag bag);
     void RemoveBag(BloodBag bag);
     Task<List<BloodBag>> GetAvailableBagsAsync(string bloodGroup, string componentType, int count);
-    Task<(IReadOnlyList<string> BagNumbers, string? Error)> TryIssueBagsAtomicallyAsync(
-        string bloodGroup, string componentType, int count, string? issuedBy);
+    Task<(IReadOnlyList<BloodBag> Bags, string? Error)> TryIssueBagsAtomicallyAsync(
+        BloodRequest request, PatientGroupingRecord grouping, string? issuedBy);
 
     // Donation Camps
     Task<List<DonationCamp>> GetCampsAsync(bool upcoming = false);
@@ -88,6 +89,7 @@ public interface IBloodBankRepository
     // Uddanam Register 2: Patient Grouping & Crossmatch
     Task<List<PatientGroupingRecord>> GetPatientGroupingsAsync();
     Task<PatientGroupingRecord?> FindPatientGroupingAsync(Guid id);
+    Task<PatientGroupingRecord?> FindPatientGroupingByRequestIdAsync(Guid requestId);
     Task AddPatientGroupingAsync(PatientGroupingRecord item);
     Task UpdatePatientGroupingAsync(PatientGroupingRecord item);
     void RemovePatientGrouping(PatientGroupingRecord item);
