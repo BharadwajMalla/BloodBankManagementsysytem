@@ -34,7 +34,6 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
     public DapperBloodBankRepository(IDbConnectionFactory factory)
     {
         _factory = factory;
-        DapperTypeHandlers.Register(_factory.IsSqlite);
     }
 
     private static bool IsCleanScreeningResult(string? result)
@@ -257,11 +256,7 @@ public sealed class DapperBloodBankRepository : IBloodBankRepository
     public async Task<List<BloodBag>> GetAvailableBagsAsync(string bloodGroup, string componentType, int count)
     {
         using var conn = _factory.CreateConnection();
-        var sql = _factory.IsSqlite
-            ? @"SELECT * FROM BloodBags 
-                WHERE IsIssued = 0 AND BloodGroup = @BloodGroup AND ComponentType = @ComponentType 
-                ORDER BY AddedDate ASC LIMIT @Count"
-            : @"SELECT TOP (@Count) * FROM BloodBags 
+        const string sql = @"SELECT TOP (@Count) * FROM BloodBags
                 WHERE IsIssued = 0 AND BloodGroup = @BloodGroup AND ComponentType = @ComponentType 
                 ORDER BY AddedDate ASC";
 

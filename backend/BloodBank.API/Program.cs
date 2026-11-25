@@ -16,6 +16,8 @@ using BloodBank.Infrastructure.Repositories;
 using BloodBank.Infrastructure.Security;
 using BloodBank.Infrastructure.Migrations;
 using BloodBank.API.Middleware;
+using Google.GenAI;
+using Google.GenAI.Types;
 
 // 1. MUST EXECUTE BEFORE BUILDER INITIALIZATION:
 // Disables ASP.NET Core legacy WS-Federation/Identity claim mapping so 'role' remains 'role'
@@ -24,60 +26,75 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 var builder = WebApplication.CreateBuilder(args);
 
 // Dynamically listen on cloud host PORT environment variable (Render, Railway, Cloud Run)
-var portEnv = Environment.GetEnvironmentVariable("PORT");
+var portEnv = System.Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(portEnv))
 {
     builder.WebHost.UseUrls($"http://+:{portEnv}");
 }
 
-// 2. Database Configuration (EF Core with SQL Server & Smart SQLite Failover)
+// 2. Database Configuration (SQL Server only)
 var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrWhiteSpace(rawConnectionString) || rawConnectionString.Contains("localdb", StringComparison.OrdinalIgnoreCase))
+if (string.IsNullOrWhiteSpace(rawConnectionString))
 {
-    rawConnectionString = "Data Source=bloodbank.db";
-}
-
-bool useSqlite = false;
-string activeDbProvider = "SqlServer";
-
-if (rawConnectionString.Contains(".db", StringComparison.OrdinalIgnoreCase) || rawConnectionString.Contains("Sqlite", StringComparison.OrdinalIgnoreCase))
-{
-    useSqlite = true;
-    activeDbProvider = "Sqlite";
-}
-else
-{
-    useSqlite = false;
-    activeDbProvider = "SqlServer";
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection must contain a SQL Server connection string.");
 }
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    if (useSqlite)
+    options.UseSqlServer(rawConnectionString, sqlServerOptions =>
     {
-        options.UseSqlite("Data Source=bloodbank.db");
-    }
-    else
-    {
-        options.UseSqlServer(rawConnectionString, sqlServerOptions =>
-        {
-            sqlServerOptions.EnableRetryOnFailure(
-                maxRetryCount: 3,
-                maxRetryDelay: TimeSpan.FromSeconds(10),
-                errorNumbersToAdd: null);
-        });
-    }
+        sqlServerOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null);
+    });
     options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
 });
 
 // 3. Register Dapper SQL Factory, Repositories & Domain Services
-var dapperConnectionString = useSqlite ? "Data Source=bloodbank.db" : rawConnectionString;
-builder.Services.AddSingleton<IDbConnectionFactory>(new DbConnectionFactory(dapperConnectionString, useSqlite));
+builder.Services.AddSingleton<IDbConnectionFactory>(new DbConnectionFactory(rawConnectionString));
 builder.Services.AddSingleton<ISqlExceptionLogger, SqlExceptionLogger>();
+var geminiOptions = builder.Configuration.GetSection(GeminiOptions.SectionName).Get<GeminiOptions>()
+    ?? new GeminiOptions();
+var geminiApiKey = builder.Configuration["Gemini:ApiKey"]
+    ?? builder.Configuration["GEMINI_API_KEY"]
+    ?? System.Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+if (string.IsNullOrWhiteSpace(geminiApiKey))
+{
+    throw new InvalidOperationException(
+        "Gemini API key is required. Set Gemini:ApiKey with .NET User Secrets or provide the GEMINI_API_KEY environment variable.");
+}
+if (string.IsNullOrWhiteSpace(geminiOptions.GenerationModel)
+    || string.IsNullOrWhiteSpace(geminiOptions.EmbeddingModel)
+    || geminiOptions.EmbeddingBatchDelayMilliseconds < 0)
+{
+    throw new InvalidOperationException(
+        "Gemini generation/embedding model names must be configured and embedding batch delay cannot be negative.");
+}
+
+// Rotate any previously exposed Gemini key and keep credentials in User Secrets or environment variables only.
+builder.Services.AddSingleton(geminiOptions);
+builder.Services.AddSingleton<Client>(_ => new Client(
+    apiKey: geminiApiKey,
+    httpOptions: new HttpOptions
+    {
+        RetryOptions = new HttpRetryOptions
+        {
+            Attempts = 4,
+            InitialDelay = 1.0f,
+            MaxDelay = 20.0f,
+            ExpBase = 2.0f,
+            Jitter = 0.25f,
+            HttpStatusCodes = [408, 429, 500, 502, 503, 504]
+        }
+    }));
+builder.Services.AddSingleton<IGenerativeAiService, GeminiGenerativeAiService>();
 builder.Services.AddScoped<IBloodBankRepository, DapperBloodBankRepository>();
 builder.Services.AddScoped<ILoginAuditRepository, DapperLoginAuditRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailOtpService, EmailOtpService>();
+builder.Services.AddScoped<IInventoryChatService, InventoryChatService>();
 builder.Services.AddScoped<IBloodBankService, BloodBankService>();
 builder.Services.AddScoped<IDonorService, DonorService>();
 builder.Services.AddScoped<IHospitalService, HospitalService>();
@@ -94,12 +111,11 @@ builder.Services.AddScoped<IDonorDonationRepository>(services =>
 builder.Services.AddSingleton<MasterDataSchemaInitializer>(services =>
 {
     var connectionFactory = services.GetRequiredService<IDbConnectionFactory>();
-    return new MasterDataSchemaInitializer(connectionFactory.CreateConnection, useSqlite);
+    return new MasterDataSchemaInitializer(connectionFactory.CreateConnection);
 });
 builder.Services.AddScoped<IMasterDataRepository>(services =>
     new DapperMasterDataRepository(
-        () => services.GetRequiredService<IDbConnectionFactory>().CreateConnection(),
-        useSqlite));
+        () => services.GetRequiredService<IDbConnectionFactory>().CreateConnection()));
 builder.Services.AddScoped<IMasterDataService, MasterDataService>();
 
 // 4. Authentication & Security Configuration
@@ -280,7 +296,7 @@ app.MapGet("/api/health", async (
     {
         status = canConnect ? "Healthy" : "Degraded",
         databaseConnected = canConnect,
-        provider = activeDbProvider,
+        provider = "SqlServer",
         userCount = userCount,
         connectionError = connectionError,
         serverUtc = DateTime.UtcNow

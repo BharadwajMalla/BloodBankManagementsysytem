@@ -13,6 +13,5 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Migrations\MasterData.SqlServer.sql" />
-    <EmbeddedResource Include="Migrations\MasterData.Sqlite.sql" />
   </ItemGroup>
 </Project>

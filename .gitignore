@@ -26,5 +26,3 @@
 # Logs and local databases
 *.log
 *.db
-*.sqlite
-*.sqlite3

@@ -12,9 +12,8 @@ public sealed class SqlExceptionLogger(
         try
         {
             using var connection = connectionFactory.CreateConnection();
-            var tableName = connectionFactory.IsSqlite ? "ExceptionLogs" : "[dbo].[ExceptionLogs]";
-            var sql = $@"
-                INSERT INTO {tableName}
+            const string sql = @"
+                INSERT INTO [dbo].[ExceptionLogs]
                     (Id, Context, ExceptionType, Message, Details, OccurredAtUtc)
                 VALUES
                     (@Id, @Context, @ExceptionType, @Message, @Details, @OccurredAtUtc)";
