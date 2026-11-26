@@ -13,9 +13,15 @@
       <nav class="dashboard-nav">
         <a routerLink="/master-data" routerLinkActive="active" class="dashboard-route-tab">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a2 2 0 012-2h12a2 2 0 012 2v14H6a2 2 0 01-2-2V5zm4 2h8m-8 4h8m-8 4h5"/></svg>
-          <span>Master data</span>
+          <span>Master Data</span>
         </a>
-        @for (category of paperRegisterCategories; track category.key) {
+
+        <button [class.active]="activeBankTab === 'stock'" (click)="activeBankTab = 'stock'; showIssuedComponents.set(false)">
+          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          <span>Stock Overview</span>
+        </button>
+
+        @for (category of primaryPaperRegisterCategories; track category.key) {
           <a [routerLink]="['/registers', category.key]"
             routerLinkActive="active" class="dashboard-route-tab">
             <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -24,19 +30,22 @@
             <span>{{ category.label }}</span>
           </a>
         }
-        <!-- 1. Stock overview -->
-        <button [class.active]="activeBankTab === 'stock'" (click)="activeBankTab = 'stock'; showIssuedComponents.set(false)">
-          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-          <span>Stock overview</span>
-        </button>
 
-        <!-- Donation camps -->
         <button [class.active]="activeBankTab === 'camps'" (click)="activeBankTab = 'camps'">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           <span>Donation camps</span>
         </button>
 
-        <!-- Account summary -->
+        @for (category of remainingPaperRegisterCategories; track category.key) {
+          <a [routerLink]="['/registers', category.key]"
+            routerLinkActive="active" class="dashboard-route-tab">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="category.icon"/>
+            </svg>
+            <span>{{ category.label }}</span>
+          </a>
+        }
+
         <button [class.active]="activeBankTab === 'summary'" (click)="activeBankTab = 'summary'">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6m-5 0a3 3 0 110 6H9l3 6m-3-6h6"/></svg>
           <span>Account summary</span>
@@ -1966,7 +1975,30 @@
                   Thalassemia status was recorded on the request. This issue is free of cost.
                 </div>
               } @else {
-                <label class="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-800">
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Mode of Payment *</label>
+                  <div class="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      (click)="setPaymentMode('Cash')"
+                      [ngClass]="paymentForm.get('paymentMode')?.value === 'Cash' ? 'bg-blue-600 text-white font-black shadow-md shadow-blue-600/30 border-blue-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'"
+                      class="py-3 px-4 rounded-xl border text-xs flex items-center justify-center space-x-2 transition-all"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                      <span>Cash Counter</span>
+                    </button>
+                    <button
+                      type="button"
+                      (click)="setPaymentMode('UPI')"
+                      [ngClass]="paymentForm.get('paymentMode')?.value === 'UPI' ? 'bg-indigo-600 text-white font-black shadow-md shadow-indigo-600/30 border-indigo-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'"
+                      class="py-3 px-4 rounded-xl border text-xs flex items-center justify-center space-x-2 transition-all"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                      <span>UPI / QR Scan</span>
+                    </button>
+                  </div>
+                </div>
+                <label class="inline-flex w-fit max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold leading-5 text-slate-800">
                   <input type="checkbox" [checked]="paymentForm.get('hasDonor')?.value === true"
                     (change)="setPaymentDonorRequested($event)" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-rose-600"/>
                   <span>Donor discount requested (₹{{ donorProvidedDiscountAmount }})</span>
@@ -1983,13 +2015,27 @@
                   @if (paymentForm.get('donorRegistered')?.value === true) {
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
                       Registered donor
-                      <select formControlName="discountDonorId" (change)="updatePaymentAmount($event)"
-                        class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
-                        <option value="">Select a donor</option>
-                        @for (donor of bankDonors(); track donor.id) {
-                          <option [value]="donor.donorId">{{ donor.donorId }} · {{ donor.fullName }}</option>
-                        }
-                      </select>
+                      <div class="mt-1 flex gap-2">
+                        <select formControlName="discountDonorId" (change)="updatePaymentAmount($event)"
+                          class="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                          <option value="">Select a donor</option>
+                          @for (donor of bankDonors(); track donor.id) {
+                            <option [value]="donor.donorId">{{ donor.donorId }} · {{ donor.fullName }}</option>
+                          }
+                        </select>
+                        <button type="button" (click)="refreshPaymentDonors()" [disabled]="isRefreshingPaymentDonors"
+                          aria-label="Refresh registered donors" title="Refresh registered donors"
+                          class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60">
+                          <svg aria-hidden="true" [class.animate-spin]="isRefreshingPaymentDonors" class="h-4 w-4"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M20 7v5h-5M4 17v-5h5m-4.1-3A8 8 0 0 1 18.4 6L20 12M4 12l1.6 6a8 8 0 0 0 13.5-3" />
+                          </svg>
+                        </button>
+                      </div>
+                      @if (paymentDonorRefreshError) {
+                        <span role="alert" class="mt-1 block normal-case tracking-normal text-rose-700">{{ paymentDonorRefreshError }}</span>
+                      }
                     </label>
                   } @else {
                     <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
@@ -2007,32 +2053,6 @@
                   No payment is due. This request will be recorded as waived.
                 </div>
               } @else {
-              <!-- Mode of Payment Selector -->
-              <div>
-                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Mode of Payment *</label>
-                <div class="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    (click)="setPaymentMode('Cash')"
-                    [ngClass]="paymentForm.get('paymentMode')?.value === 'Cash' ? 'bg-blue-600 text-white font-black shadow-md shadow-blue-600/30 border-blue-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'"
-                    class="py-3 px-4 rounded-xl border text-xs flex items-center justify-center space-x-2 transition-all"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    <span>Cash Counter</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    (click)="setPaymentMode('UPI')"
-                    [ngClass]="paymentForm.get('paymentMode')?.value === 'UPI' ? 'bg-indigo-600 text-white font-black shadow-md shadow-indigo-600/30 border-indigo-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'"
-                    class="py-3 px-4 rounded-xl border text-xs flex items-center justify-center space-x-2 transition-all"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-                    <span>UPI / QR Scan</span>
-                  </button>
-                </div>
-              </div>
-
               <!-- UPI Flow: Show QR Code & Require UTR -->
               @if (paymentForm.get('paymentMode')?.value === 'UPI') {
                 <div class="rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/60 p-4 text-center space-y-3">

@@ -2,6 +2,15 @@
   display: none;
 }
 
+.registers-table .demographic-column {
+  width: 4rem;
+  min-width: 4rem;
+  max-width: 4rem;
+  padding-right: 0.5rem !important;
+  padding-left: 0.5rem !important;
+  text-align: center;
+}
+
 @media print {
   @page {
     size: landscape;
@@ -26,10 +35,6 @@
   .screen-only,
   [role="alert"],
   [role="status"] {
-    display: none !important;
-  }
-
-  .registers-header {
     display: none !important;
   }
 

@@ -271,10 +271,10 @@ public static class DbInitializer
                     IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'ReviewedAt')
                         ALTER TABLE [PatientGroupingRecords] ADD [ReviewedAt] datetime2 NULL;
                     IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'IX_PatientGroupingRecords_BloodRequestId')
-                        CREATE UNIQUE INDEX [IX_PatientGroupingRecords_BloodRequestId] ON [PatientGroupingRecords] ([BloodRequestId]) WHERE [BloodRequestId] IS NOT NULL;
+                        EXEC(N'CREATE UNIQUE INDEX [IX_PatientGroupingRecords_BloodRequestId] ON [PatientGroupingRecords] ([BloodRequestId]) WHERE [BloodRequestId] IS NOT NULL');
                     IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_PatientGroupingRecords_BloodRequests')
-                        ALTER TABLE [PatientGroupingRecords] ADD CONSTRAINT [FK_PatientGroupingRecords_BloodRequests]
-                            FOREIGN KEY ([BloodRequestId]) REFERENCES [BloodRequests] ([Id]);
+                        EXEC(N'ALTER TABLE [PatientGroupingRecords] ADD CONSTRAINT [FK_PatientGroupingRecords_BloodRequests]
+                            FOREIGN KEY ([BloodRequestId]) REFERENCES [BloodRequests] ([Id])');
 
                     IF OBJECT_ID('BloodBagStockRegisters') IS NULL
                     BEGIN

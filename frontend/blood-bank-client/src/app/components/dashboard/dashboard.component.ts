@@ -40,6 +40,42 @@ export class DashboardComponent implements OnInit {
       : registerList.filter(category => category.key !== 'tti' && category.key !== 'master-record');
   }
 
+  public get primaryPaperRegisterCategories() {
+    const primaryKeys = [
+      'requisitions',
+      'grouping',
+      'donors',
+      'apheresis',
+      'tti',
+      'donations',
+      'collections',
+      'discards'
+    ];
+
+    return this.paperRegisterCategories.filter(category =>
+      primaryKeys.includes(category.key)
+    ).sort((a, b) =>
+      primaryKeys.indexOf(a.key) - primaryKeys.indexOf(b.key)
+    );
+  }
+
+  public get remainingPaperRegisterCategories() {
+    const primaryKeys = new Set([
+      'requisitions',
+      'grouping',
+      'donors',
+      'apheresis',
+      'tti',
+      'donations',
+      'collections',
+      'discards'
+    ]);
+
+    return this.paperRegisterCategories.filter(category =>
+      !primaryKeys.has(category.key)
+    );
+  }
+
   constructor() {
     effect(() => {
       const tabReq = this.notificationService.activeTabRequest();
@@ -66,6 +102,8 @@ export class DashboardComponent implements OnInit {
   public showPaymentModal = false;
   public isPaymentDonorRegistration = false;
   public paymentFormError: string | null = null;
+  public isRefreshingPaymentDonors = false;
+  public paymentDonorRefreshError: string | null = null;
   public showReceiptModal = signal<boolean>(false);
   public selectedReceiptRequest = signal<BloodRequest | null>(null);
   public showDonationHistoryModal = false;
@@ -774,6 +812,7 @@ export class DashboardComponent implements OnInit {
       if (request) {
         this.selectedPaymentRequest = request;
         this.paymentFormError = null;
+        this.paymentDonorRefreshError = null;
         const autoAmount = this.getRequestAmount(request);
         this.paymentForm.reset({
           paymentMode: request.isThalassemiaPatient ? '' : 'Cash',
@@ -894,12 +933,34 @@ export class DashboardComponent implements OnInit {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
     const hasDonor = target.checked;
+    this.paymentDonorRefreshError = null;
     this.paymentForm.patchValue({
       hasDonor,
       donorRegistered: false,
       discountDonorId: ''
     });
     this.updatePaymentAmount();
+  }
+
+  public refreshPaymentDonors(): void {
+    if (this.isRefreshingPaymentDonors) return;
+    this.isRefreshingPaymentDonors = true;
+    this.paymentDonorRefreshError = null;
+    this.bloodBankService.getDonors().subscribe({
+      next: donors => {
+        this.bankDonors.set(donors);
+        const selectedDonorId = String(this.paymentForm.get('discountDonorId')?.value || '').trim();
+        if (selectedDonorId && !donors.some(donor => donor.donorId === selectedDonorId)) {
+          this.paymentForm.get('discountDonorId')?.setValue('');
+          this.updatePaymentAmount();
+        }
+        this.isRefreshingPaymentDonors = false;
+      },
+      error: error => {
+        this.isRefreshingPaymentDonors = false;
+        this.paymentDonorRefreshError = this.getApiErrorMessage(error, 'Unable to refresh registered donors.');
+      }
+    });
   }
 
   public openDonorRegistrationForPayment(): void {

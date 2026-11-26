@@ -20,8 +20,6 @@ import { DonorsRegisterComponent } from './components/register-pages/donors-regi
 import { DonationsRegisterComponent } from './components/register-pages/donations-register.component';
 import { authGuard } from './core/guards/auth.guard';
 import { bloodBankStaffGuard } from './core/guards/blood-bank-staff.guard';
-import { AiChatComponent } from './components/ai-chat/ai-chat.component';
-
 export const routes: Routes = [
   {
     path: '',
@@ -43,12 +41,6 @@ export const routes: Routes = [
     component: DashboardComponent,
     canActivate: [authGuard],
     title: 'Live Inventory Dashboard | BloodBank SaaS'
-  },
-  {
-    path: 'assistant',
-    component: AiChatComponent,
-    canActivate: [authGuard, bloodBankStaffGuard],
-    title: 'Blood Bank AI Assistant | BloodBank SaaS'
   },
   {
     path: 'master-data',

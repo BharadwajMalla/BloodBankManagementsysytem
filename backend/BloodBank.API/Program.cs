@@ -16,8 +16,6 @@ using BloodBank.Infrastructure.Repositories;
 using BloodBank.Infrastructure.Security;
 using BloodBank.Infrastructure.Migrations;
 using BloodBank.API.Middleware;
-using Google.GenAI;
-using Google.GenAI.Types;
 
 // 1. MUST EXECUTE BEFORE BUILDER INITIALIZATION:
 // Disables ASP.NET Core legacy WS-Federation/Identity claim mapping so 'role' remains 'role'
@@ -55,46 +53,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // 3. Register Dapper SQL Factory, Repositories & Domain Services
 builder.Services.AddSingleton<IDbConnectionFactory>(new DbConnectionFactory(rawConnectionString));
 builder.Services.AddSingleton<ISqlExceptionLogger, SqlExceptionLogger>();
-var geminiOptions = builder.Configuration.GetSection(GeminiOptions.SectionName).Get<GeminiOptions>()
-    ?? new GeminiOptions();
-var geminiApiKey = builder.Configuration["Gemini:ApiKey"]
-    ?? builder.Configuration["GEMINI_API_KEY"]
-    ?? System.Environment.GetEnvironmentVariable("GEMINI_API_KEY");
-if (string.IsNullOrWhiteSpace(geminiApiKey))
-{
-    throw new InvalidOperationException(
-        "Gemini API key is required. Set Gemini:ApiKey with .NET User Secrets or provide the GEMINI_API_KEY environment variable.");
-}
-if (string.IsNullOrWhiteSpace(geminiOptions.GenerationModel)
-    || string.IsNullOrWhiteSpace(geminiOptions.EmbeddingModel)
-    || geminiOptions.EmbeddingBatchDelayMilliseconds < 0)
-{
-    throw new InvalidOperationException(
-        "Gemini generation/embedding model names must be configured and embedding batch delay cannot be negative.");
-}
-
-// Rotate any previously exposed Gemini key and keep credentials in User Secrets or environment variables only.
-builder.Services.AddSingleton(geminiOptions);
-builder.Services.AddSingleton<Client>(_ => new Client(
-    apiKey: geminiApiKey,
-    httpOptions: new HttpOptions
-    {
-        RetryOptions = new HttpRetryOptions
-        {
-            Attempts = 4,
-            InitialDelay = 1.0f,
-            MaxDelay = 20.0f,
-            ExpBase = 2.0f,
-            Jitter = 0.25f,
-            HttpStatusCodes = [408, 429, 500, 502, 503, 504]
-        }
-    }));
-builder.Services.AddSingleton<IGenerativeAiService, GeminiGenerativeAiService>();
 builder.Services.AddScoped<IBloodBankRepository, DapperBloodBankRepository>();
 builder.Services.AddScoped<ILoginAuditRepository, DapperLoginAuditRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailOtpService, EmailOtpService>();
-builder.Services.AddScoped<IInventoryChatService, InventoryChatService>();
 builder.Services.AddScoped<IBloodBankService, BloodBankService>();
 builder.Services.AddScoped<IDonorService, DonorService>();
 builder.Services.AddScoped<IHospitalService, HospitalService>();

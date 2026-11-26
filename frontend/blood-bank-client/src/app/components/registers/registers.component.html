@@ -1,15 +1,11 @@
 <main class="min-h-screen bg-slate-50 p-4 sm:p-8">
   <div class="mx-auto max-w-[90rem] space-y-6">
-    <header class="registers-header flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <p class="text-xs font-black uppercase tracking-widest text-rose-600">Uddanam Blood Centre · Staff only</p>
-        <h1 class="mt-1 text-2xl font-black text-slate-900">Paper Registers</h1>
-        <p class="mt-1 text-sm text-slate-500">Search, review and maintain operational registers using the existing blood-bank records.</p>
-      </div>
-      <a routerLink="/dashboard" class="screen-only rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">
-        Back to dashboard
-      </a>
-    </header>
+    <a routerLink="/dashboard" class="screen-only inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-slate-900">
+      <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" class="h-4 w-4">
+        <path d="M12.5 4.5 7 10l5.5 5.5M7.25 10h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      Back to dashboard
+    </a>
 
     <div class="register-print-header">
       <strong>Uddanam Blood Centre</strong>
@@ -106,13 +102,20 @@
       @if (showForm) {
         <form class="screen-only mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4" (ngSubmit)="save()">
           <div class="mb-4 flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <h3 class="font-black text-slate-800">{{ editingId ? 'Edit entry' : 'New entry' }} · {{ selectedCategory.label }}</h3>
-              @if (selectedKey === 'donations') {
-                <p class="mt-1 text-xs text-slate-500">Donor: {{ selectedDonorName }}. Screening answers are confidential staff records.</p>
-              }
+            <div class="flex items-start gap-3">
+              <button type="button" (click)="showForm = false" aria-label="Close form" title="Close form"
+                class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100">
+                <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" class="h-4 w-4">
+                  <path d="M12.5 4.5 7 10l5.5 5.5M7.25 10h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <div>
+                <h3 class="font-black text-slate-800">{{ editingId ? 'Edit entry' : 'New entry' }} · {{ selectedCategory.label }}</h3>
+                @if (selectedKey === 'donations') {
+                  <p class="mt-1 text-xs text-slate-500">Donor: {{ selectedDonorName }}. Screening answers are confidential staff records.</p>
+                }
+              </div>
             </div>
-            <button type="button" (click)="showForm = false" class="text-sm font-bold text-slate-500">Close form</button>
           </div>
 
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -176,7 +179,14 @@
               This request is marked as a thalassemia patient. It will be issued free of cost; no payment mode or transaction ID is needed.
             </div>
           } @else {
-            <label class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 sm:col-span-2">
+            <label class="text-xs font-bold text-slate-600">Payment mode
+              <select name="paymentMode" [(ngModel)]="processForm['paymentMode']"
+                (ngModelChange)="processFormError = ''"
+                [required]="processForm['status'] === 'Fulfilled'" class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
+                <option value="">Not specified</option><option>Cash</option><option>UPI</option>
+              </select>
+            </label>
+            <label class="inline-flex w-fit max-w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold leading-5 text-slate-700">
               <input type="checkbox" name="hasDonor" [(ngModel)]="processForm['hasDonor']"
                 (ngModelChange)="updateProcessDiscountAmount()" class="h-4 w-4 rounded border-slate-300 text-rose-600" />
               Donor discount requested (₹450)
@@ -192,14 +202,32 @@
               </label>
               @if (processForm['donorRegistered'] === true) {
                 <label class="text-xs font-bold text-slate-600">Registered donor
-                  <select name="discountDonorId" [(ngModel)]="processForm['discountDonorId']"
-                    (ngModelChange)="updateProcessDiscountAmount()"
-                    class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
-                    <option value="">Select donor</option>
-                    @for (donor of donors; track donor.id) {
-                      <option [value]="donor.donorId">{{ donor.donorId }} · {{ donor.fullName }}</option>
-                    }
-                  </select>
+                  <input name="donorSearch" [(ngModel)]="donorSearch" type="search"
+                    placeholder="Search donor by name..."
+                    class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm font-normal"
+                    autocomplete="off" />
+                  <div class="mt-1 flex gap-2">
+                    <select name="discountDonorId" [(ngModel)]="processForm['discountDonorId']"
+                      (ngModelChange)="updateProcessDiscountAmount()"
+                      class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white p-2 text-sm">
+                      <option value="">Select donor</option>
+                      @for (donor of filteredProcessingDonors; track donor.id) {
+                        <option [value]="donor.donorId">{{ donor.donorId }} · {{ donor.fullName }}</option>
+                      }
+                      @if (filteredProcessingDonors.length === 0) {
+                        <option disabled>No matching donors</option>
+                      }
+                    </select>
+                    <button type="button" (click)="refreshDonorsForProcessing()" [disabled]="isRefreshingDonors"
+                      aria-label="Refresh registered donors" title="Refresh registered donors"
+                      class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60">
+                      <svg aria-hidden="true" [class.animate-spin]="isRefreshingDonors" class="h-4 w-4"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M20 7v5h-5M4 17v-5h5m-4.1-3A8 8 0 0 1 18.4 6L20 12M4 12l1.6 6a8 8 0 0 0 13.5-3" />
+                      </svg>
+                    </button>
+                  </div>
                 </label>
               } @else {
                 <div class="rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-amber-900">
@@ -207,19 +235,7 @@
                   <a routerLink="/registers/donors" target="_blank" rel="noopener" class="ml-1 font-bold underline">Open donor registration</a>
                 </div>
               }
-              @if (processForm['donorRegistered'] === true) {
-                <button type="button" (click)="refreshDonorsForProcessing()" class="text-left text-xs font-bold text-blue-700 underline">
-                  Refresh registered donors
-                </button>
-              }
             }
-            <label class="text-xs font-bold text-slate-600">Payment mode
-              <select name="paymentMode" [(ngModel)]="processForm['paymentMode']"
-                (ngModelChange)="processFormError = ''"
-                [required]="processForm['status'] === 'Fulfilled'" class="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 text-sm">
-                <option value="">Not specified</option><option>Cash</option><option>UPI</option>
-              </select>
-            </label>
             @if (processForm['paymentMode'] === 'UPI') {
               <label class="text-xs font-bold text-slate-600">Transaction ID *
                 <input name="transactionId" [(ngModel)]="processForm['transactionId']"
@@ -276,7 +292,10 @@
           <table class="w-full min-w-[54rem] text-left text-sm">
             <thead class="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                @for (column of tableColumns; track column.key) { <th scope="col" class="whitespace-nowrap px-4 py-3">{{ column.label }}</th> }
+                @for (column of tableColumns; track column.key) {
+                  <th scope="col" [class.demographic-column]="isCompactDemographicColumn(column.key)"
+                    class="whitespace-nowrap px-4 py-3">{{ column.label }}</th>
+                }
                 @if (canEdit() || supportsDelete() || selectedKey === 'requisitions' || selectedKey === 'donors' || (selectedKey === 'discards' && authService.isAdmin())) {
                   <th scope="col" class="px-4 py-3">Actions</th>
                 }
@@ -286,7 +305,8 @@
               @for (row of visibleRows; track row.id) {
                 <tr class="border-t border-slate-100 align-top">
                   @for (column of tableColumns; track column.key) {
-                    <td class="max-w-72 whitespace-nowrap px-4 py-3 text-slate-700">{{ displayValue(column.key, row[column.key]) }}</td>
+                    <td [class.demographic-column]="isCompactDemographicColumn(column.key)"
+                      class="max-w-72 whitespace-nowrap px-4 py-3 text-slate-700">{{ displayRowValue(column.key, row) }}</td>
                   }
                   @if (canEdit() || supportsDelete() || selectedKey === 'requisitions' || selectedKey === 'donors' || (selectedKey === 'discards' && authService.isAdmin())) {
                     <td class="screen-only whitespace-nowrap px-4 py-3">

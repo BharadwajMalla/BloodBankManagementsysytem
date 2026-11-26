@@ -31,16 +31,6 @@
             </svg>
             <span>Portal Dashboard</span>
           </a>
-          @if (authService.isBloodBank()) {
-            <a
-              routerLink="/assistant"
-              routerLinkActive="bg-slate-100 text-rose-600 font-semibold"
-              class="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-rose-600 rounded-lg transition-colors"
-            >
-              AI Assistant
-            </a>
-          }
-
           <!-- User Actions & Notification Area in top bar -->
           <div class="flex items-center space-x-3 pl-3 border-l border-slate-200 relative">
             <!-- Notifications Bell Popover -->

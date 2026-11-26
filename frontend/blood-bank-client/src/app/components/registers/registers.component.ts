@@ -303,7 +303,7 @@ const columns: Record<RegisterKey, RegisterColumn[]> = {
   ],
   requisitions: [
     { key: 'createdAt', label: 'Requested' }, { key: 'patientName', label: 'Patient' },
-    { key: 'patientAge', label: 'Age' }, { key: 'patientAgeUnit', label: 'Age unit' },
+    { key: 'patientAge', label: 'Age' },
     { key: 'patientSex', label: 'Sex' }, { key: 'isThalassemiaPatient', label: 'Thalassemia' },
     { key: 'hospitalName', label: 'Hospital' }, { key: 'bloodGroup', label: 'Blood group' },
     { key: 'componentType', label: 'Component' }, { key: 'quantityUnits', label: 'Units' },
@@ -327,7 +327,7 @@ const columns: Record<RegisterKey, RegisterColumn[]> = {
   ],
   issues: [
     { key: 'createdAt', label: 'Date' }, { key: 'patientName', label: 'Patient' },
-    { key: 'patientAge', label: 'Age' }, { key: 'patientAgeUnit', label: 'Age unit' },
+    { key: 'patientAge', label: 'Age' },
     { key: 'patientSex', label: 'Sex' }, { key: 'isThalassemiaPatient', label: 'Thalassemia' },
     { key: 'hospitalName', label: 'Hospital' }, { key: 'bloodGroup', label: 'Blood group' },
     { key: 'componentType', label: 'Component' }, { key: 'issuedBags', label: 'Issued bags / expiry' },
@@ -357,20 +357,20 @@ const columns: Record<RegisterKey, RegisterColumn[]> = {
 };
 
 export const registerList: { key: RegisterKey; label: string; description: string; icon: string }[] = [
-  { key: 'tti', label: 'TTI screening', description: 'Transfusion-transmitted infection screening results.', icon: 'M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4zm-3 9 2 2 4-4' },
-  { key: 'grouping', label: 'Patient grouping', description: 'Blood grouping, antibody screening and crossmatch register.', icon: 'M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm7-3a4 4 0 0 1 0 8m5 5v-2a4 4 0 0 0-3-3.87' },
+  { key: 'requisitions', label: 'Requisition', description: 'Hospital blood/component requests and processing.', icon: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2 2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2zm0 8h6m-6 4h6' },
+  { key: 'grouping', label: 'Patient Grouping', description: 'Blood grouping, antibody screening and crossmatch register.', icon: 'M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm7-3a4 4 0 0 1 0 8m5 5v-2a4 4 0 0 0-3-3.87' },
+  { key: 'donors', label: 'Donors', description: 'Donor directory, eligibility and donation history.', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m8-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+  { key: 'apheresis', label: 'Apheresis', description: 'Donor assessment and procedure records.', icon: 'M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11zm-2 12a2 2 0 0 0 2 2' },
+  { key: 'tti', label: 'TTI Screening', description: 'Transfusion-transmitted infection screening results.', icon: 'M12 3l8 4v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7l8-4zm-3 9 2 2 4-4' },
+  { key: 'donations', label: 'Donations', description: 'Donation screening and collection records.', icon: 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8z' },
+  { key: 'collections', label: 'Component collection', description: 'Collected components and expiry tracking.', icon: 'M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11zm0 7v8m-4-4h8' },
+  { key: 'discards', label: 'Component discard', description: 'Discard reports and approval status.', icon: 'M4 7h16m-10 4v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3' },
   { key: 'bag-stock', label: 'Blood-bag stock register', description: 'Supplier, batch, expiry and balance ledger.', icon: 'M20 7l-8-4-8 4 8 4 8-4zm-16 0v10l8 4 8-4V7m-8 4v10' },
   { key: 'bags', label: 'Bag inventory', description: 'Individual collected / stocked blood bags.', icon: 'M6 3h12l1 5-2 2v10a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V10L5 8l1-5zm1 5h10M9 14h6' },
   { key: 'diagnostic-kits', label: 'Diagnostic kits & reagents', description: 'Kit receipts, tests performed and reagent balances.', icon: 'M9 3h6m-5 0v7l-5 8a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-8V3m-7 11h12' },
-  { key: 'apheresis', label: 'Apheresis', description: 'Donor assessment and procedure records.', icon: 'M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11zm-2 12a2 2 0 0 0 2 2' },
   { key: 'master-record', label: 'Master record', description: 'Consolidated bag, donor, TTI and utilization register.', icon: 'M6 3h9l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm8 1v4h4m-9 4h6m-6 4h6' },
-  { key: 'requisitions', label: 'Requisitions', description: 'Hospital blood/component requests and processing.', icon: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2 2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2zm0 8h6m-6 4h6' },
   { key: 'issues', label: 'Issue records', description: 'Fulfillment and bag issue details on requests.', icon: 'M4 12h11m0 0-4-4m4 4-4 4m5-10h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3' },
-  { key: 'collections', label: 'Component collection', description: 'Collected components and expiry tracking.', icon: 'M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11zm0 7v8m-4-4h8' },
-  { key: 'discards', label: 'Component discard', description: 'Discard reports and approval status.', icon: 'M4 7h16m-10 4v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3' },
-  { key: 'returns', label: 'Component returns', description: 'Returned component records.', icon: 'M9 14 4 9l5-5m-5 5h10a6 6 0 0 1 0 12h-2' },
-  { key: 'donors', label: 'Donors', description: 'Donor directory, eligibility and donation history.', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m8-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
-  { key: 'donations', label: 'Donations', description: 'Donation screening and collection records.', icon: 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8z' }
+  { key: 'returns', label: 'Component returns', description: 'Returned component records.', icon: 'M9 14 4 9l5-5m-5 5h10a6 6 0 0 1 0 12h-2' }
 ];
 
 @Component({
@@ -395,8 +395,10 @@ export class RegistersComponent implements OnInit {
   @Input() public category?: RegisterKey;
   public rows: RegisterRow[] = [];
   public donors: DonorDetails[] = [];
+  public isRefreshingDonors = false;
   public selectedDonorId = '';
   public selectedDonorName = '';
+  public donorSearch = '';
   public search = '';
   public requestFilterStatus: 'Active' | 'Fulfilled' | 'All' = 'Active';
   public isLoading = false;
@@ -460,6 +462,13 @@ export class RegistersComponent implements OnInit {
       selectedColumns = columns.donors;
     } else if (this.selectedKey === 'master-record' || this.selectedKey === 'issues' || this.selectedKey === 'donors') {
       selectedColumns = columns[this.selectedKey];
+    } else if (this.selectedKey === 'requisitions') {
+      selectedColumns = this.fields
+        .filter(({ key }) => key !== 'patientAgeUnit')
+        .map(({ key, label }) => ({
+          key,
+          label: key === 'patientAge' ? 'Age' : key === 'patientSex' ? 'Sex' : label
+        }));
     } else if (this.selectedKey === 'grouping') {
       selectedColumns = [
         ...this.fields.map(({ key, label }) => ({ key, label })),
@@ -488,11 +497,27 @@ export class RegistersComponent implements OnInit {
       } else if (this.requestFilterStatus === 'Fulfilled') {
         rows = rows.filter(row => row['status'] === 'Fulfilled');
       }
+
     }
     const query = this.search.trim().toLocaleLowerCase();
     if (!query) return rows;
     return rows.filter(row => Object.values(row)
       .some(value => String(value ?? '').toLocaleLowerCase().includes(query)));
+  }
+
+  public get filteredProcessingDonors(): DonorDetails[] {
+    const query = this.donorSearch.trim().toLowerCase();
+    if (!query) return this.donors;
+
+    const matches = this.donors.filter(donor =>
+      donor.fullName.toLowerCase().includes(query) ||
+      donor.donorId.toLowerCase().includes(query)
+    );
+    const selectedDonorId = this.textValue('processForm', 'discountDonorId');
+    const selectedDonor = this.donors.find(donor => donor.donorId === selectedDonorId);
+    return selectedDonor && !matches.some(donor => donor.id === selectedDonor.id)
+      ? [selectedDonor, ...matches]
+      : matches;
   }
 
   public get activeRequestCount(): number {
@@ -668,10 +693,11 @@ export class RegistersComponent implements OnInit {
   public startProcessing(row: RegisterRow): void {
     this.processingId = row.id;
     this.processFormError = '';
+    this.donorSearch = '';
     this.processForm = {
       status: row['status'] === 'Approved' ? 'Fulfilled' : 'Approved',
       adminComments: '',
-      paymentMode: '',
+      paymentMode: 'Cash',
       transactionId: '',
       isThalassemiaPatient: row['isThalassemiaPatient'] === true,
       hasDonor: false,
@@ -685,9 +711,22 @@ export class RegistersComponent implements OnInit {
   }
 
   public refreshDonorsForProcessing(): void {
+    if (this.isRefreshingDonors) return;
+    this.isRefreshingDonors = true;
     this.bloodBankService.getDonors().subscribe({
-      next: donors => this.donors = donors,
-      error: error => this.processFormError = this.getErrorMessage(error)
+      next: donors => {
+        this.donors = donors;
+        const selectedDonorId = this.textValue('processForm', 'discountDonorId');
+        if (selectedDonorId && !donors.some(donor => donor.donorId === selectedDonorId)) {
+          this.processForm['discountDonorId'] = '';
+          this.updateProcessDiscountAmount();
+        }
+        this.isRefreshingDonors = false;
+      },
+      error: error => {
+        this.isRefreshingDonors = false;
+        this.processFormError = this.getErrorMessage(error);
+      }
     });
   }
 
@@ -825,6 +864,17 @@ export class RegistersComponent implements OnInit {
 
   public displayValue(key: string, value: unknown): string {
     if (value === null || value === undefined || value === '') return '—';
+    if (key === 'patientSex') {
+      switch (String(value).trim().toLowerCase()) {
+        case 'male':
+        case 'm': return 'M';
+        case 'female':
+        case 'f': return 'F';
+        case 'other': return 'O';
+        case 'unknown':
+        case 'u': return 'U';
+      }
+    }
     if (key === 'issuedBags' && Array.isArray(value)) {
       return value.map(item => {
         const bag = item as Record<string, unknown>;
@@ -838,6 +888,20 @@ export class RegistersComponent implements OnInit {
     }
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
     return String(value);
+  }
+
+  public displayRowValue(key: string, row: RegisterRow): string {
+    if (key !== 'patientAge') return this.displayValue(key, row[key]);
+    const age = row[key];
+    if (age === null || age === undefined || age === '') return '—';
+    const unit = String(row['patientAgeUnit'] ?? '').trim().toLowerCase();
+    const suffix = unit.startsWith('year') ? 'Y' : unit.startsWith('month') ? 'M' : '';
+    const value = unit.startsWith('month') ? String(age).padStart(2, '0') : String(age);
+    return `${value}${suffix}`;
+  }
+
+  public isCompactDemographicColumn(key: string): boolean {
+    return key === 'patientAge' || key === 'patientSex';
   }
 
   public supportsDelete(): boolean {
