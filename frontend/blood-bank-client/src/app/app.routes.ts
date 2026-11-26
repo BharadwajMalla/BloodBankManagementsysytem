@@ -20,7 +20,6 @@ import { DonorsRegisterComponent } from './components/register-pages/donors-regi
 import { DonationsRegisterComponent } from './components/register-pages/donations-register.component';
 import { authGuard } from './core/guards/auth.guard';
 import { bloodBankStaffGuard } from './core/guards/blood-bank-staff.guard';
-
 export const routes: Routes = [
   {
     path: '',

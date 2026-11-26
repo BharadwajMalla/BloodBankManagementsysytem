@@ -7,8 +7,7 @@ using BloodBank.Application.Models;
 namespace BloodBank.Infrastructure.Repositories;
 
 public sealed class DapperMasterDataRepository(
-    Func<IDbConnection> createConnection,
-    bool isSqlite) : IMasterDataRepository
+    Func<IDbConnection> createConnection) : IMasterDataRepository
 {
     public async Task<IReadOnlyList<MasterDataEntry>> GetAsync(
         MasterDataCategory category,
@@ -407,12 +406,10 @@ public sealed class DapperMasterDataRepository(
 
     private (string Select, string[] SearchColumns) GetQuery(MasterDataCategory category)
     {
-        var hospitalCode = isSqlite
-            ? "COALESCE(NULLIF(HospitalRegNumber, ''), 'HOSP-' || REPLACE(CAST(Id AS TEXT), '-', ''))"
-            : "COALESCE(NULLIF(HospitalRegNumber, ''), 'HOSP-' + REPLACE(CONVERT(nvarchar(36), Id), '-', ''))";
-        var staffCode = isSqlite
-            ? "COALESCE(s.EmployeeNumber, 'STAFF-' || REPLACE(CAST(u.Id AS TEXT), '-', ''))"
-            : "COALESCE(s.EmployeeNumber, 'STAFF-' + REPLACE(CONVERT(nvarchar(36), u.Id), '-', ''))";
+        const string hospitalCode =
+            "COALESCE(NULLIF(HospitalRegNumber, ''), 'HOSP-' + REPLACE(CONVERT(nvarchar(36), Id), '-', ''))";
+        const string staffCode =
+            "COALESCE(s.EmployeeNumber, 'STAFF-' + REPLACE(CONVERT(nvarchar(36), u.Id), '-', ''))";
 
         return category switch
         {

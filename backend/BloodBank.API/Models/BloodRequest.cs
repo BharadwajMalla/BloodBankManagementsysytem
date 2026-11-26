@@ -27,6 +27,14 @@ public class BloodRequest
     [MaxLength(150)]
     public string PatientName { get; set; } = string.Empty;
 
+    public int? PatientAge { get; set; }
+
+    [MaxLength(10)]
+    public string? PatientAgeUnit { get; set; }
+
+    [MaxLength(20)]
+    public string? PatientSex { get; set; }
+
     [Required]
     [MaxLength(10)]
     public string BloodGroup { get; set; } = string.Empty; // "A+", "O-", etc.
@@ -60,6 +68,8 @@ public class BloodRequest
     [MaxLength(2000)]
     public string? IssuedBagNumbers { get; set; }
 
+    public string? IssuedBagDetailsJson { get; set; }
+
     [MaxLength(20)]
     public string? PaymentMode { get; set; }
 
@@ -70,6 +80,13 @@ public class BloodRequest
     public string? TransactionId { get; set; }
 
     public decimal? AmountPaid { get; set; }
+
+    public bool IsThalassemiaPatient { get; set; }
+
+    [MaxLength(50)]
+    public string? DiscountDonorId { get; set; }
+
+    public decimal DiscountAmount { get; set; }
 
     // Uddanam Register Fields
     [MaxLength(100)] public string? Indication { get; set; } // "Surgery", "Therapeutic"

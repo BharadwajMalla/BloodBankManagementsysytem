@@ -14,7 +14,8 @@ namespace BloodBank.API.Controllers;
 [Authorize(Roles = "BloodBank,Admin,TechnicalSupervisor,Technician")]
 public class BloodBankController(
     IBloodBankService service,
-    IDonorDonationService donorDonationService) : ControllerBase
+    IDonorDonationService donorDonationService,
+    ISqlExceptionLogger exceptionLogger) : ControllerBase
 {
     private Guid UserId()
     {
@@ -516,6 +517,25 @@ public class BloodBankController(
             : Ok(result);
     }
 
+    [HttpPut("registers/grouping/{id:guid}/review")]
+    public async Task<IActionResult> ReviewPatientGrouping(Guid id, ReviewPatientGroupingDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var (result, error) = await service.ReviewPatientGroupingAsync(id, dto, User.Identity?.Name);
+        if (result != null)
+        {
+            return Ok(result);
+        }
+
+        return error == "Patient grouping record not found."
+            ? NotFound(new { message = error })
+            : BadRequest(new { message = error });
+    }
+
     [HttpDelete("registers/grouping/{id:guid}")]
     public async Task<IActionResult> DeletePatientGrouping(Guid id)
     {
@@ -624,6 +644,7 @@ public class BloodBankController(
         }
         catch (InvalidOperationException ex)
         {
+            await exceptionLogger.LogAsync(ex, nameof(CreateApheresisRecord));
             return BadRequest(new { message = ex.Message });
         }
     }
@@ -645,6 +666,7 @@ public class BloodBankController(
         }
         catch (InvalidOperationException ex)
         {
+            await exceptionLogger.LogAsync(ex, nameof(UpdateApheresisRecord));
             return BadRequest(new { message = ex.Message });
         }
     }

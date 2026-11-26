@@ -15,6 +15,7 @@ using BloodBank.API.Services;
 using BloodBank.Infrastructure.Repositories;
 using BloodBank.Infrastructure.Security;
 using BloodBank.Infrastructure.Migrations;
+using BloodBank.API.Middleware;
 
 // 1. MUST EXECUTE BEFORE BUILDER INITIALIZATION:
 // Disables ASP.NET Core legacy WS-Federation/Identity claim mapping so 'role' remains 'role'
@@ -23,55 +24,35 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 var builder = WebApplication.CreateBuilder(args);
 
 // Dynamically listen on cloud host PORT environment variable (Render, Railway, Cloud Run)
-var portEnv = Environment.GetEnvironmentVariable("PORT");
+var portEnv = System.Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(portEnv))
 {
     builder.WebHost.UseUrls($"http://+:{portEnv}");
 }
 
-// 2. Database Configuration (EF Core with SQL Server & Smart SQLite Failover)
+// 2. Database Configuration (SQL Server only)
 var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrWhiteSpace(rawConnectionString) || rawConnectionString.Contains("localdb", StringComparison.OrdinalIgnoreCase))
+if (string.IsNullOrWhiteSpace(rawConnectionString))
 {
-    rawConnectionString = "Data Source=bloodbank.db";
-}
-
-bool useSqlite = false;
-string activeDbProvider = "SqlServer";
-
-if (rawConnectionString.Contains(".db", StringComparison.OrdinalIgnoreCase) || rawConnectionString.Contains("Sqlite", StringComparison.OrdinalIgnoreCase))
-{
-    useSqlite = true;
-    activeDbProvider = "Sqlite";
-}
-else
-{
-    useSqlite = false;
-    activeDbProvider = "SqlServer";
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection must contain a SQL Server connection string.");
 }
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    if (useSqlite)
+    options.UseSqlServer(rawConnectionString, sqlServerOptions =>
     {
-        options.UseSqlite("Data Source=bloodbank.db");
-    }
-    else
-    {
-        options.UseSqlServer(rawConnectionString, sqlServerOptions =>
-        {
-            sqlServerOptions.EnableRetryOnFailure(
-                maxRetryCount: 3,
-                maxRetryDelay: TimeSpan.FromSeconds(10),
-                errorNumbersToAdd: null);
-        });
-    }
+        sqlServerOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null);
+    });
     options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
 });
 
 // 3. Register Dapper SQL Factory, Repositories & Domain Services
-var dapperConnectionString = useSqlite ? "Data Source=bloodbank.db" : rawConnectionString;
-builder.Services.AddSingleton<IDbConnectionFactory>(new DbConnectionFactory(dapperConnectionString, useSqlite));
+builder.Services.AddSingleton<IDbConnectionFactory>(new DbConnectionFactory(rawConnectionString));
+builder.Services.AddSingleton<ISqlExceptionLogger, SqlExceptionLogger>();
 builder.Services.AddScoped<IBloodBankRepository, DapperBloodBankRepository>();
 builder.Services.AddScoped<ILoginAuditRepository, DapperLoginAuditRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -92,12 +73,11 @@ builder.Services.AddScoped<IDonorDonationRepository>(services =>
 builder.Services.AddSingleton<MasterDataSchemaInitializer>(services =>
 {
     var connectionFactory = services.GetRequiredService<IDbConnectionFactory>();
-    return new MasterDataSchemaInitializer(connectionFactory.CreateConnection, useSqlite);
+    return new MasterDataSchemaInitializer(connectionFactory.CreateConnection);
 });
 builder.Services.AddScoped<IMasterDataRepository>(services =>
     new DapperMasterDataRepository(
-        () => services.GetRequiredService<IDbConnectionFactory>().CreateConnection(),
-        useSqlite));
+        () => services.GetRequiredService<IDbConnectionFactory>().CreateConnection()));
 builder.Services.AddScoped<IMasterDataService, MasterDataService>();
 
 // 4. Authentication & Security Configuration
@@ -152,11 +132,12 @@ builder.Services.AddAuthentication(options =>
             }
             return Task.CompletedTask;
         },
-        OnAuthenticationFailed = context =>
+        OnAuthenticationFailed = async context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
             logger.LogWarning("Authentication failed: {Message}", context.Exception.Message);
-            return Task.CompletedTask;
+            var exceptionLogger = context.HttpContext.RequestServices.GetRequiredService<ISqlExceptionLogger>();
+            await exceptionLogger.LogAsync(context.Exception, "JwtBearer authentication");
         }
     };
 });
@@ -221,10 +202,21 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+app.UseMiddleware<SqlExceptionHandlingMiddleware>();
+
 // 8. Auto-Migrations and Seeding on application startup
 await DbInitializer.InitializeAsync(app.Services, app.Logger);
-await app.Services.GetRequiredService<MasterDataSchemaInitializer>()
-    .InitializeAsync(app.Lifetime.ApplicationStopping);
+try
+{
+    await app.Services.GetRequiredService<MasterDataSchemaInitializer>()
+        .InitializeAsync(app.Lifetime.ApplicationStopping);
+}
+catch (Exception ex)
+{
+    await app.Services.GetRequiredService<ISqlExceptionLogger>()
+        .LogAsync(ex, "Master data schema initialization");
+    throw;
+}
 
 // 9. HTTP Request Pipeline Configuration
 app.UseSwagger();
@@ -241,7 +233,9 @@ app.UseCors("AllowFrontendApp");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/api/health", async (IDbConnectionFactory connectionFactory) =>
+app.MapGet("/api/health", async (
+    IDbConnectionFactory connectionFactory,
+    ISqlExceptionLogger exceptionLogger) =>
 {
     string? connectionError = null;
     bool canConnect = false;
@@ -256,6 +250,7 @@ app.MapGet("/api/health", async (IDbConnectionFactory connectionFactory) =>
     }
     catch (Exception ex)
     {
+        await exceptionLogger.LogAsync(ex, "Health check");
         connectionError = $"{ex.GetType().Name}: {ex.Message}" + (ex.InnerException != null ? $" | Inner: {ex.InnerException.Message}" : "");
     }
 
@@ -263,7 +258,7 @@ app.MapGet("/api/health", async (IDbConnectionFactory connectionFactory) =>
     {
         status = canConnect ? "Healthy" : "Degraded",
         databaseConnected = canConnect,
-        provider = activeDbProvider,
+        provider = "SqlServer",
         userCount = userCount,
         connectionError = connectionError,
         serverUtc = DateTime.UtcNow
@@ -276,7 +271,16 @@ if (args.Contains("--seed-data"))
 {
     using var seedScope = app.Services.CreateScope();
     var seedRepository = seedScope.ServiceProvider.GetRequiredService<IBloodBankRepository>();
-    await DbInitializer.SeedLiveDataAsync(seedRepository);
+    try
+    {
+        await DbInitializer.SeedLiveDataAsync(seedRepository);
+    }
+    catch (Exception ex)
+    {
+        await app.Services.GetRequiredService<ISqlExceptionLogger>()
+            .LogAsync(ex, "Seed live data");
+        throw;
+    }
     Console.WriteLine("SEED_COMPLETE_SUCCESS");
     return;
 }

@@ -8,7 +8,6 @@ public sealed class DapperLoginAuditRepository(IDbConnectionFactory connectionFa
 {
     public async Task AddAsync(LoginAuditRecord record, CancellationToken cancellationToken = default)
     {
-        DapperTypeHandlers.Register(connectionFactory.IsSqlite);
         using var connection = connectionFactory.CreateConnection();
         const string sql = @"
             INSERT INTO LoginAuditRecords
@@ -25,22 +24,13 @@ public sealed class DapperLoginAuditRepository(IDbConnectionFactory connectionFa
         int limit,
         CancellationToken cancellationToken = default)
     {
-        DapperTypeHandlers.Register(connectionFactory.IsSqlite);
         using var connection = connectionFactory.CreateConnection();
-        var sql = connectionFactory.IsSqlite
-            ? @"
-                SELECT Id, UserId, Email, FullName, Role, LoginAt, Succeeded, IpAddress, UserAgent
-                FROM LoginAuditRecords
-                WHERE (@From IS NULL OR LoginAt >= @From)
-                  AND (@To IS NULL OR LoginAt <= @To)
-                ORDER BY LoginAt DESC, Id DESC
-                LIMIT @Limit"
-            : @"
-                SELECT TOP (@Limit) Id, UserId, Email, FullName, Role, LoginAt, Succeeded, IpAddress, UserAgent
-                FROM LoginAuditRecords
-                WHERE (@From IS NULL OR LoginAt >= @From)
-                  AND (@To IS NULL OR LoginAt <= @To)
-                ORDER BY LoginAt DESC, Id DESC";
+        const string sql = @"
+            SELECT TOP (@Limit) Id, UserId, Email, FullName, Role, LoginAt, Succeeded, IpAddress, UserAgent
+            FROM LoginAuditRecords
+            WHERE (@From IS NULL OR LoginAt >= @From)
+              AND (@To IS NULL OR LoginAt <= @To)
+            ORDER BY LoginAt DESC, Id DESC";
 
         var parameters = new
         {

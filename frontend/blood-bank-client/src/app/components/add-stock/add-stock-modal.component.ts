@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { BloodInventoryService } from '../../core/services/blood-inventory.service';
 import { AuthService } from '../../core/services/auth.service';
 import { BloodGroup } from '../../core/models/blood-inventory.model';
+import { BLOOD_GROUPS } from '../../core/models/blood-bank.model';
 
 @Component({
   selector: 'app-add-stock-modal',
@@ -22,7 +23,7 @@ export class AddStockModalComponent {
 
   public isSubmitting = false;
   public errorMessage: string | null = null;
-  public bloodGroups: BloodGroup[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  public bloodGroups: BloodGroup[] = BLOOD_GROUPS;
 
   public stockForm: FormGroup = this.fb.group({
     bloodGroup: ['O-', [Validators.required]],
@@ -33,10 +34,6 @@ export class AddStockModalComponent {
   private getDefaultBankName(): string {
     const user = this.authService.currentUserSignal();
     return user?.fullName || 'Metropolitan Blood Center';
-  }
-
-  selectBloodGroup(bg: BloodGroup): void {
-    this.stockForm.patchValue({ bloodGroup: bg });
   }
 
   onBackdropClick(event: MouseEvent): void {

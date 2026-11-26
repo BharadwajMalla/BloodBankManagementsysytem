@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using BloodBank.API.Models;
 using BloodBank.API.Repositories;
+using BloodBank.API.Services;
 
 namespace BloodBank.API.Data;
 
@@ -16,7 +17,7 @@ public static class DbInitializer
         {
             logger.LogInformation("Synchronizing Blood Bank A database schema...");
 
-            // 1. Ensure basic schema is migrated (SQL Server uses Migrations & raw DDL, SQLite uses EnsureCreated)
+            // Ensure the SQL Server schema is migrated and current.
             if (context.Database.IsSqlServer())
             {
                 try
@@ -26,7 +27,12 @@ public static class DbInitializer
                 catch (Exception migEx)
                 {
                     logger.LogWarning("MigrateAsync encountered warning, ensuring schema via idempotent DDL: {Message}", migEx.Message);
+                    await EnsureExceptionLogTableAsync(context);
+                    await scope.ServiceProvider.GetRequiredService<ISqlExceptionLogger>()
+                        .LogAsync(migEx, "Database migration");
                 }
+                await EnsureExceptionLogTableAsync(context);
+                await EnsureBloodRequestColumnsAsync(context);
 
                 // 2. Execute idempotent DDL to ensure all new Blood Bank A tables and columns exist
                 await context.Database.ExecuteSqlRawAsync(@"
@@ -112,6 +118,9 @@ public static class DbInitializer
                             [RequesterName] nvarchar(150) NOT NULL,
                             [RequesterContact] nvarchar(50) NULL,
                             [PatientName] nvarchar(150) NOT NULL,
+                            [PatientAge] int NULL,
+                            [PatientAgeUnit] nvarchar(10) NULL,
+                            [PatientSex] nvarchar(20) NULL,
                             [BloodGroup] nvarchar(10) NOT NULL,
                             [ComponentType] nvarchar(50) NOT NULL DEFAULT 'Whole Blood',
                             [QuantityUnits] int NOT NULL DEFAULT 1,
@@ -123,7 +132,11 @@ public static class DbInitializer
                             [HospitalName] nvarchar(150) NULL,
                             [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE(),
                             [ProcessedAt] datetime2 NULL,
-                            [IssuedBagNumbers] nvarchar(2000) NULL
+                            [IssuedBagNumbers] nvarchar(2000) NULL,
+                            [IssuedBagDetailsJson] nvarchar(max) NULL,
+                            [IsThalassemiaPatient] bit NOT NULL DEFAULT 0,
+                            [DiscountDonorId] nvarchar(50) NULL,
+                            [DiscountAmount] decimal(18,2) NOT NULL DEFAULT 0
                         );
                     END
 
@@ -198,11 +211,12 @@ public static class DbInitializer
                             [SlNo] int NOT NULL DEFAULT 1,
                             [Date] datetime2 NOT NULL DEFAULT GETUTCDATE(),
                             [PatientName] nvarchar(150) NOT NULL,
-                            [AgeSex] nvarchar(20) NULL,
+                            [AgeSex] nvarchar(50) NULL,
                             [HospitalName] nvarchar(150) NULL,
                             [IpNumber] nvarchar(50) NULL,
-                            [BagNumber] nvarchar(50) NULL,
+                            [BagNumber] nvarchar(2000) NULL,
                             [BagType] nvarchar(50) NULL,
+                            [IssuedBagDetailsJson] nvarchar(max) NULL,
                             [BloodGroup] nvarchar(10) NOT NULL,
                             [RhType] nvarchar(10) NOT NULL DEFAULT 'Positive',
                             [AntiA] nvarchar(10) NOT NULL DEFAULT '+',
@@ -222,9 +236,45 @@ public static class DbInitializer
                             [CrossmatchAhg] nvarchar(30) NOT NULL DEFAULT 'Compatible',
                             [TechnicianSignature] nvarchar(150) NULL,
                             [MedicalOfficerSignature] nvarchar(150) NULL,
+                            [BloodRequestId] uniqueidentifier NULL,
+                            [RequestedComponentType] nvarchar(50) NULL,
+                            [RequestedQuantityUnits] int NULL,
+                            [ReviewStatus] nvarchar(20) NOT NULL DEFAULT 'Not Required',
+                            [RejectionReason] nvarchar(500) NULL,
+                            [ReviewedBy] nvarchar(150) NULL,
+                            [ReviewedAt] datetime2 NULL,
                             [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE()
                         );
                     END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'IssuedBagDetailsJson')
+                        ALTER TABLE [BloodRequests] ADD [IssuedBagDetailsJson] nvarchar(max) NULL;
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'BloodRequestId')
+                        ALTER TABLE [PatientGroupingRecords] ADD [BloodRequestId] uniqueidentifier NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'RequestedComponentType')
+                        ALTER TABLE [PatientGroupingRecords] ADD [RequestedComponentType] nvarchar(50) NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'RequestedQuantityUnits')
+                        ALTER TABLE [PatientGroupingRecords] ADD [RequestedQuantityUnits] int NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'IssuedBagDetailsJson')
+                        ALTER TABLE [PatientGroupingRecords] ADD [IssuedBagDetailsJson] nvarchar(max) NULL;
+                    IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'BagNumber' AND max_length < 4000)
+                    BEGIN
+                        ALTER TABLE [PatientGroupingRecords] ALTER COLUMN [BagNumber] nvarchar(2000) NULL;
+                    END
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'ReviewStatus')
+                        ALTER TABLE [PatientGroupingRecords] ADD [ReviewStatus] nvarchar(20) NOT NULL CONSTRAINT [DF_PatientGroupingRecords_ReviewStatus] DEFAULT 'Not Required';
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'RejectionReason')
+                        ALTER TABLE [PatientGroupingRecords] ADD [RejectionReason] nvarchar(500) NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'ReviewedBy')
+                        ALTER TABLE [PatientGroupingRecords] ADD [ReviewedBy] nvarchar(150) NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'ReviewedAt')
+                        ALTER TABLE [PatientGroupingRecords] ADD [ReviewedAt] datetime2 NULL;
+                    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('PatientGroupingRecords') AND name = 'IX_PatientGroupingRecords_BloodRequestId')
+                        EXEC(N'CREATE UNIQUE INDEX [IX_PatientGroupingRecords_BloodRequestId] ON [PatientGroupingRecords] ([BloodRequestId]) WHERE [BloodRequestId] IS NOT NULL');
+                    IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_PatientGroupingRecords_BloodRequests')
+                        EXEC(N'ALTER TABLE [PatientGroupingRecords] ADD CONSTRAINT [FK_PatientGroupingRecords_BloodRequests]
+                            FOREIGN KEY ([BloodRequestId]) REFERENCES [BloodRequests] ([Id])');
 
                     IF OBJECT_ID('BloodBagStockRegisters') IS NULL
                     BEGIN
@@ -457,6 +507,46 @@ public static class DbInitializer
                         ALTER TABLE [BloodRequests] ADD [AmountPaid] decimal(18,2) NULL;
                     END
 
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'PatientAge')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [PatientAge] int NULL;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'PatientAgeUnit')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [PatientAgeUnit] nvarchar(10) NULL;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'PatientSex')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [PatientSex] nvarchar(20) NULL;
+                    END
+
+                    IF EXISTS (
+                        SELECT 1 FROM sys.columns
+                        WHERE object_id = OBJECT_ID('PatientGroupingRecords')
+                          AND name = 'AgeSex'
+                          AND max_length < 100
+                    )
+                    BEGIN
+                        ALTER TABLE [PatientGroupingRecords] ALTER COLUMN [AgeSex] nvarchar(50) NULL;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'IsThalassemiaPatient')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [IsThalassemiaPatient] bit NOT NULL CONSTRAINT [DF_BloodRequests_IsThalassemiaPatient] DEFAULT 0;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'DiscountDonorId')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [DiscountDonorId] nvarchar(50) NULL;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('BloodRequests') AND name = 'DiscountAmount')
+                    BEGIN
+                        ALTER TABLE [BloodRequests] ADD [DiscountAmount] decimal(18,2) NOT NULL CONSTRAINT [DF_BloodRequests_DiscountAmount] DEFAULT 0;
+                    END
+
                     IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'EmailOtps')
                     BEGIN
                         CREATE TABLE [EmailOtps] (
@@ -491,183 +581,7 @@ public static class DbInitializer
             }
             else
             {
-                await context.Database.EnsureCreatedAsync();
-                await context.Database.ExecuteSqlRawAsync(@"
-                    CREATE TABLE IF NOT EXISTS ComponentCollections (
-                        Id TEXT NOT NULL PRIMARY KEY,
-                        ComponentType TEXT NOT NULL,
-                        BloodGroup TEXT NOT NULL,
-                        BagType TEXT NOT NULL,
-                        VolumeMl REAL NOT NULL,
-                        BagBarcode TEXT NOT NULL UNIQUE,
-                        CollectionDate TEXT NOT NULL,
-                        ExpiryDate TEXT NOT NULL,
-                        Status TEXT NOT NULL DEFAULT 'Available'
-                    );
-                    CREATE TABLE IF NOT EXISTS ComponentDiscards (
-                        Id TEXT NOT NULL PRIMARY KEY,
-                        BagBarcode TEXT NOT NULL,
-                        Reason TEXT NOT NULL,
-                        DiscardedBy TEXT NOT NULL,
-                        ApprovalStatus TEXT NOT NULL DEFAULT 'Pending',
-                        ApprovedBy TEXT NULL,
-                        CreatedAt TEXT NOT NULL,
-                        ApprovedAt TEXT NULL
-                    );
-                    CREATE TABLE IF NOT EXISTS ComponentReturns (
-                        Id TEXT NOT NULL PRIMARY KEY,
-                        BagBarcode TEXT NOT NULL,
-                        Reason TEXT NOT NULL,
-                        ReturnedBy TEXT NOT NULL,
-                        ReturnDate TEXT NOT NULL
-                    );
-                    CREATE TABLE IF NOT EXISTS TtiScreeningRecords (
-                        Id TEXT NOT NULL PRIMARY KEY,
-                        BagBarcode TEXT NOT NULL,
-                        BloodGroup TEXT NOT NULL,
-                        TestingDate TEXT NOT NULL,
-                        HivResult TEXT NOT NULL,
-                        HbsAgResult TEXT NOT NULL,
-                        HcvResult TEXT NOT NULL,
-                        VdrlResult TEXT NOT NULL,
-                        MalariaResult TEXT NOT NULL,
-                        AtypicalAntibodies TEXT NOT NULL,
-                        OverallStatus TEXT NOT NULL,
-                        TestedBy TEXT NOT NULL,
-                        ApprovedBy TEXT NULL,
-                        Remarks TEXT NULL,
-                        CreatedAt TEXT NOT NULL
-                    );
-                    CREATE TABLE IF NOT EXISTS PatientGroupingRecords (
-                        Id TEXT NOT NULL PRIMARY KEY,
-                        SlNo INTEGER NOT NULL,
-                        Date TEXT NOT NULL,
-                        PatientName TEXT NOT NULL,
-                        AgeSex TEXT NULL,
-                        HospitalName TEXT NULL,
-                        IpNumber TEXT NULL,
-                        BagNumber TEXT NULL,
-                        BagType TEXT NULL,
-                        BloodGroup TEXT NOT NULL,
-                        RhType TEXT NOT NULL,
-                        AntiA TEXT NOT NULL,
-                        AntiB TEXT NOT NULL,
-                        AntiAb TEXT NOT NULL,
-                        AntiD TEXT NOT NULL,
-                        LectinA1 TEXT NOT NULL,
-                        LectinH TEXT NOT NULL,
-                        ACells TEXT NOT NULL,
-                        BCells TEXT NOT NULL,
-                        OCells TEXT NOT NULL,
-                        DuTest TEXT NOT NULL,
-                        IrregularAntibodies TEXT NOT NULL,
-                        AutoAntibodies TEXT NOT NULL,
-                        CrossmatchSaline TEXT NOT NULL,
-                        CrossmatchAlbumin TEXT NOT NULL,
-                        CrossmatchAhg TEXT NOT NULL,
-                        TechnicianSignature TEXT NULL,
-                        MedicalOfficerSignature TEXT NULL,
-                        CreatedAt TEXT NOT NULL
-                    );
-                    CREATE TABLE IF NOT EXISTS BloodBagStockRegisters (
-                        Id TEXT NOT NULL PRIMARY KEY,
-                        SlNo INTEGER NOT NULL,
-                        Date TEXT NOT NULL,
-                        SupplierName TEXT NOT NULL,
-                        InvoiceNo TEXT NOT NULL,
-                        InvoiceDate TEXT NOT NULL,
-                        Manufacturer TEXT NOT NULL,
-                        BatchNo TEXT NOT NULL,
-                        DateOfSupply TEXT NOT NULL,
-                        DateOfManufacture TEXT NOT NULL,
-                        DateOfExpiry TEXT NOT NULL,
-                        CodeSpecification TEXT NOT NULL,
-                        ResultCoa TEXT NOT NULL,
-                        OpeningStock INTEGER NOT NULL,
-                        QuantityReceived INTEGER NOT NULL,
-                        QuantityUsed INTEGER NOT NULL,
-                        Wastage INTEGER NOT NULL,
-                        Balance INTEGER NOT NULL,
-                        TechSign TEXT NULL,
-                        MedicalOfficerSign TEXT NULL,
-                        Remarks TEXT NULL,
-                        CreatedAt TEXT NOT NULL
-                    );
-                    CREATE TABLE IF NOT EXISTS DiagnosticKitRegisters (
-                        Id TEXT NOT NULL PRIMARY KEY,
-                        SlNo INTEGER NOT NULL,
-                        Date TEXT NOT NULL,
-                        SupplierName TEXT NOT NULL,
-                        KitName TEXT NOT NULL,
-                        Manufacturer TEXT NOT NULL,
-                        InvoiceNo TEXT NOT NULL,
-                        BatchNo TEXT NOT NULL,
-                        DateOfManufacture TEXT NOT NULL,
-                        DateOfExpiry TEXT NOT NULL,
-                        QuantityReceived INTEGER NOT NULL,
-                        OpeningBalance INTEGER NOT NULL,
-                        NoOfTests INTEGER NOT NULL,
-                        ControlsUsed INTEGER NOT NULL,
-                        Wastage INTEGER NOT NULL,
-                        ClosingBalance INTEGER NOT NULL,
-                        TechSign TEXT NULL,
-                        MedicalOfficerSign TEXT NULL,
-                        Remarks TEXT NULL,
-                        CreatedAt TEXT NOT NULL
-                    );
-                    CREATE TABLE IF NOT EXISTS ApheresisRecords (
-                        Id TEXT NOT NULL PRIMARY KEY,
-                        RegistrationNo TEXT NOT NULL,
-                        Date TEXT NOT NULL,
-                        DonorName TEXT NOT NULL,
-                        AgeSex TEXT NULL,
-                        WeightKg REAL NOT NULL,
-                        BloodGroup TEXT NOT NULL,
-                        Phone TEXT NULL,
-                        Email TEXT NULL,
-                        TimeOfMeal TEXT NULL,
-                        PatientName TEXT NULL,
-                        PatientIpNo TEXT NULL,
-                        PatientBedNo TEXT NULL,
-                        PatientBloodGroup TEXT NULL,
-                        TakenAspirinLast3Days INTEGER NOT NULL,
-                        HaemoglobinGms REAL NOT NULL,
-                        PlateletCountLakhs REAL NOT NULL,
-                        WbcCount INTEGER NOT NULL,
-                        BloodPressure TEXT NULL,
-                        Pulse INTEGER NOT NULL,
-                        TemperatureCelsius REAL NOT NULL,
-                        TotalProteinsGms REAL NOT NULL,
-                        ProcedureStartTime TEXT NULL,
-                        ProcedureEndTime TEXT NULL,
-                        DurationMinutes INTEGER NOT NULL,
-                        VenipunctureSite TEXT NOT NULL,
-                        WholeBloodPumpRateMlMin REAL NOT NULL,
-                        AcdRatio TEXT NOT NULL,
-                        TotalBloodVolumeProcessedMl REAL NOT NULL,
-                        TotalProductCollectedMl REAL NOT NULL,
-                        TotalVolumeAcdUsedMl REAL NOT NULL,
-                        AdverseReaction TEXT NULL,
-                        QualityControlPassed INTEGER NOT NULL,
-                        PhlebotomistSignature TEXT NULL,
-                        MedicalOfficerSignature TEXT NULL,
-                        Remarks TEXT NULL,
-                        CreatedAt TEXT NOT NULL
-                    );");
-                await context.Database.ExecuteSqlRawAsync(@"
-                    CREATE TABLE IF NOT EXISTS LoginAuditRecords (
-                        Id TEXT NOT NULL PRIMARY KEY,
-                        UserId TEXT NULL,
-                        Email TEXT NOT NULL,
-                        FullName TEXT NULL,
-                        Role TEXT NULL,
-                        LoginAt TEXT NOT NULL,
-                        Succeeded INTEGER NOT NULL,
-                        IpAddress TEXT NULL,
-                        UserAgent TEXT NULL
-                    );
-                    CREATE INDEX IF NOT EXISTS IX_LoginAuditRecords_LoginAt ON LoginAuditRecords (LoginAt);
-                    CREATE INDEX IF NOT EXISTS IX_LoginAuditRecords_Email ON LoginAuditRecords (Email);");
+                throw new InvalidOperationException("The application supports SQL Server only.");
             }
 
             // Ensure at least one default Blood Bank admin exists without deleting operational history.
@@ -692,8 +606,54 @@ public static class DbInitializer
         }
         catch (Exception ex)
         {
+            await scope.ServiceProvider.GetRequiredService<ISqlExceptionLogger>()
+                .LogAsync(ex, "Database initialization");
             logger.LogError(ex, "DbInitializer encountered error: {Message}", ex.Message);
+            throw;
         }
+    }
+
+    private static Task EnsureBloodRequestColumnsAsync(ApplicationDbContext context)
+    {
+        return context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.BloodRequests', N'U') IS NULL
+            BEGIN
+                RAISERROR('BloodRequests table is missing after migrations; database initialization cannot continue.', 16, 1);
+                RETURN;
+            END
+
+            IF COL_LENGTH(N'dbo.BloodRequests', N'PatientAge') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [PatientAge] int NULL;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'PatientAgeUnit') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [PatientAgeUnit] nvarchar(10) NULL;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'PatientSex') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [PatientSex] nvarchar(20) NULL;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'IssuedBagDetailsJson') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [IssuedBagDetailsJson] nvarchar(max) NULL;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'IsThalassemiaPatient') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [IsThalassemiaPatient] bit NOT NULL
+                    CONSTRAINT [DF_BloodRequests_IsThalassemiaPatient] DEFAULT 0;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'DiscountDonorId') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [DiscountDonorId] nvarchar(50) NULL;
+            IF COL_LENGTH(N'dbo.BloodRequests', N'DiscountAmount') IS NULL
+                ALTER TABLE [dbo].[BloodRequests] ADD [DiscountAmount] decimal(18,2) NOT NULL
+                    CONSTRAINT [DF_BloodRequests_DiscountAmount] DEFAULT 0;");
+    }
+
+    private static Task EnsureExceptionLogTableAsync(ApplicationDbContext context)
+    {
+        return context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.ExceptionLogs', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[ExceptionLogs] (
+                    [Id] nvarchar(36) NOT NULL PRIMARY KEY,
+                    [Context] nvarchar(512) NOT NULL,
+                    [ExceptionType] nvarchar(512) NOT NULL,
+                    [Message] nvarchar(max) NOT NULL,
+                    [Details] nvarchar(max) NOT NULL,
+                    [OccurredAtUtc] datetime2 NOT NULL
+                );
+            END");
     }
 
     public static async Task SeedLiveDataAsync(IBloodBankRepository repository, ILogger? logger = null)

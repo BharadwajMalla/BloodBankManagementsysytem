@@ -13,9 +13,15 @@
       <nav class="dashboard-nav">
         <a routerLink="/master-data" routerLinkActive="active" class="dashboard-route-tab">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a2 2 0 012-2h12a2 2 0 012 2v14H6a2 2 0 01-2-2V5zm4 2h8m-8 4h8m-8 4h5"/></svg>
-          <span>Master data</span>
+          <span>Master Data</span>
         </a>
-        @for (category of paperRegisterCategories; track category.key) {
+
+        <button [class.active]="activeBankTab === 'stock'" (click)="activeBankTab = 'stock'; showIssuedComponents.set(false)">
+          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          <span>Stock Overview</span>
+        </button>
+
+        @for (category of primaryPaperRegisterCategories; track category.key) {
           <a [routerLink]="['/registers', category.key]"
             routerLinkActive="active" class="dashboard-route-tab">
             <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -24,19 +30,22 @@
             <span>{{ category.label }}</span>
           </a>
         }
-        <!-- 1. Stock overview -->
-        <button [class.active]="activeBankTab === 'stock'" (click)="activeBankTab = 'stock'; showIssuedComponents.set(false)">
-          <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-          <span>Stock overview</span>
-        </button>
 
-        <!-- Donation camps -->
         <button [class.active]="activeBankTab === 'camps'" (click)="activeBankTab = 'camps'">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           <span>Donation camps</span>
         </button>
 
-        <!-- Account summary -->
+        @for (category of remainingPaperRegisterCategories; track category.key) {
+          <a [routerLink]="['/registers', category.key]"
+            routerLinkActive="active" class="dashboard-route-tab">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="category.icon"/>
+            </svg>
+            <span>{{ category.label }}</span>
+          </a>
+        }
+
         <button [class.active]="activeBankTab === 'summary'" (click)="activeBankTab = 'summary'">
           <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6m-5 0a3 3 0 110 6H9l3 6m-3-6h6"/></svg>
           <span>Account summary</span>
@@ -426,6 +435,17 @@
                 <form [formGroup]="bloodBankRequestForm" (ngSubmit)="submitBloodBankRequest()" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <input formControlName="hospitalName" placeholder="Hospital name" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
                   <input formControlName="patientName" placeholder="Patient name" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <input type="number" min="0" [max]="bloodBankRequestForm.get('patientAgeUnit')?.value === 'Months' ? 1440 : 120" formControlName="patientAge" placeholder="Patient age" class="px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+                  <select formControlName="patientAgeUnit" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                    <option value="Years">Years</option><option value="Months">Months (infant)</option>
+                  </select>
+                  <select formControlName="patientSex" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                    <option value="">Patient sex *</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Unknown">Unknown</option>
+                  </select>
+                  <label class="flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                    <input type="checkbox" formControlName="isThalassemiaPatient" class="h-4 w-4 rounded border-slate-300 text-rose-600"/>
+                    Thalassemia patient
+                  </label>
                   <select formControlName="bloodGroup" class="px-3 py-2 rounded-xl border border-slate-300 text-sm">
                     @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
                   </select>
@@ -460,7 +480,7 @@
                       [class.text-slate-700]="requestFilterStatus() !== 'Active'"
                       class="px-3.5 py-1.5 rounded-lg text-xs font-bold border border-slate-200 transition-all flex items-center space-x-1.5 shadow-sm"
                     >
-                      <span>Active Tasks (Pending & Approved)</span>
+                      <span>Active Tasks (Approval, Grouping & Issue)</span>
                       @if (pendingRequestsCount() > 0) {
                         <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-white text-rose-700 font-black" [class.bg-rose-100]="requestFilterStatus() === 'Active'">
                           {{ pendingRequestsCount() }}
@@ -520,6 +540,13 @@
                         </td>
                         <td class="py-4 px-6">
                           <div class="font-bold text-slate-900">{{ req.patientName }}</div>
+                          <div class="text-xs text-slate-500">
+                            {{ req.patientAge ?? 'Age not recorded' }} {{ req.patientAgeUnit === 'Months' ? 'months' : req.patientAgeUnit === 'Years' ? 'years' : '' }}
+                            · {{ req.patientSex || 'Sex not recorded' }}
+                          </div>
+                          @if (req.isThalassemiaPatient) {
+                            <div class="text-[11px] font-bold text-emerald-700">Thalassemia patient · free of cost</div>
+                          }
                           <div class="text-xs text-slate-500">{{ req.medicalReason || 'Emergency treatment' }}</div>
                           @if (req.hospitalDepartment) {
                             <div class="text-[11px] text-slate-400">Dept: {{ req.hospitalDepartment }}</div>
@@ -535,6 +562,9 @@
                           <div class="text-xs font-bold text-slate-500 mt-1">{{ req.quantityUnits }} units requested</div>
                           @if (req.issuedBagNumbers) {
                             <div class="text-xs font-bold text-indigo-700 mt-2">Bags issued: {{ req.issuedBagNumbers }}</div>
+                            @for (bag of req.issuedBags ?? []; track bag.bagNumber) {
+                              <div class="text-[11px] text-slate-500">{{ bag.bagNumber }} · expires {{ bag.expiryDate | date:'mediumDate' }}</div>
+                            }
                           }
                         </td>
                         <td class="py-4 px-6">
@@ -552,6 +582,7 @@
                           <span class="px-2.5 py-1 text-xs rounded-full"
                             [ngClass]="{
                               'bg-amber-100 text-amber-800': req.status === 'Pending',
+                              'bg-violet-100 text-violet-800': req.status === 'Processing',
                               'bg-blue-100 text-blue-800': req.status === 'Approved',
                               'bg-emerald-100 text-emerald-800': req.status === 'Fulfilled',
                               'bg-red-100 text-red-800': req.status === 'Rejected'
@@ -567,13 +598,7 @@
                                 (click)="processBankRequest(req.id, 'Approved')"
                                 class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
                               >
-                                Approve
-                              </button>
-                              <button
-                                (click)="processBankRequest(req.id, 'Fulfilled')"
-                                class="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
-                              >
-                                Fulfill & Deduct
+                                Approve → Grouping
                               </button>
                               <button
                                 (click)="processBankRequest(req.id, 'Rejected')"
@@ -582,6 +607,11 @@
                                 Reject
                               </button>
                             </div>
+                          } @else if (req.status === 'Processing') {
+                            <a routerLink="/registers/grouping"
+                              class="inline-flex px-3 py-1.5 text-xs font-bold rounded-lg bg-violet-100 text-violet-800 hover:bg-violet-200">
+                              Review Grouping
+                            </a>
                           } @else if (req.status === 'Approved') {
                             <button
                               (click)="processBankRequest(req.id, 'Fulfilled')"
@@ -637,7 +667,10 @@
                           <span class="inline-flex items-center justify-center w-10 h-8 rounded-lg bg-rose-50 text-rose-700 font-black border border-rose-200">{{ request.bloodGroup }}</span>
                         </td>
                         <td class="py-4 px-6 text-xs font-bold text-indigo-700">{{ request.issuedBagNumbers || 'Not recorded' }}</td>
-                        <td class="py-4 px-6 text-xs"><div class="font-bold text-emerald-700">{{ request.paymentStatus }}</div><div>{{ request.paymentMode || '—' }}{{ request.transactionId ? ' · ' + request.transactionId : '' }}</div></td>
+                        <td class="py-4 px-6 text-xs">
+                          <div class="font-bold text-emerald-700">{{ request.paymentStatus }}</div>
+                          <div>{{ request.paymentStatus === 'Waived' ? 'Free of cost' : request.paymentMode || '—' }}{{ request.transactionId ? ' · ' + request.transactionId : '' }}</div>
+                        </td>
                         <td class="py-4 px-6 text-xs text-slate-400">{{ (request.processedAt || request.createdAt) | date:'medium' }}</td>
                       </tr>
                     } @empty {
@@ -738,14 +771,14 @@
               </div>
 
               @if (showCreateDonorModal) {
-        <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 class="text-lg font-black text-slate-900">{{ editingDonor ? 'Edit Donor Details' : 'Create Donor Details' }}</h3>
                 <p class="text-xs text-slate-500">The donor can use these credentials to sign in.</p>
               </div>
-              <button type="button" (click)="showCreateDonorModal = false" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm">✕</button>
+              <button type="button" (click)="closeCreateDonorModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm">✕</button>
             </div>
             @if (createDonorError) {
               <p class="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{{ createDonorError }}</p>
@@ -768,7 +801,7 @@
               <textarea formControlName="address" placeholder="Address" rows="2" class="px-3 py-2.5 rounded-xl border border-slate-300 text-sm md:col-span-2"></textarea>
               <p class="md:col-span-2 text-xs text-slate-500">Password is generated automatically as <strong>LASTNAME&#64;YYYY</strong> using the donor's last name and birth year.</p>
               <div class="md:col-span-2 flex justify-end gap-3 pt-2">
-                <button type="button" (click)="showCreateDonorModal = false" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm">Cancel</button>
+                <button type="button" (click)="closeCreateDonorModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm">Cancel</button>
                 <button type="submit" [disabled]="createDonorForm.invalid || isCreatingDonor" class="px-4 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm disabled:opacity-50">
                   {{ isCreatingDonor ? 'Saving...' : (editingDonor ? 'Update Donor' : 'Create Donor') }}
                 </button>
@@ -1786,6 +1819,13 @@
                           </td>
                           <td class="py-4 px-6">
                             <div class="font-black text-slate-900">{{ req.patientName }}</div>
+                            <div class="text-xs text-slate-500">
+                              {{ req.patientAge ?? 'Age not recorded' }} {{ req.patientAgeUnit === 'Months' ? 'months' : req.patientAgeUnit === 'Years' ? 'years' : '' }}
+                              · {{ req.patientSex || 'Sex not recorded' }}
+                            </div>
+                            @if (req.isThalassemiaPatient) {
+                              <div class="text-[11px] font-bold text-emerald-700">Thalassemia patient</div>
+                            }
                             <div class="text-xs text-slate-500">{{ req.hospitalName || req.requesterName }}</div>
                             @if (req.hospitalDepartment) {
                               <div class="text-[11px] text-slate-400">Dept: {{ req.hospitalDepartment }}</div>
@@ -1920,37 +1960,99 @@
               }
               <div class="pt-2 border-t border-slate-200 flex justify-between items-center text-sm">
                 <span class="font-bold text-slate-700">Calculated Payable Amount:</span>
-                <span class="text-lg font-black text-emerald-700">₹{{ getRequestAmount(selectedPaymentRequest) | number }}</span>
+                <span class="text-lg font-black text-emerald-700">₹{{ paymentForm.get('amountPaid')?.value | number }}</span>
               </div>
+              @if (selectedPaymentRequest.isThalassemiaPatient) {
+                <p class="text-right font-bold text-emerald-700">Thalassemia patient waiver applied — free of cost.</p>
+              } @else if (paymentForm.get('hasDonor')?.value && paymentForm.get('donorRegistered')?.value && paymentForm.get('discountDonorId')?.value) {
+                <p class="text-right font-bold text-emerald-700">₹{{ donorProvidedDiscountAmount }} donor discount applied.</p>
+              }
             </div>
 
             <form [formGroup]="paymentForm" (ngSubmit)="submitPaymentAndFulfill()" class="space-y-4">
-              <!-- Mode of Payment Selector -->
-              <div>
-                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Mode of Payment *</label>
-                <div class="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    (click)="paymentForm.patchValue({ paymentMode: 'Cash' })"
-                    [ngClass]="paymentForm.get('paymentMode')?.value === 'Cash' ? 'bg-blue-600 text-white font-black shadow-md shadow-blue-600/30 border-blue-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'"
-                    class="py-3 px-4 rounded-xl border text-xs flex items-center justify-center space-x-2 transition-all"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    <span>Cash Counter</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    (click)="paymentForm.patchValue({ paymentMode: 'UPI' })"
-                    [ngClass]="paymentForm.get('paymentMode')?.value === 'UPI' ? 'bg-indigo-600 text-white font-black shadow-md shadow-indigo-600/30 border-indigo-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'"
-                    class="py-3 px-4 rounded-xl border text-xs flex items-center justify-center space-x-2 transition-all"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-                    <span>UPI / QR Scan</span>
-                  </button>
+              @if (selectedPaymentRequest.isThalassemiaPatient) {
+                <div role="status" class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800">
+                  Thalassemia status was recorded on the request. This issue is free of cost.
                 </div>
-              </div>
+              } @else {
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Mode of Payment *</label>
+                  <div class="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      (click)="setPaymentMode('Cash')"
+                      [ngClass]="paymentForm.get('paymentMode')?.value === 'Cash' ? 'bg-blue-600 text-white font-black shadow-md shadow-blue-600/30 border-blue-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'"
+                      class="py-3 px-4 rounded-xl border text-xs flex items-center justify-center space-x-2 transition-all"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                      <span>Cash Counter</span>
+                    </button>
+                    <button
+                      type="button"
+                      (click)="setPaymentMode('UPI')"
+                      [ngClass]="paymentForm.get('paymentMode')?.value === 'UPI' ? 'bg-indigo-600 text-white font-black shadow-md shadow-indigo-600/30 border-indigo-600' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'"
+                      class="py-3 px-4 rounded-xl border text-xs flex items-center justify-center space-x-2 transition-all"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                      <span>UPI / QR Scan</span>
+                    </button>
+                  </div>
+                </div>
+                <label class="inline-flex w-fit max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold leading-5 text-slate-800">
+                  <input type="checkbox" [checked]="paymentForm.get('hasDonor')?.value === true"
+                    (change)="setPaymentDonorRequested($event)" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-rose-600"/>
+                  <span>Donor discount requested (₹{{ donorProvidedDiscountAmount }})</span>
+                </label>
+                @if (paymentForm.get('hasDonor')?.value === true) {
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Is the donor registered?
+                    <select formControlName="donorRegistered" (change)="updatePaymentAmount()"
+                      class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                      <option [ngValue]="false">No</option>
+                      <option [ngValue]="true">Yes</option>
+                    </select>
+                  </label>
+                  @if (paymentForm.get('donorRegistered')?.value === true) {
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Registered donor
+                      <div class="mt-1 flex gap-2">
+                        <select formControlName="discountDonorId" (change)="updatePaymentAmount($event)"
+                          class="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                          <option value="">Select a donor</option>
+                          @for (donor of bankDonors(); track donor.id) {
+                            <option [value]="donor.donorId">{{ donor.donorId }} · {{ donor.fullName }}</option>
+                          }
+                        </select>
+                        <button type="button" (click)="refreshPaymentDonors()" [disabled]="isRefreshingPaymentDonors"
+                          aria-label="Refresh registered donors" title="Refresh registered donors"
+                          class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60">
+                          <svg aria-hidden="true" [class.animate-spin]="isRefreshingPaymentDonors" class="h-4 w-4"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M20 7v5h-5M4 17v-5h5m-4.1-3A8 8 0 0 1 18.4 6L20 12M4 12l1.6 6a8 8 0 0 0 13.5-3" />
+                          </svg>
+                        </button>
+                      </div>
+                      @if (paymentDonorRefreshError) {
+                        <span role="alert" class="mt-1 block normal-case tracking-normal text-rose-700">{{ paymentDonorRefreshError }}</span>
+                      }
+                    </label>
+                  } @else {
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                      Donor registration is required before the discount can be applied.
+                      <button type="button" (click)="openDonorRegistrationForPayment()" class="ml-1 font-bold underline">
+                        Register new donor
+                      </button>
+                    </div>
+                  }
+                }
+              }
 
+              @if (selectedPaymentRequest.isThalassemiaPatient) {
+                <div role="status" class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800">
+                  No payment is due. This request will be recorded as waived.
+                </div>
+              } @else {
               <!-- UPI Flow: Show QR Code & Require UTR -->
               @if (paymentForm.get('paymentMode')?.value === 'UPI') {
                 <div class="rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/60 p-4 text-center space-y-3">
@@ -1975,11 +2077,16 @@
                     <input
                       type="text"
                       formControlName="transactionId"
+                      inputmode="numeric"
+                      maxlength="12"
+                      pattern="[0-9]{12}"
                       placeholder="e.g. 430129485731"
                       class="w-full px-4 py-2.5 rounded-xl border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-xs bg-white"
                     />
-                    @if (paymentForm.get('transactionId')?.touched && !paymentForm.get('transactionId')?.value) {
+                    @if (paymentForm.get('transactionId')?.touched && paymentForm.get('transactionId')?.hasError('required')) {
                       <p class="text-[11px] text-red-600 text-left mt-1">Please enter the 12-digit UPI transaction reference / UTR number to complete issue.</p>
+                    } @else if (paymentForm.get('transactionId')?.touched && paymentForm.get('transactionId')?.hasError('pattern')) {
+                      <p class="text-[11px] text-red-600 text-left mt-1">UPI transaction ID must contain exactly 12 digits.</p>
                     }
                   </div>
                 </div>
@@ -1992,6 +2099,7 @@
                   </div>
                 </div>
               }
+              }
 
               <!-- Amount Paid (editable if adjusted) -->
               <div>
@@ -2001,6 +2109,7 @@
                 <input
                   type="number"
                   formControlName="amountPaid"
+                  [readOnly]="selectedPaymentRequest.isThalassemiaPatient === true || (paymentForm.get('hasDonor')?.value === true && paymentForm.get('donorRegistered')?.value === true && !!paymentForm.get('discountDonorId')?.value)"
                   class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-emerald-800"
                 />
               </div>
@@ -2018,9 +2127,12 @@
                   class="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center space-x-1.5"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                  <span>Mark Paid & Issue</span>
+                  <span>{{ selectedPaymentRequest.isThalassemiaPatient ? 'Confirm Free Issue' : 'Mark Paid & Issue' }}</span>
                 </button>
               </div>
+              @if (paymentFormError) {
+                <p role="alert" class="rounded-lg bg-rose-50 p-3 text-xs font-semibold text-rose-700">{{ paymentFormError }}</p>
+              }
             </form>
           </div>
         </div>
@@ -2067,9 +2179,15 @@
                 <div class="text-right">
                   <div class="text-[11px] font-mono font-bold text-slate-900">RECEIPT #: REC-{{ selectedReceiptRequest()!.id.substring(0, 8).toUpperCase() }}</div>
                   <div class="text-[10px] text-slate-500 mt-0.5">Date: {{ (selectedReceiptRequest()!.processedAt || selectedReceiptRequest()!.createdAt) | date:'medium' }}</div>
-                  <div class="inline-block mt-2 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider border border-emerald-200">
-                    PAID · COMPLETED
-                  </div>
+                  @if (selectedReceiptRequest()!.paymentStatus === 'Waived') {
+                    <div class="inline-block mt-2 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider border border-emerald-200">
+                      WAIVED · FREE OF COST
+                    </div>
+                  } @else {
+                    <div class="inline-block mt-2 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider border border-emerald-200">
+                      PAID · COMPLETED
+                    </div>
+                  }
                 </div>
               </div>
 
@@ -2078,6 +2196,11 @@
                 <div>
                   <p class="font-bold text-slate-400 uppercase tracking-wider text-[10px]">Patient Details</p>
                   <p class="font-black text-slate-900 text-sm mt-0.5">{{ selectedReceiptRequest()!.patientName }}</p>
+                  <p class="text-slate-600 mt-0.5">
+                    Age: {{ selectedReceiptRequest()!.patientAge ?? '—' }} {{ selectedReceiptRequest()!.patientAgeUnit === 'Months' ? 'months' : selectedReceiptRequest()!.patientAgeUnit === 'Years' ? 'years' : '' }}
+                    · Sex: {{ selectedReceiptRequest()!.patientSex || '—' }}
+                  </p>
+                  <p class="text-slate-600 mt-0.5">Thalassemia: {{ selectedReceiptRequest()!.isThalassemiaPatient ? 'Yes' : 'No' }}</p>
                   <p class="text-slate-600 mt-0.5">Ward: {{ selectedReceiptRequest()!.hospitalDepartment || 'General' }}</p>
                   @if (selectedReceiptRequest()!.medicalReason) {
                     <p class="text-[11px] text-slate-400 italic">Indication: {{ selectedReceiptRequest()!.medicalReason }}</p>
@@ -2118,7 +2241,7 @@
                   </tbody>
                   <tfoot class="bg-slate-50 font-bold border-t border-slate-200">
                     <tr>
-                      <td colspan="4" class="py-2.5 px-3 text-right uppercase text-[11px]">Total Paid:</td>
+                      <td colspan="4" class="py-2.5 px-3 text-right uppercase text-[11px]">{{ selectedReceiptRequest()!.paymentStatus === 'Waived' ? 'Total waived:' : 'Total paid:' }}</td>
                       <td class="py-2.5 px-3 text-right text-sm font-black text-emerald-700">₹{{ getRequestAmount(selectedReceiptRequest()!) | number }}</td>
                     </tr>
                   </tfoot>
@@ -2130,7 +2253,9 @@
                 <div>
                   <span class="text-slate-500">Payment Method:</span>
                   <p class="font-black text-slate-900 mt-0.5">
-                    @if (selectedReceiptRequest()!.paymentMode === 'UPI') {
+                    @if (selectedReceiptRequest()!.paymentStatus === 'Waived') {
+                      Free of cost (thalassemia waiver)
+                    } @else if (selectedReceiptRequest()!.paymentMode === 'UPI') {
                       UPI / Online QR
                     } @else {
                       Cash Counter
@@ -2140,9 +2265,22 @@
                 <div>
                   <span class="text-slate-500">Transaction ID / UTR:</span>
                   <p class="font-mono font-bold text-slate-900 mt-0.5">
-                    {{ selectedReceiptRequest()!.transactionId || 'CASH-' + selectedReceiptRequest()!.id.substring(0, 6).toUpperCase() }}
+                    {{ selectedReceiptRequest()!.paymentStatus === 'Waived' ? 'Not applicable' : selectedReceiptRequest()!.transactionId || 'CASH-' + selectedReceiptRequest()!.id.substring(0, 6).toUpperCase() }}
                   </p>
                 </div>
+                @if (selectedReceiptRequest()!.paymentStatus !== 'Waived' && (selectedReceiptRequest()!.discountAmount ?? 0) > 0) {
+                  <div class="col-span-2">
+                    <span class="text-slate-500">Donor discount ({{ selectedReceiptRequest()!.discountDonorId || 'registered donor' }}):</span>
+                    <p class="font-bold text-slate-900 mt-0.5">
+                      ₹{{ selectedReceiptRequest()!.discountAmount | number }}
+                    </p>
+                  </div>
+                } @else if (selectedReceiptRequest()!.paymentStatus === 'Waived') {
+                  <div class="col-span-2">
+                    <span class="text-slate-500">Full waiver:</span>
+                    <p class="font-bold text-slate-900 mt-0.5">Authorized thalassemia patient verification</p>
+                  </div>
+                }
               </div>
 
               <div class="text-center pt-2 text-[10px] text-slate-400">
@@ -2216,6 +2354,29 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Patient age *</label>
+                    <input type="number" min="0" [max]="hospitalForm.get('patientAgeUnit')?.value === 'Months' ? 1440 : 120" formControlName="patientAge" placeholder="Age" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Age unit *</label>
+                    <select formControlName="patientAgeUnit" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm">
+                      <option value="Years">Years</option><option value="Months">Months (infant)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Patient sex *</label>
+                    <select formControlName="patientSex" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm">
+                      <option value="">Select sex</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Unknown">Unknown</option>
+                    </select>
+                  </div>
+                </div>
+                <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <input type="checkbox" formControlName="isThalassemiaPatient" class="h-4 w-4 rounded border-slate-300 text-rose-600"/>
+                  Is the patient diagnosed with thalassemia?
+                </label>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Blood Group *</label>
                     <select formControlName="bloodGroup" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-800">
                       @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
@@ -2272,7 +2433,13 @@
                 <tbody class="divide-y divide-slate-100">
                   @for (req of hospitalRequests(); track req.id) {
                     <tr class="hover:bg-slate-50/80">
-                      <td class="py-4 px-6 font-bold text-slate-900">{{ req.patientName }}</td>
+                      <td class="py-4 px-6 font-bold text-slate-900">
+                        {{ req.patientName }}
+                        <div class="text-xs font-normal text-slate-500">
+                          {{ req.patientAge ?? 'Age not recorded' }} {{ req.patientAgeUnit === 'Months' ? 'months' : req.patientAgeUnit === 'Years' ? 'years' : '' }} · {{ req.patientSex || 'Sex not recorded' }}
+                        </div>
+                        @if (req.isThalassemiaPatient) { <div class="text-[11px] font-bold text-emerald-700">Thalassemia patient</div> }
+                      </td>
                       <td class="py-4 px-6">
                         <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-black border border-rose-200 mr-1.5">{{ req.bloodGroup }}</span>
                         <span class="font-semibold text-slate-800">{{ req.componentType }} ({{ req.quantityUnits }} units)</span>
@@ -2282,6 +2449,7 @@
                         <span class="px-2.5 py-1 text-xs font-bold rounded-full"
                           [ngClass]="{
                             'bg-amber-100 text-amber-800': req.status === 'Pending',
+                            'bg-violet-100 text-violet-800': req.status === 'Processing',
                             'bg-blue-100 text-blue-800': req.status === 'Approved',
                             'bg-emerald-100 text-emerald-800': req.status === 'Fulfilled',
                             'bg-red-100 text-red-800': req.status === 'Rejected'
@@ -2391,6 +2559,29 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Patient age *</label>
+                    <input type="number" min="0" [max]="donorForm.get('patientAgeUnit')?.value === 'Months' ? 1440 : 120" formControlName="patientAge" placeholder="Age" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm"/>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Age unit *</label>
+                    <select formControlName="patientAgeUnit" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm">
+                      <option value="Years">Years</option><option value="Months">Months (infant)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Patient sex *</label>
+                    <select formControlName="patientSex" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm">
+                      <option value="">Select sex</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Unknown">Unknown</option>
+                    </select>
+                  </div>
+                </div>
+                <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <input type="checkbox" formControlName="isThalassemiaPatient" class="h-4 w-4 rounded border-slate-300 text-rose-600"/>
+                  Is the patient diagnosed with thalassemia?
+                </label>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Blood Group *</label>
                     <select formControlName="bloodGroup" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-800">
                       @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
@@ -2452,7 +2643,13 @@
                 <tbody class="divide-y divide-slate-100">
                   @for (req of donorRequests(); track req.id) {
                     <tr class="hover:bg-slate-50/80">
-                      <td class="py-4 px-6 font-bold text-slate-900">{{ req.patientName }}</td>
+                      <td class="py-4 px-6 font-bold text-slate-900">
+                        {{ req.patientName }}
+                        <div class="text-xs font-normal text-slate-500">
+                          {{ req.patientAge ?? 'Age not recorded' }} {{ req.patientAgeUnit === 'Months' ? 'months' : req.patientAgeUnit === 'Years' ? 'years' : '' }} · {{ req.patientSex || 'Sex not recorded' }}
+                        </div>
+                        @if (req.isThalassemiaPatient) { <div class="text-[11px] font-bold text-emerald-700">Thalassemia patient</div> }
+                      </td>
                       <td class="py-4 px-6">
                         <span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-black border border-rose-200 mr-1.5">{{ req.bloodGroup }}</span>
                         <span class="font-semibold text-slate-800">{{ req.componentType }} ({{ req.quantityUnits }} units)</span>
@@ -2462,6 +2659,7 @@
                         <span class="px-2.5 py-1 text-xs font-bold rounded-full"
                           [ngClass]="{
                             'bg-amber-100 text-amber-800': req.status === 'Pending',
+                            'bg-violet-100 text-violet-800': req.status === 'Processing',
                             'bg-blue-100 text-blue-800': req.status === 'Approved',
                             'bg-emerald-100 text-emerald-800': req.status === 'Fulfilled',
                             'bg-red-100 text-red-800': req.status === 'Rejected'
@@ -2682,6 +2880,28 @@
               <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Patient Name</label>
               <input formControlName="patientName" placeholder="Patient Name" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
             </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Age</label>
+                <input type="number" min="0" [max]="editRequestForm.get('patientAgeUnit')?.value === 'Months' ? 1440 : 120" formControlName="patientAge" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"/>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Age unit</label>
+                <select formControlName="patientAgeUnit" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                  <option value="Years">Years</option><option value="Months">Months</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Sex</label>
+                <select formControlName="patientSex" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+                  <option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Unknown">Unknown</option>
+                </select>
+              </div>
+            </div>
+            <label class="flex items-center gap-2 text-xs font-bold text-slate-700">
+              <input type="checkbox" formControlName="isThalassemiaPatient" class="h-4 w-4 rounded border-slate-300 text-rose-600"/>
+              Thalassemia patient
+            </label>
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Blood Group</label>
@@ -3361,7 +3581,10 @@
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Patient Blood Group</label>
-                <input type="text" formControlName="patientBloodGroup" class="input w-full" placeholder="O+" />
+                <select formControlName="patientBloodGroup" class="input w-full">
+                  <option value="">Select blood group</option>
+                  @for (bg of bloodGroups; track bg) { <option [value]="bg">{{ bg }}</option> }
+                </select>
               </div>
             </div>
 
